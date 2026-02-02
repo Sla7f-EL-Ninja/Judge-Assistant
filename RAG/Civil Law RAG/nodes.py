@@ -165,7 +165,7 @@ def textual_node(state: dict) -> dict:
                 filter={
                     "$and": [
                         {"type": {"$eq": "article"}},
-                        {"index": {"$eq": num}}
+                        {"article_number": {"$eq": num}}
                     ]
                 }
             )
@@ -186,7 +186,7 @@ def textual_node(state: dict) -> dict:
             filter={
                 "$and": [
                     {"type": {"$eq": "article"}},
-                    {"index": {"$eq": article_num}}
+                    {"article_number": {"$eq": article_num}}
                 ]
             }
         )

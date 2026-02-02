@@ -18,7 +18,7 @@ Each generated Document includes metadata:
 {
     "type": "article | chapter | part | book",
     "title": "...",
-    "index": int (for articles),
+    "article_number": int (for articles),
     "book": "...",
     "part": "...",
     "chapter": "..."
@@ -102,7 +102,7 @@ def split_egyptian_civil_law(text: str):
             meta = {
                 "type": "article",
                 "title": heading_raw,
-                "index": index,
+                "article_number": index,
                 "book": current_book,
                 "part": current_part,
                 "chapter": current_chapter
