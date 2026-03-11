@@ -33,7 +33,7 @@ load_dotenv()
 # -----------------------------
 # Paths
 # -----------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.getcwd()
 DOCS_PATH = os.path.join(BASE_DIR, "docs", "civil_law_clean.txt")
 DB_DIR = os.path.join(BASE_DIR, "db", "chroma_db")
 
@@ -56,7 +56,7 @@ default_state_template = {
     "current_chapter": None,
     "current_article": None,
     "filter_type": "",
-    "k": 5,
+    "k": 8,
     "books_in_scope": [],
     "query_history": [],
     "retrieval_history": [],

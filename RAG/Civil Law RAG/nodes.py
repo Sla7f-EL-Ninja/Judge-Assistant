@@ -17,22 +17,35 @@ Nodes included:
 """
 
 from typing import TypedDict, Optional, List
+import logging
 import re
 import json
 from langchain_core.documents import Document 
 from langchain_community.vectorstores import Chroma
 from langchain_groq import ChatGroq
-from config import LLM_MODEL
+from config import LLM_MODEL, EMBEDDING_MODEL, DB_DIR
 from langsmith import traceable
+
+logger = logging.getLogger("civil_law_rag")
+logger.setLevel(logging.DEBUG)
 from prompts import (
-    PREPROCESSOR_PROMPT,
+    PREPROCESSOR_PROMPT, 
     UNIFIED_REFINE_PROMPT,
     LLM_GRADER_PROMPT,
     ANALYTICAL_PROMPT
 )
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
+embeddings = HuggingFaceEmbeddings(
+    model_name=EMBEDDING_MODEL
+)
 
 llm = ChatGroq(model=LLM_MODEL)
 
+database = Chroma(
+    persist_directory=DB_DIR,
+    embedding_function=embeddings
+)
 # ------------------------
 # State definition
 # ------------------------
@@ -70,6 +83,11 @@ class State(TypedDict):
 # Node implementations
 # ------------------------
 
+def strip_code_fences(text: str) -> str:
+    """Remove leading/trailing markdown code fences that LLMs sometimes wrap around JSON."""
+    return re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+
+
 def fast_filters(query: str) -> str | None:
     """Fast rule-based filtering for off-topic queries."""
     query = query.strip()
@@ -102,12 +120,18 @@ def preprocessor_node(state: State) -> State:
     response = llm.invoke(prompt)
     content = response.content.strip()
 
-    # 3. Parse JSON
+    # 3. Parse JSON (strip markdown code fences that LLMs may add)
+    content = strip_code_fences(content)
     try:
         data = json.loads(content)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
         state["rewritten_question"] = query
-        state["classification"] = "off_topic"
+        state["classification"] = "analytical"
+        logger.warning(
+            "[Layer 5 - Preprocessor] JSON parse failed: %s | raw=%s",
+            exc,
+            content[:300],
+        )
         return state
 
     # 4. Normalize labels
@@ -120,7 +144,7 @@ def preprocessor_node(state: State) -> State:
     state["rewritten_question"] = data.get("rewritten_question", query)
     state["classification"] = classification_map.get(
         data.get("classification"),
-        "off_topic"
+        "analytical"
     )
 
     # 5. Update history
@@ -150,7 +174,7 @@ def textual_node(state: dict) -> dict:
     - Numbers in words → digits
     - Intervals like 'بين X و Y' → digits
     """
-    db = state["db"]
+    db = database
     query = state.get("rewritten_question") or state["last_query"]
 
     # Check for interval query: "بين X و Y"
@@ -165,7 +189,7 @@ def textual_node(state: dict) -> dict:
                 filter={
                     "$and": [
                         {"type": {"$eq": "article"}},
-                        {"article_number": {"$eq": num}}
+                        {"index": {"$eq": num}}
                     ]
                 }
             )
@@ -186,7 +210,7 @@ def textual_node(state: dict) -> dict:
             filter={
                 "$and": [
                     {"type": {"$eq": "article"}},
-                    {"article_number": {"$eq": article_num}}
+                    {"index": {"$eq": article_num}}
                 ]
             }
         )
@@ -210,7 +234,7 @@ def textual_node(state: dict) -> dict:
 
 # Retriever Node
 @traceable(name="Retriever Node")
-def retrieve_node(state: dict, k: int = 5) -> dict:
+def retrieve_node(state: dict, k: int = 8) -> dict:
     """
     Retrieve relevant articles from the Egyptian Civil Law corpus
     based on the rewritten question. Stores results in state for grading.
@@ -220,34 +244,45 @@ def retrieve_node(state: dict, k: int = 5) -> dict:
         - db: Chroma vector store
         - k: number of articles to retrieve
     """
-    db = state["db"]
+    db = database  # use the module-level Chroma instance (Bug 2 fix)
     query = state.get("rewritten_question") or state.get("last_query")
 
-    # 1️⃣ Retrieve top-k relevant articles
-    last_results = db.similarity_search(query, k=k, filter={"type": "article"})
+    # 1. Retrieve top-k relevant articles with relevance scores (Bug 3 fix)
+    results_with_scores = db.similarity_search_with_relevance_scores(
+        query, k=k, filter={"type": "article"}
+    )
 
-    if not last_results:
+    if not results_with_scores:
         state["last_results"] = []
         state["retrieval_confidence"] = 0.0
         return state
 
-    # 2️⃣ Optional: compute a retrieval confidence based on similarity scores
-    # Note: Chroma may not return scores by default; this depends on your library
-    similarities = [
-        getattr(doc, "score", 1.0) for doc in last_results  # fallback to 1.0 if no score
-    ]
+    # 2. Unpack documents and actual similarity scores
+    last_results = [doc for doc, _ in results_with_scores]
+    similarities = [score for _, score in results_with_scores]
     avg_confidence = sum(similarities) / len(similarities)
 
-    # 3️⃣ Update state
+    # 3. Structured logging for retrieval diagnostics
+    logger.info(
+        "[Layer 3 - Retrieval] query=%r | docs_returned=%d | avg_confidence=%.3f | "
+        "individual_scores=%s | top_article_indices=%s",
+        query,
+        len(last_results),
+        avg_confidence,
+        [round(s, 3) for s in similarities],
+        [d.metadata.get("index") for d in last_results],
+    )
+
+    # 4. Update state
     state["last_results"] = last_results
-    state["retrieval_confidence"] = round(avg_confidence, 2)  # 0–1 scale
+    state["retrieval_confidence"] = round(avg_confidence, 2)  # 0-1 scale
 
     return state
 
 
 # Rule Grader Node
 @traceable(name="Rule Grader Node")
-def rule_grader_node(state: dict, min_docs: int = 1, min_confidence: float = 0.4) -> dict:
+def rule_grader_node(state: dict, min_docs: int = 1, min_confidence: float = 0.5) -> dict:
     """
     Grades the quality of retrieved documents and decides
     whether refinement is needed.
@@ -256,7 +291,8 @@ def rule_grader_node(state: dict, min_docs: int = 1, min_confidence: float = 0.4
         - state["grade"]: "pass" | "refine" | "fail"
     """
     if state["retry_count"] >= state["max_retries"]:
-        state["grade"] = "pass"
+        state["grade"] = "fail"
+        state["failure_reason"] = "تم تجاوز الحد الأقصى لمحاولات تحسين الاستعلام دون العثور على نتائج كافية."
         return state
 
     docs = state.get("last_results", [])
@@ -278,9 +314,15 @@ def rule_grader_node(state: dict, min_docs: int = 1, min_confidence: float = 0.4
     if confidence < min_confidence:
         state["grade"] = "refine"
         return state
-
-    # If everything looks good
-    state["grade"] = "pass"
+    logger.info(
+        "[Layer 4 - Rule Grader] grade=%s | doc_count=%d | confidence=%.3f | "
+        "retry_count=%d | failure_reason=%s",
+        state["grade"],
+        len(docs),
+        confidence,
+        state.get("retry_count", 0),
+        state.get("failure_reason"),
+    )
     return state
 
 
@@ -302,10 +344,21 @@ def refine_node(state: dict) -> dict:
     response = llm.invoke(prompt)
 
     try:
-        data = json.loads(response.content)
+        data = json.loads(strip_code_fences(response.content))
         state["refined_query"] = data["refined_query"]
-    except:
+        logger.info(
+            "[Layer 4 - Refine] retry_count=%d | original_query=%r | refined_query=%r",
+            state["retry_count"],
+            query,
+            state["refined_query"],
+        )
+    except Exception as exc:
         state["refined_query"] = query
+        logger.warning(
+            "[Layer 4 - Refine] JSON parse failed: %s | raw_response=%s",
+            exc,
+            response.content[:300],
+        )
 
     return state
 
@@ -321,7 +374,7 @@ def llm_grader_node(state: dict) -> dict:
     docs = state.get("last_results", [])
 
     docs_text = "\n\n".join(
-        f"المادة {d.metadata.get('article_number')}:\n{d.page_content}"
+        f"المادة {d.metadata.get('index', d.metadata.get('article_number'))}:\n{d.page_content}"
         for d in docs
     )
 
@@ -333,12 +386,22 @@ def llm_grader_node(state: dict) -> dict:
     response = llm.invoke(prompt)
 
     try:
-        result = json.loads(response.content)
+        result = json.loads(strip_code_fences(response.content))
         state["llm_pass"] = result["pass"]
         state["failure_reason"] = result.get("reason", "")
-    except:
+        logger.info(
+            "[Layer 4 - LLM Grader] llm_pass=%s | reason=%s",
+            state["llm_pass"],
+            state["failure_reason"],
+        )
+    except Exception as exc:
         state["llm_pass"] = False
         state["failure_reason"] = "فشل تحليل المستندات بسبب خطأ في تنسيق الرد."
+        logger.warning(
+            "[Layer 4 - LLM Grader] JSON parse failed: %s | raw_response=%s",
+            exc,
+            response.content[:300],
+        )
 
     return state
 
@@ -346,7 +409,7 @@ def llm_grader_node(state: dict) -> dict:
 # Generate Answer Node
 @traceable(name="Generate Answer Node")
 def generate_answer_node(state: dict) -> dict:
-    query = state.get("refined_query") or state["last_query"]
+    query = state.get("refined_query") or state.get("rewritten_question") or state["last_query"]
     docs = state.get("last_results", [])
 
     if not docs:
@@ -354,7 +417,7 @@ def generate_answer_node(state: dict) -> dict:
         return state
 
     context_text = "\n\n".join(
-        f"(المادة {d.metadata.get('article_number', 'غير معروفة')})\n{d.page_content}"
+        f"(المادة {d.metadata.get('index', d.metadata.get('article_number', 'غير معروفة'))})\n{d.page_content}"
         for d in docs
     )
 

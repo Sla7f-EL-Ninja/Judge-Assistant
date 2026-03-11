@@ -46,18 +46,11 @@ def index_civil_law():
     if not os.path.exists(DOCS_PATH):
         raise FileNotFoundError(f"{DOCS_PATH} not found")
 
-    # Always load vectorstore
     db = load_vectorstore()
 
-    # Correct check: inspect database content
-    try:
-        existing_docs = db._collection.count()
-    except Exception:
-        existing_docs = 0
-
-    if existing_docs > 0:
-        print(f"Vectorstore already populated ({existing_docs} documents). Skipping indexing.")
-        return db
+    if os.path.exists(DB_DIR) and os.listdir(DB_DIR):
+        print("Vectorstore already exists. Skipping indexing.")
+        return db  # return existing db
 
     print("Indexing Egyptian Civil Law...")
 
@@ -74,5 +67,4 @@ def index_civil_law():
 
     db.persist()
     print("Indexing completed.")
-
     return db
