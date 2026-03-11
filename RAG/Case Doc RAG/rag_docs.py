@@ -1,3 +1,5 @@
+import os
+
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -7,30 +9,80 @@ from langgraph.graph import StateGraph, END, START
 from typing import TypedDict, Optional
 from pydantic import Field, BaseModel
 from dotenv import load_dotenv
-from langchain_community.vectorstores import Chroma
 from pymongo import MongoClient
 from langchain_groq import ChatGroq
+from difflib import SequenceMatcher
 
 
 load_dotenv()
 
+# ---------------------------------------------------------------------------
+# Configuration -- read from env so settings stay consistent with the
+# Supervisor's FileIngestor which writes to the same stores.
+# ---------------------------------------------------------------------------
+_MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+_MONGO_DB = os.getenv("MONGO_DB", "Rag")
+_MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "Document Storage")
+_EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
+_CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "judicial_docs")
+_CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./chroma_data")
 
-embedding_function = HuggingFaceEmbeddings(model_name="BAAI/bge-large-en-v1.5")
+embedding_function = HuggingFaceEmbeddings(model_name=_EMBEDDING_MODEL)
 llm = ChatGroq(model_name="llama-3.3-70b-versatile")
 
+# Build Chroma kwargs -- use persist_directory when configured so that
+# documents indexed by the FileIngestor are visible here.
+_chroma_kwargs = {
+    "collection_name": _CHROMA_COLLECTION,
+    "embedding_function": embedding_function,
+}
+if _CHROMA_PERSIST_DIR:
+    _chroma_kwargs["persist_directory"] = _CHROMA_PERSIST_DIR
 
-db = Chroma(
-    collection_name="judicial_docs",
-    embedding_function=embedding_function,
-)
-retriever = db.as_retriever(search_type="mmr", search_kwargs = {"k": 5})    
+db = Chroma(**_chroma_kwargs)
+retriever = db.as_retriever(search_type="mmr", search_kwargs={"k": 5})
 
 
-client = MongoClient("mongodb://localhost:27017/")
-dbMongo = client["Rag"]
-collection = dbMongo["Document Storage"]
+def set_vectorstore(vectorstore):
+    """Replace the module-level Chroma ``db`` and ``retriever`` with an
+    externally-provided vector store.  This allows the Supervisor adapter
+    to inject the *same* Chroma instance that the FileIngestor writes to,
+    so documents indexed at ingest time are visible during retrieval."""
+    global db, retriever
+    db = vectorstore
+    retriever = db.as_retriever(search_type="mmr", search_kwargs={"k": 5})
 
-docs = list(collection.find())
+
+client = MongoClient(_MONGO_URI)
+dbMongo = client[_MONGO_DB]
+collection = dbMongo[_MONGO_COLLECTION]
+
+
+def get_available_doc_titles():
+    """Extract unique document titles from the MongoDB collection.
+
+    Queries MongoDB on every call so that documents added dynamically
+    by the FileIngestor (before or during a run) are immediately visible.
+    """
+    docs = list(collection.find({}, {"title": 1}))
+    return [doc["title"] for doc in docs if "title" in doc]
+
+
+def fuzzy_match_doc_title(candidate, available_titles, threshold=0.5):
+    """Return the best-matching title from available_titles if similarity
+    meets the threshold, otherwise return None."""
+    if not candidate or not available_titles:
+        return None
+    best_match = None
+    best_score = 0.0
+    for title in available_titles:
+        score = SequenceMatcher(None, candidate, title).ratio()
+        if score > best_score:
+            best_score = score
+            best_match = title
+    if best_score >= threshold:
+        return best_match
+    return None
 
 
 template = """
@@ -62,7 +114,6 @@ Rewritten Question:
 
 قدّم الإجابة استناداً فقط إلى المستندات أعلاه:
 """
-llm = ChatGroq(model_name="llama-3.3-70b-versatile")
 prompt = ChatPromptTemplate.from_template(template)
 
 rag_chain = prompt | llm
@@ -103,23 +154,19 @@ class GradeDocument(BaseModel):
     )
 
 
-DOC_SELECTOR_SYSTEM_PROMPT = """
+DOC_SELECTOR_SYSTEM_PROMPT_TEMPLATE = """
 You are a legal document-selection classifier for Egyptian civil-case files.
 
 Your job:
 Detect whether the judge's query refers to ANY specific document in the case file.
 
-A "document" includes:
-- صحيفة الدعوى
-- مذكرة دفاع
-- حكم أول درجة
-- حكم الاستئناف
-- طلبات الخصوم
-- محاضر الجلسات
-- تقارير الخبراء
-- إعلانات
-- مستندات رسمية مرفقة
-- أي ورقة لها رقم أو تاريخ داخل ملف الدعوى
+IMPORTANT: The ONLY documents that exist in this case are listed below.
+You MUST NOT invent or guess document names. If the judge refers to a document,
+match it to one of the titles below. If none match, set doc_id to None and
+mode to "no_doc_specified".
+
+Available documents in this case:
+{available_docs}
 
 You MUST classify the query into exactly one category:
 
@@ -146,7 +193,7 @@ You MUST classify the query into exactly one category:
 
 You must return:
 - mode: one of the 3 options
-- doc_id: the detected document title or number, or None
+- doc_id: the EXACT title from the available documents list above, or None
 """
 
 
@@ -171,7 +218,7 @@ QUESTION_CLASSIFIER_PROMPT = """
     Respond ONLY with “Yes” or “No”.
     """
 
-QUESTION_CLASSIFIER_PROMPT= """
+QUESTION_REWRITER_PROMPT = """
 You are an assistant that reformulates a judge’s query into optimized standalone retrieval questions for a legal RAG system.
 
 Your task:
@@ -236,7 +283,7 @@ def questionRewriter(state: AgentState):
 
         messages = [
             SystemMessage(
-                content=QUESTION_CLASSIFIER_PROMPT
+                content=QUESTION_REWRITER_PROMPT
             )
         ]
 
@@ -267,7 +314,6 @@ def questionClassifier(state: AgentState):
     ]
 
     prompt = ChatPromptTemplate.from_messages(messages)
-    llm = ChatGroq(model_name="llama-3.3-70b-versatile")
     structuredLLM = llm.with_structured_output(GradeQuestion)
     graderLLM = prompt | structuredLLM
     result = graderLLM.invoke({})
@@ -300,13 +346,22 @@ def documentSelector(state: AgentState):
 
     query = state.get("query", "").content
 
+    available_titles = get_available_doc_titles()
+    if available_titles:
+        docs_list = "\n".join(f"- {title}" for title in available_titles)
+    else:
+        docs_list = "(No documents available in the case file)"
+
+    system_prompt = DOC_SELECTOR_SYSTEM_PROMPT_TEMPLATE.format(
+        available_docs=docs_list
+    )
+
     messages = [
-        SystemMessage(content=DOC_SELECTOR_SYSTEM_PROMPT),
+        SystemMessage(content=system_prompt),
         HumanMessage(content=query)
     ]
 
     prompt = ChatPromptTemplate.from_messages(messages)
-    llm = ChatGroq(model_name="llama-3.3-70b-versatile")
 
     structured_llm = llm.with_structured_output(DocSelection)
     runner = prompt | structured_llm
@@ -315,6 +370,23 @@ def documentSelector(state: AgentState):
 
     mode = result.mode
     doc_id = result.doc_id
+
+    # Validate that doc_id actually exists in the available documents.
+    # If the LLM returned a doc_id that doesn't match exactly, try fuzzy matching.
+    # If still no match, fall back to no_doc_specified.
+    if doc_id is not None and available_titles:
+        if doc_id not in available_titles:
+            matched = fuzzy_match_doc_title(doc_id, available_titles)
+            if matched:
+                print(f"documentSelector: fuzzy matched '{doc_id}' -> '{matched}'")
+                doc_id = matched
+            else:
+                print(
+                    f"documentSelector: doc_id '{doc_id}' not found in available "
+                    f"documents. Falling back to no_doc_specified."
+                )
+                doc_id = None
+                mode = "no_doc_specified"
 
     state["doc_selection_mode"] = mode
     state["selected_doc_id"] = doc_id
@@ -346,23 +418,91 @@ def retrieve(state: AgentState):
     print("Entering retrieve")
 
     query = state.get("refined_query", "")
-    doc_target = state.get("selected_doc_id", None)  
-    print(f"retrieve: refined_query={query},\n doc_target={doc_target}")
+    doc_target = state.get("selected_doc_id", None)
+    case_id = state.get("case_id", "")
+    print(f"retrieve: refined_query={query},\n doc_target={doc_target}, case_id={case_id}")
 
     # 2. Judge asked for info FROM a specific document
     if doc_target and state.get("doc_selection_mode") == "restrict_to_doc":
         print(f"retrieve: Judge requested info FROM document: {doc_target}")
 
-        docs = retriever.invoke(
-            query,
-            metadata_filter={"type": doc_target}
+        # Build the metadata filter -- always include the doc type and
+        # optionally scope to the current case when a case_id is available.
+        meta_filter = {"type": doc_target}
+        if case_id:
+            meta_filter = {
+                "$and": [
+                    {"type": doc_target},
+                    {"case_id": case_id},
+                ]
+            }
+
+        filtered_retriever = db.as_retriever(
+            search_type="mmr",
+            search_kwargs={
+                "k": 5,
+                "filter": meta_filter,
+            },
         )
+        docs = filtered_retriever.invoke(query)
+        print(f"retrieve: filtered retrieval returned {len(docs)} doc(s)")
+
+        # Fallback 1: drop case_id filter and retry with doc type only
+        if not docs and case_id:
+            print("retrieve: retrying without case_id filter")
+            fallback_retriever = db.as_retriever(
+                search_type="mmr",
+                search_kwargs={
+                    "k": 5,
+                    "filter": {"type": doc_target},
+                },
+            )
+            docs = fallback_retriever.invoke(query)
+            print(f"retrieve: type-only filter returned {len(docs)} doc(s)")
+
+        # Fallback 2: try matching on 'title' metadata instead of 'type'
+        if not docs:
+            print("retrieve: retrying with 'title' metadata key instead of 'type'")
+            title_retriever = db.as_retriever(
+                search_type="mmr",
+                search_kwargs={
+                    "k": 5,
+                    "filter": {"title": doc_target},
+                },
+            )
+            docs = title_retriever.invoke(query)
+            print(f"retrieve: title filter returned {len(docs)} doc(s)")
+
+        # Fallback 3: unfiltered retrieval as last resort
+        if not docs:
+            print("retrieve: all filtered retrievals returned 0 docs, falling back to unfiltered retrieval")
+            docs = retriever.invoke(query)
+            print(f"retrieve: unfiltered retrieval returned {len(docs)} doc(s)")
+
         state["retrieved_docs"] = docs
         return state
 
     # 3. Normal retrieval (no document mentioned)
     print("retrieve: No specific document requested. Running generic retrieval.")
-    docs = retriever.invoke(query)
+    if case_id:
+        case_retriever = db.as_retriever(
+            search_type="mmr",
+            search_kwargs={
+                "k": 5,
+                "filter": {"case_id": case_id},
+            },
+        )
+        docs = case_retriever.invoke(query)
+        print(f"retrieve: case-filtered retrieval returned {len(docs)} doc(s)")
+        # Fall back to unfiltered if case filter yields nothing
+        if not docs:
+            print("retrieve: case filter returned 0 docs, falling back to unfiltered")
+            docs = retriever.invoke(query)
+            print(f"retrieve: unfiltered retrieval returned {len(docs)} doc(s)")
+    else:
+        docs = retriever.invoke(query)
+        print(f"retrieve: unfiltered retrieval returned {len(docs)} doc(s)")
+
     state["retrieved_docs"] = docs
 
     return state
@@ -370,20 +510,32 @@ def retrieve(state: AgentState):
 
 def retriveGrader(state: AgentState):
     print(f"Entering retriveGrader")
-    system = """You are a strict grader assessing the relevance of a retrieved legal document to a judge's question.
+
+    docs = state.get("retrieved_docs", [])
+    print(f"retrieval_grader: received {len(docs)} doc(s) to grade")
+
+    # If retrieval returned nothing there is nothing to grade -- skip the
+    # LLM calls entirely and let the proceed_router handle the empty case.
+    if not docs:
+        print("retrieval_grader: no documents to grade (retrieval returned empty)")
+        state["proceedToGenerate"] = False
+        print(f"retrieval_grader: proccedToGenerate = {state['proceedToGenerate']}")
+        return state
+
+    system = """You are a grader assessing the relevance of a retrieved legal document to a judge's question.
     
     The documents are from Egyptian Civil Law cases (Statement of Claims, Expert Reports, Court Rulings).
+    The documents are written in Arabic. The judge's question is also in Arabic.
     
-    If the document contains keywords, facts, or legal references related to the user question, grade it as 'Yes'.
-    If the document is completely unrelated to the question, grade it as 'No'.
+    If the document contains keywords, facts, names, dates, or legal references 
+    that could help answer the judge's question, grade it as 'Yes'.
+    Only grade 'No' if the document is completely unrelated to the question.
     
     Give a binary score 'Yes' or 'No'."""  
 
-    llm = ChatGroq(model_name="llama-3.3-70b-versatile")
     structuredLLM = llm.with_structured_output(GradeDocument)
     
     relevant_docs = []
-    docs = state.get("retrieved_docs", [])
     for doc in docs:
         human_message = HumanMessage(
             content=f"User question: {state.get('refined_query','')}\n\nRetrieved document:\n{doc.page_content}"
@@ -392,7 +544,7 @@ def retriveGrader(state: AgentState):
         grader_llm = grade_prompt | structuredLLM
         result = grader_llm.invoke({})
         print(
-            f"Grading document: {doc.page_content[:30]}... Result: {result.score.strip()}"
+            f"Grading document: {doc.page_content[:50]}... Result: {result.score.strip()}"
         )
         if result.score.strip().lower() == "yes":
             relevant_docs.append(doc)
@@ -401,7 +553,7 @@ def retriveGrader(state: AgentState):
         state["proceedToGenerate"] = True
     else:
         state["proceedToGenerate"] = False
-    print(f"retrieval_grader: proccedToGenerate = {state['proceedToGenerate']}")
+    print(f"retrieval_grader: proccedToGenerate = {state['proceedToGenerate']} ({len(relevant_docs)}/{len(docs)} relevant)")
     return state
 
 
@@ -428,7 +580,6 @@ def refineQuestion(state: AgentState):
         HumanMessage(content=question_to_refine)
     ])
 
-    llm = ChatGroq(model_name="llama-3.3-70b-versatile")
     prompt = prompt_template.format()
 
     response = llm.invoke(prompt)
