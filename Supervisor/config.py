@@ -16,7 +16,7 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # LLM configuration
 # ---------------------------------------------------------------------------
-LLM_MODEL: str = os.getenv("SUPERVISOR_LLM_MODEL", "gemini-3-flash-preview")
+LLM_MODEL: str = os.getenv("SUPERVISOR_LLM_MODEL", "gemini-1.5-flash")
 LLM_TEMPERATURE: float = float(os.getenv("SUPERVISOR_LLM_TEMPERATURE", "0"))
 
 # ---------------------------------------------------------------------------
@@ -46,3 +46,19 @@ AGENT_NAMES = [
 # Valid intents the classifier may return
 # ---------------------------------------------------------------------------
 VALID_INTENTS = AGENT_NAMES + ["multi", "off_topic"]
+
+# ---------------------------------------------------------------------------
+# MongoDB configuration
+# ---------------------------------------------------------------------------
+MONGO_URI: str = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+MONGO_DB: str = os.getenv("MONGO_DB", "Rag")
+MONGO_COLLECTION: str = os.getenv("MONGO_COLLECTION", "Document Storage")
+
+# ---------------------------------------------------------------------------
+# Vector store (Chroma) configuration -- shared with Case Doc RAG
+# ---------------------------------------------------------------------------
+EMBEDDING_MODEL: str = os.getenv(
+    "EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5"
+)
+CHROMA_COLLECTION: str = os.getenv("CHROMA_COLLECTION", "judicial_docs")
+CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./chroma_data")

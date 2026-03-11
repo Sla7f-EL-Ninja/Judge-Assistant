@@ -11,6 +11,7 @@ import logging
 from typing import Any, Dict
 
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 
 from Supervisor.config import LLM_MODEL, LLM_TEMPERATURE
 from Supervisor.prompts import VALIDATION_SYSTEM_PROMPT, VALIDATION_USER_TEMPLATE
@@ -52,9 +53,7 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
     )
 
     try:
-        llm = ChatGoogleGenerativeAI(
-            model=LLM_MODEL, temperature=LLM_TEMPERATURE
-        )
+        llm = ChatGroq(model_name="llama-3.3-70b-versatile")
         structured_llm = llm.with_structured_output(ValidationResult)
 
         messages = [

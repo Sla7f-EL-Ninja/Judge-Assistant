@@ -54,6 +54,7 @@ def _default_state(
         validation_feedback="",
         retry_count=0,
         max_retries=MAX_RETRIES,
+        document_classifications=[],
         merged_response="",
         final_response="",
         sources=[],
@@ -121,6 +122,37 @@ def interactive_loop(case_id: str = "") -> None:
         turn_count = result.get("turn_count", turn_count + 1)
 
 
+def ingest_files(
+    file_paths: List[str],
+    case_id: str = "",
+) -> List[dict]:
+    """Ingest files into MongoDB and the vector store *before* running a query.
+
+    This is the recommended way to add documents to a case ahead of time.
+    Supports text files, PDFs, and images (images go through OCR first).
+
+    Uses the shared ``FileIngestor`` singleton so that documents indexed
+    here are visible to the Case Doc RAG adapter within the same process,
+    and -- thanks to ``CHROMA_PERSIST_DIR`` -- across process restarts.
+
+    Parameters
+    ----------
+    file_paths : list of str
+        Paths to files on disk.
+    case_id : str
+        The case these documents belong to.
+
+    Returns
+    -------
+    list of dict
+        One classification/storage result per file.
+    """
+    from Supervisor.nodes.classify_and_store_document import _get_ingestor
+
+    ingestor = _get_ingestor()
+    return ingestor.ingest_files(file_paths, case_id=case_id)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Supervisor Agent CLI")
     parser.add_argument(
@@ -141,7 +173,25 @@ def main() -> None:
         default=None,
         help="Uploaded file paths for OCR processing",
     )
+    parser.add_argument(
+        "--ingest", "-i",
+        nargs="*",
+        default=None,
+        help=(
+            "Ingest files into the system before running any query. "
+            "Supports text, PDF, and image files."
+        ),
+    )
     args = parser.parse_args()
+
+    # Pre-ingest files if requested
+    if args.ingest:
+        logger.info("Ingesting %d file(s)...", len(args.ingest))
+        results = ingest_files(args.ingest, case_id=args.case_id)
+        for r in results:
+            print(json.dumps(r, ensure_ascii=False, indent=2, default=str))
+        if not args.query:
+            return
 
     if args.query:
         result = run_single_query(

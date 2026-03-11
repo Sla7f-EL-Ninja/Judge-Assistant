@@ -11,6 +11,7 @@ import logging
 from typing import Any, Dict
 
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 
 from Supervisor.config import LLM_MODEL, LLM_TEMPERATURE, VALID_INTENTS, AGENT_NAMES
 from Supervisor.prompts import (
@@ -51,10 +52,17 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
         uploaded_files=uploaded_files_text,
     )
 
+    # Remind the LLM to populate every required field in IntentClassification
+    user_prompt += (
+        "\n\nيجب أن يحتوي ردك على الحقول التالية بالضبط:\n"
+        "- intent: أحد القيم (ocr, summarize, civil_law_rag, case_doc_rag, reason, multi, off_topic)\n"
+        "- target_agents: قائمة بأسماء العملاء المطلوب استدعاؤهم\n"
+        "- rewritten_query: إعادة صياغة السؤال بشكل مستقل\n"
+        "- reasoning: شرح موجز لقرار التصنيف\n"
+    )
+
     try:
-        llm = ChatGoogleGenerativeAI(
-            model=LLM_MODEL, temperature=LLM_TEMPERATURE
-        )
+        llm = ChatGroq(model_name="llama-3.3-70b-versatile")
         structured_llm = llm.with_structured_output(IntentClassification)
 
         messages = [
@@ -64,12 +72,16 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
 
         result: IntentClassification = structured_llm.invoke(messages)
 
+        if result is None:
+            raise ValueError(
+                "Structured output returned None — LLM did not populate all required fields"
+            )
+
         # Validate and normalise the intent
         intent = result.intent.strip().lower()
         if intent not in VALID_INTENTS:
             logger.warning(
-                "LLM returned unknown intent '%s', falling back to off_topic",
-                intent,
+                "LLM returned unknown intent '%s', falling back to off_topic", intent
             )
             intent = "off_topic"
 
@@ -93,7 +105,8 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
             target_agents = []
 
         logger.info(
-            "Intent classified: %s -> agents=%s", intent, target_agents
+            "Intent classified: %s -> agents=%s | reasoning: %s",
+            intent, target_agents, result.reasoning,
         )
 
         return {
