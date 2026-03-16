@@ -30,4 +30,4 @@
 #### Law RAG : DONE (SEIF)
 #### Summerization : DONE (OMAR)
 #### OCR : CURRENTLY IN DEV (SEIF)
-#### SUPERVISOR : TESTING (OMAR)
+#### SUPERVISOR : DONE (OMAR)
