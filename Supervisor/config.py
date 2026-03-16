@@ -58,7 +58,7 @@ MONGO_COLLECTION: str = os.getenv("MONGO_COLLECTION", "Document Storage")
 # Vector store (Chroma) configuration -- shared with Case Doc RAG
 # ---------------------------------------------------------------------------
 EMBEDDING_MODEL: str = os.getenv(
-    "EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5"
+    "EMBEDDING_MODEL", "BAAI/bge-m3"
 )
 CHROMA_COLLECTION: str = os.getenv("CHROMA_COLLECTION", "judicial_docs")
 CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./chroma_data")
