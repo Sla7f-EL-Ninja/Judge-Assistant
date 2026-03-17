@@ -31,3 +31,5 @@
 #### Summerization : DONE (OMAR)
 #### OCR : CURRENTLY IN DEV (SEIF)
 #### SUPERVISOR : DONE (OMAR)
+#### APIs : TESTING (OMAR)
+
