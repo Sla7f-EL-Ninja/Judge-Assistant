@@ -40,7 +40,7 @@ DB_DIR = os.path.join(BASE_DIR, "db", "chroma_db")
 # -----------------------------
 # Initializations
 # -----------------------------
-EMBEDDING_MODEL = "sayed0am/arabic-english-bge-m3"
+EMBEDDING_MODEL = "BAAI/bge-m3"
 BATCH_SIZE = 50
 LLM_MODEL = "llama-3.3-70b-versatile"
 
@@ -56,7 +56,7 @@ default_state_template = {
     "current_chapter": None,
     "current_article": None,
     "filter_type": "",
-    "k": 5,
+    "k": 8,
     "books_in_scope": [],
     "query_history": [],
     "retrieval_history": [],

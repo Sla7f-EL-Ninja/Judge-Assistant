@@ -2,9 +2,6 @@
 civil_law_rag_adapter.py
 
 Adapter for the Civil Law RAG agent (RAG/Civil Law RAG/graph.py).
-
-Wraps the compiled ``app`` graph and returns an AgentResult with
-the final answer about Egyptian civil law provisions.
 """
 
 import logging
@@ -16,38 +13,45 @@ from Supervisor.agents.base import AgentAdapter, AgentResult
 
 logger = logging.getLogger(__name__)
 
+# Modules that belong to the RAG package and share names with other
+# packages already on sys.path (e.g. the API's config.py).
+# These must be evicted from sys.modules before each import so Python
+# re-resolves them from the RAG directory instead of the cache.
+_RAG_MODULES = ("config", "graph", "nodes", "state", "edges", "utils")
+
 
 class CivilLawRAGAdapter(AgentAdapter):
     """Thin wrapper around the Civil Law RAG LangGraph workflow."""
 
     def invoke(self, query: str, context: Dict[str, Any]) -> AgentResult:
-        """Query the Civil Law RAG for relevant legal provisions.
-
-        Parameters
-        ----------
-        query:
-            The (rewritten) judge query about civil law articles or
-            legal provisions.
-        context:
-            Optional. May contain prior conversation or case context.
-        """
         try:
-            # Add Civil Law RAG directory to path
-            rag_dir = os.path.join(
+            # 1. Resolve RAG directory
+            rag_dir = os.path.normpath(os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
                 "..", "..", "RAG", "Civil Law RAG",
-            )
-            rag_dir = os.path.normpath(rag_dir)
-            if rag_dir not in sys.path:
-                sys.path.insert(0, rag_dir)
+            ))
 
+            # 2. Put RAG dir at the FRONT of sys.path
+            if rag_dir in sys.path:
+                sys.path.remove(rag_dir)
+            sys.path.insert(0, rag_dir)
+
+            # 3. Evict any cached versions of RAG-owned modules so Python
+            #    re-imports them from rag_dir, not from the API package.
+            for mod in list(sys.modules.keys()):
+                if mod in _RAG_MODULES or any(
+                    mod.startswith(f"{m}.") for m in _RAG_MODULES
+                ):
+                    del sys.modules[mod]
+
+            # 4. Now import RAG modules — they will resolve from rag_dir
             from dotenv import load_dotenv
             load_dotenv()
 
             from graph import app
             from config import default_state_template
 
-            # Build initial state from the template
+            # Build initial state
             state = dict(default_state_template)
             state["last_query"] = query
 
@@ -56,7 +60,6 @@ class CivilLawRAGAdapter(AgentAdapter):
             final_answer = result.get("final_answer", "")
             last_results = result.get("last_results", [])
 
-            # Extract source references from retrieved documents
             sources = []
             for doc in last_results:
                 if hasattr(doc, "metadata"):
