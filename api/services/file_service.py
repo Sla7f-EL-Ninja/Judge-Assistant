@@ -8,7 +8,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
-
+import asyncio
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from api.config import Settings
@@ -22,6 +22,9 @@ def _now() -> datetime:
 def _new_file_id() -> str:
     return f"file_{uuid.uuid4().hex[:12]}"
 
+def _write_file(path: str, data: bytes) -> None:
+    with open(path, "wb") as f:
+        f.write(data)
 
 async def save_upload(
     db: AsyncIOMotorDatabase,
@@ -59,9 +62,7 @@ async def save_upload(
     disk_name = f"{file_id}{ext}"
     disk_path = os.path.join(settings.upload_dir, disk_name)
 
-    # Write to disk
-    with open(disk_path, "wb") as f:
-        f.write(content)
+    await asyncio.to_thread(_write_file, disk_path, content)
 
     now = _now()
     doc = {

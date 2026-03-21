@@ -1,225 +1,100 @@
 """
 conftest.py
-
-Shared pytest fixtures for the API test suite.
-
-Uses FastAPI's TestClient with dependency overrides so tests run
-without a real MongoDB or valid JWT -- everything is mocked in-memory.
 """
+import sys
+import pathlib
 
-import asyncio
-from datetime import datetime, timezone
-from typing import AsyncGenerator, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock
+_project_root = pathlib.Path(__file__).resolve().parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
+import os
 import pytest
-from fastapi.testclient import TestClient
+import pytest_asyncio
+from datetime import datetime, timezone, timedelta
+from typing import AsyncGenerator, Optional
+
+from httpx import AsyncClient, ASGITransport
 from jose import jwt
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from api.app import create_app
-from api.config import Settings, get_settings
-from api.dependencies import get_current_user, get_db, get_settings as dep_get_settings
+from api.config import get_settings
+from api.db.mongodb import connect_mongo, close_mongo
+
+
+def make_jwt(user_id: str = "test_user_001", extra: dict | None = None) -> str:
+    settings = get_settings()
+    payload = {
+        "user_id": user_id,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        **(extra or {}),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def auth_headers(user_id: str = "test_user_001") -> dict:
+    return {"Authorization": f"Bearer {make_jwt(user_id)}"}
 
 
 # ---------------------------------------------------------------------------
-# In-memory MongoDB mock
+# client is FUNCTION-scoped on purpose.
+#
+# Motor's AsyncIOMotorClient binds to the event loop that is running when
+# connect_mongo() is called. pytest-asyncio gives each test function its own
+# event loop. If the Motor client is created on a session loop (loop A) and
+# a test runs on loop B, every Motor call crashes with "Event loop is closed".
+#
+# Making client function-scoped means each test gets a fresh Motor client
+# bound to its own loop. MongoDB data persists across tests independently of
+# the Motor client, so TestState (session-scoped) can still carry IDs.
 # ---------------------------------------------------------------------------
+@pytest_asyncio.fixture
+async def client() -> AsyncGenerator[AsyncClient, None]:
+    settings = get_settings()
+    await connect_mongo(settings)
 
-class FakeCursor:
-    """Simulates a Motor cursor with sort/skip/limit chaining."""
+    application = create_app()
 
-    def __init__(self, docs: List[dict]):
-        self._docs = list(docs)
-
-    def sort(self, *args, **kwargs):
-        return self
-
-    def skip(self, n: int):
-        self._docs = self._docs[n:]
-        return self
-
-    def limit(self, n: int):
-        self._docs = self._docs[:n]
-        return self
-
-    async def to_list(self, length: int = 100):
-        return self._docs[:length]
-
-
-class FakeCollection:
-    """In-memory collection that mimics Motor's async API."""
-
-    def __init__(self):
-        self._docs: Dict[str, dict] = {}
-
-    async def insert_one(self, doc: dict):
-        key = doc.get("_id", str(id(doc)))
-        stored = dict(doc)
-        stored["_id"] = key
-        self._docs[key] = stored
-        result = MagicMock()
-        result.inserted_id = key
-        return result
-
-    async def find_one(self, query: dict):
-        for doc in self._docs.values():
-            if self._matches(doc, query):
-                return dict(doc)
-        return None
-
-    def find(self, query: dict):
-        matched = [dict(d) for d in self._docs.values() if self._matches(d, query)]
-        return FakeCursor(matched)
-
-    async def count_documents(self, query: dict):
-        return sum(1 for d in self._docs.values() if self._matches(d, query))
-
-    async def update_one(self, query: dict, update: dict, upsert: bool = False):
-        for key, doc in self._docs.items():
-            if self._matches(doc, query):
-                if "$set" in update:
-                    doc.update(update["$set"])
-                if "$push" in update:
-                    for field, val in update["$push"].items():
-                        doc.setdefault(field, []).append(val)
-                self._docs[key] = doc
-                result = MagicMock()
-                result.modified_count = 1
-                return result
-        if upsert and "$set" in update:
-            doc = dict(update["$set"])
-            doc.update(query)
-            key = doc.get("_id", str(len(self._docs)))
-            self._docs[key] = doc
-            result = MagicMock()
-            result.modified_count = 0
-            result.upserted_id = key
-            return result
-        result = MagicMock()
-        result.modified_count = 0
-        return result
-
-    async def find_one_and_update(self, query, update, return_document=False):
-        for key, doc in self._docs.items():
-            if self._matches(doc, query):
-                if "$set" in update:
-                    doc.update(update["$set"])
-                if "$push" in update:
-                    for field, val in update["$push"].items():
-                        doc.setdefault(field, []).append(val)
-                self._docs[key] = doc
-                return dict(doc)
-        return None
-
-    async def delete_one(self, query: dict):
-        to_delete = None
-        for key, doc in self._docs.items():
-            if self._matches(doc, query):
-                to_delete = key
-                break
-        result = MagicMock()
-        if to_delete is not None:
-            del self._docs[to_delete]
-            result.deleted_count = 1
-        else:
-            result.deleted_count = 0
-        return result
-
-    async def command(self, cmd: str):
-        """Fake command for health check ping."""
-        return {"ok": 1}
-
-    def _matches(self, doc: dict, query: dict) -> bool:
-        """Simple query matcher supporting equality and $ne."""
-        for field, condition in query.items():
-            val = doc.get(field)
-            if isinstance(condition, dict):
-                if "$ne" in condition and val == condition["$ne"]:
-                    return False
-            else:
-                if val != condition:
-                    return False
-        return True
-
-
-class FakeDatabase:
-    """In-memory database that creates collections on demand."""
-
-    def __init__(self):
-        self._collections: Dict[str, FakeCollection] = {}
-
-    def __getitem__(self, name: str) -> FakeCollection:
-        if name not in self._collections:
-            self._collections[name] = FakeCollection()
-        return self._collections[name]
-
-    async def command(self, cmd: str):
-        return {"ok": 1}
-
-
-# ---------------------------------------------------------------------------
-# Test settings
-# ---------------------------------------------------------------------------
-
-TEST_JWT_SECRET = "test-secret-key"
-TEST_USER_ID = "test_user_123"
-
-
-def make_test_settings() -> Settings:
-    """Return settings suitable for testing."""
-    return Settings(
-        jwt_secret=TEST_JWT_SECRET,
-        jwt_algorithm="HS256",
-        mongo_uri="mongodb://localhost:27017/",
-        mongo_db="test_db",
-        upload_dir="/tmp/test_uploads",
-        cors_origins="*",
-        debug=True,
-    )
-
-
-def make_token(user_id: str = TEST_USER_ID) -> str:
-    """Create a valid JWT for testing."""
-    return jwt.encode(
-        {"user_id": user_id},
-        TEST_JWT_SECRET,
-        algorithm="HS256",
-    )
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture()
-def fake_db():
-    """Return a fresh in-memory database."""
-    return FakeDatabase()
-
-
-@pytest.fixture()
-def test_settings():
-    """Return test settings."""
-    return make_test_settings()
-
-
-@pytest.fixture()
-def auth_headers():
-    """Return Authorization headers with a valid test JWT."""
-    return {"Authorization": f"Bearer {make_token()}"}
-
-
-@pytest.fixture()
-def client(fake_db, test_settings):
-    """Return a TestClient with all dependencies overridden."""
-    app = create_app()
-
-    # Override dependencies
-    app.dependency_overrides[get_current_user] = lambda: TEST_USER_ID
-    app.dependency_overrides[get_db] = lambda: fake_db
-    app.dependency_overrides[dep_get_settings] = lambda: test_settings
-
-    with TestClient(app) as c:
+    async with AsyncClient(
+        transport=ASGITransport(app=application),
+        base_url="http://testserver",
+        timeout=120.0,
+    ) as c:
         yield c
 
-    app.dependency_overrides.clear()
+    await close_mongo()
+
+
+# ---------------------------------------------------------------------------
+# TestState and state fixture are still SESSION-scoped.
+# IDs (case_id, file_id, conversation_id) are set once and read by later
+# tests. MongoDB data persists, so later tests find the same documents even
+# though they use a different Motor client.
+# ---------------------------------------------------------------------------
+class TestState:
+    user_id: str = "test_user_001"
+    file_id: Optional[str] = None
+    case_id: Optional[str] = None
+    conversation_id: Optional[str] = None
+
+
+@pytest.fixture(scope="session")
+def state() -> TestState:
+    return TestState()
+
+
+@pytest.fixture(scope="session")
+def test_pdf_path() -> Optional[str]:
+    path = os.getenv("TEST_PDF_PATH", "").strip()
+    return path if path and os.path.isfile(path) else None
+
+
+@pytest.fixture(scope="session")
+def test_query() -> str:
+    return os.getenv(
+        "TEST_QUERY",
+        "ما هي شروط صحة عقد البيع في القانون المدني المصري؟"
+    )

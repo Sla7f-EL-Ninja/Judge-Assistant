@@ -11,7 +11,7 @@ nothing is hard-coded in routers or services.
 from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+from functools import lru_cache
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     # -- Upload directory -----------------------------------------------------
     upload_dir: str = "./uploads"
 
-
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Return the application settings singleton."""
     return Settings()

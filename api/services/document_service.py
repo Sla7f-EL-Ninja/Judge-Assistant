@@ -49,6 +49,7 @@ async def ingest_files(
     ingested: List[Dict[str, Any]] = []
     errors: List[Dict[str, Any]] = []
 
+    ingestor = _get_ingestor(settings)
     # Resolve file records
     for file_id in file_ids:
         file_rec = await db[FILES].find_one({"_id": file_id})
@@ -62,11 +63,8 @@ async def ingest_files(
             continue
 
         try:
-            ingestor = _get_ingestor(settings)
             # Run blocking ingestor in a thread
-            result = await asyncio.to_thread(
-                ingestor.ingest_file, disk_path, case_id
-            )
+            result = await asyncio.to_thread(ingestor.ingest_file, disk_path, case_id)
 
             classification = ""
             doc_type = ""

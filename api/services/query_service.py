@@ -10,9 +10,8 @@ streaming is wrapped via ``asyncio.to_thread``.
 import asyncio
 import json
 import logging
-import uuid
 from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, List, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -102,16 +101,11 @@ async def run_query_sse(
         conv = await create_conversation(db, user_id, case_id)
         conversation_id = conv["_id"]
 
-    conversation_history = [
-        {"role": "user" if i % 2 == 0 else "assistant", "content": t.get("query", t.get("response", ""))}
-        for t in conv.get("turns", [])
-        for i, _ in enumerate(["query", "response"])
-    ]
     # Flatten turns into role/content pairs
     conversation_history = []
     for t in conv.get("turns", []):
-        conversation_history.append({"role": "user", "content": t["query"]})
-        conversation_history.append({"role": "assistant", "content": t["response"]})
+        conversation_history.append({"role": "user", "content": t.get("query", "")})
+        conversation_history.append({"role": "assistant", "content": t.get("response", "")})
 
     turn_count = len(conv.get("turns", []))
 

@@ -14,8 +14,8 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api.config import get_settings
-from api.db.mongodb import close_mongo, connect_mongo
+from config import get_settings
+from db.mongodb import close_mongo, connect_mongo
 
 logger = logging.getLogger(__name__)
 
