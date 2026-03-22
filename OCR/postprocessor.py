@@ -20,7 +20,7 @@ import re
 import unicodedata
 from typing import Dict, List, Optional, Set
 
-import config
+import config.ocr as config
 from schemas import OCRLine, OCRPageResult, OCRWord
 
 logger = logging.getLogger(__name__)

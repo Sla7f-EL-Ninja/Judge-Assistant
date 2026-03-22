@@ -2,13 +2,13 @@
 test_documents.py
 
 Ingest the uploaded file into the case through the real FileIngestor
-(OCR → classify → embed → store in Chroma).
+(OCR -> classify -> embed -> store in Chroma).
 
 Skipped automatically if:
   - TEST_PDF_PATH is not set (no real document to ingest)
   - file_id or case_id are not yet populated in TestState
 
-These are the slowest tests — ingestion can take 10-30 s per file.
+These are the slowest tests -- ingestion can take 10-30 s per file.
 """
 
 import pytest
@@ -19,14 +19,25 @@ from conftest import TestState, auth_headers
 HEADERS = auth_headers()
 
 
+def _assert_error_envelope(r, expected_status: int):
+    """Verify response matches the standard ErrorEnvelope shape."""
+    assert r.status_code == expected_status, r.text
+    body = r.json()
+    assert "error" in body, f"Missing 'error' key: {body}"
+    err = body["error"]
+    assert "code" in err and "detail" in err and "status" in err
+    assert err["status"] == r.status_code
+
+
+@pytest.mark.slow
 @pytest.mark.asyncio
 async def test_ingest_document_into_case(client: AsyncClient, state: TestState, test_pdf_path):
     if not test_pdf_path:
-        pytest.skip("TEST_PDF_PATH not set — skipping real ingestion test")
+        pytest.skip("TEST_PDF_PATH not set -- skipping real ingestion test")
     if not state.file_id:
-        pytest.skip("file_id not set — run file upload tests first")
+        pytest.skip("file_id not set -- run file upload tests first")
     if not state.case_id:
-        pytest.skip("case_id not set — run case tests first")
+        pytest.skip("case_id not set -- run case tests first")
 
     r = await client.post(
         f"/api/v1/cases/{state.case_id}/documents",
@@ -48,6 +59,7 @@ async def test_ingest_document_into_case(client: AsyncClient, state: TestState, 
     assert item["status"] == "success"
 
 
+@pytest.mark.slow
 @pytest.mark.asyncio
 async def test_case_documents_list_updated_after_ingest(client: AsyncClient, state: TestState, test_pdf_path):
     if not test_pdf_path:
@@ -92,4 +104,18 @@ async def test_ingest_into_nonexistent_case_returns_404(client: AsyncClient, sta
         json={"file_ids": [state.file_id]},
         headers=HEADERS,
     )
-    assert r.status_code == 404
+    _assert_error_envelope(r, 404)
+
+
+@pytest.mark.asyncio
+async def test_ingest_empty_file_ids_returns_422(client: AsyncClient, state: TestState):
+    """Sending an empty file_ids list should return 422 validation error."""
+    if not state.case_id:
+        pytest.skip("case_id not set")
+
+    r = await client.post(
+        f"/api/v1/cases/{state.case_id}/documents",
+        json={"file_ids": []},
+        headers=HEADERS,
+    )
+    _assert_error_envelope(r, 422)

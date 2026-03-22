@@ -17,22 +17,22 @@ from pymongo import MongoClient
 from langchain_groq import ChatGroq
 from difflib import SequenceMatcher
 
+from config import cfg, get_llm  # already points to config/__init__.py
 
 load_dotenv()
 
 # ---------------------------------------------------------------------------
-# Configuration -- read from env so settings stay consistent with the
-# Supervisor's FileIngestor which writes to the same stores.
+# Configuration -- read from centralized config module.
 # ---------------------------------------------------------------------------
-_MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-_MONGO_DB = os.getenv("MONGO_DB", "Rag")
-_MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "Document Storage")
-_EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
-_CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "judicial_docs")
-_CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "./chroma_data")
+_MONGO_URI = cfg.mongodb.get("uri", "mongodb://localhost:27017/")
+_MONGO_DB = cfg.mongodb.get("database", "Rag")
+_MONGO_COLLECTION = cfg.mongodb.get("collection", "Document Storage")
+_EMBEDDING_MODEL = cfg.embedding.get("model", "BAAI/bge-m3")
+_CHROMA_COLLECTION = cfg.chroma.get("collection", "judicial_docs")
+_CHROMA_PERSIST_DIR = cfg.chroma.get("persist_dir", "./chroma_data")
 
 embedding_function = HuggingFaceEmbeddings(model_name=_EMBEDDING_MODEL)
-llm = ChatGroq(model_name="llama-3.3-70b-versatile")
+llm = get_llm("high")
 
 # Build Chroma kwargs -- use persist_directory when configured so that
 # documents indexed by the FileIngestor are visible here.

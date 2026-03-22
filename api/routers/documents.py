@@ -7,8 +7,9 @@ POST /api/v1/cases/{case_id}/documents -- document ingestion endpoint.
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from api.config import Settings
+from config.api import Settings
 from api.dependencies import get_current_user, get_db, get_settings
+from api.schemas.common import ErrorEnvelope
 from api.schemas.documents import IngestRequest, IngestResponse
 from api.services import case_service, document_service
 
@@ -19,6 +20,16 @@ router = APIRouter(prefix="/api/v1/cases", tags=["Documents"])
     "/{case_id}/documents",
     response_model=IngestResponse,
     summary="Ingest documents into a case",
+    description=(
+        "Run the document ingestion pipeline (OCR, classification, vector indexing) "
+        "for the specified file IDs. The case must exist and belong to the authenticated user. "
+        "This operation can take 10-30 seconds per file."
+    ),
+    responses={
+        401: {"model": ErrorEnvelope, "description": "Missing or invalid JWT token"},
+        404: {"model": ErrorEnvelope, "description": "Case not found"},
+        422: {"model": ErrorEnvelope, "description": "Request validation error (e.g. empty file_ids)"},
+    },
 )
 async def ingest_documents(
     case_id: str,

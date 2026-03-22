@@ -9,8 +9,9 @@ import logging
 from fastapi import APIRouter, Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from api.config import Settings
+from config.api import Settings
 from api.dependencies import get_db, get_settings
+from api.schemas.health import HealthResponse
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,12 @@ router = APIRouter(prefix="/api/v1", tags=["Health"])
 
 @router.get(
     "/health",
+    response_model=HealthResponse,
     summary="Service health check",
+    description=(
+        "Returns the overall service health status and connectivity information "
+        "for each dependency (MongoDB, Chroma vector store). No authentication required."
+    ),
     response_description="Health status and dependency connectivity",
 )
 async def health_check(

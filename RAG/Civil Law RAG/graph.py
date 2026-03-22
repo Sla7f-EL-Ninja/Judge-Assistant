@@ -16,7 +16,7 @@ making it easier to modify the workflow without touching node logic.
 
 from nodes import *
 from routers import *
-from config import default_state_template, START, END
+from config.rag import default_state_template, START, END
 from langgraph.graph import StateGraph
 
 # Initialize the graph

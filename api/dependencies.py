@@ -11,7 +11,7 @@ FastAPI dependencies used across routers.
 from fastapi import Depends, Header, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from api.config import Settings, get_settings as _get_settings
+from config.api import Settings, get_settings as _get_settings
 from api.db.mongodb import get_database
 from api.services.auth import AuthError, decode_token
 

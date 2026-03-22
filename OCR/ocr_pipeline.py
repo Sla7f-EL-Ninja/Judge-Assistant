@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Union
 
 from PIL import Image
 
-import config
+import config.ocr as config
 from engine import run_ocr
 from postprocessor import postprocess_document_pages, postprocess_page
 from preprocessor import preprocess_image

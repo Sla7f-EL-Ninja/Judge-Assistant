@@ -15,7 +15,7 @@ from typing import Any, AsyncGenerator, List, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from api.config import Settings
+from config.api import Settings
 from api.db.collections import SUMMARIES
 from api.services.conversation_service import (
     append_turn,
@@ -40,7 +40,7 @@ def _build_initial_state(
     uploaded_files: Optional[List[str]] = None,
 ) -> dict:
     """Build the initial SupervisorState dict for a graph invocation."""
-    from Supervisor.config import MAX_RETRIES
+    from config.supervisor import MAX_RETRIES
 
     return {
         "judge_query": query,
@@ -93,9 +93,18 @@ async def run_query_sse(
     This is consumed by ``StreamingResponse`` in the router.
     """
     # Load or create conversation
+    # BUG-11 fix: if conversation_id was explicitly provided but not found,
+    # emit an error instead of silently creating a new one.
     conv: Optional[dict] = None
     if conversation_id:
         conv = await get_conversation(db, conversation_id, user_id)
+        if conv is None:
+            yield _format_sse(
+                "error",
+                {"detail": "Conversation not found", "code": "CONVERSATION_NOT_FOUND"},
+            )
+            yield _format_sse("done", {})
+            return
 
     if conv is None:
         conv = await create_conversation(db, user_id, case_id)
@@ -123,8 +132,13 @@ async def run_query_sse(
     try:
         events = await asyncio.to_thread(_stream_graph_sync, state)
     except Exception as exc:
+        # BUG-7 fix: sanitize error messages -- log full details server-side
+        # but only send a generic message to the client.
         logger.exception("Supervisor graph failed: %s", exc)
-        yield _format_sse("error", {"detail": str(exc)})
+        yield _format_sse(
+            "error",
+            {"detail": "An internal error occurred while processing the query", "code": "INTERNAL_ERROR"},
+        )
         yield _format_sse("done", {})
         return
 

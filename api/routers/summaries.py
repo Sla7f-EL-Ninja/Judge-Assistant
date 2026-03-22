@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from api.dependencies import get_current_user, get_db
+from api.schemas.common import ErrorEnvelope
 from api.schemas.summaries import SummaryResponse
 from api.services import case_service, summary_service
 
@@ -18,6 +19,15 @@ router = APIRouter(prefix="/api/v1/cases", tags=["Summaries"])
     "/{case_id}/summary",
     response_model=SummaryResponse,
     summary="Retrieve the stored summary for a case",
+    description=(
+        "Fetch the auto-generated summary for a case. Returns 404 if the case "
+        "does not exist, belongs to another user, or no summary has been generated yet."
+    ),
+    responses={
+        401: {"model": ErrorEnvelope, "description": "Missing or invalid JWT token"},
+        404: {"model": ErrorEnvelope, "description": "Case or summary not found"},
+        422: {"model": ErrorEnvelope, "description": "Request validation error"},
+    },
 )
 async def get_summary(
     case_id: str,

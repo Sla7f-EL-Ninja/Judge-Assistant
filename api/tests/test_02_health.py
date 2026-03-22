@@ -16,8 +16,19 @@ async def test_health_returns_200(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_health_response_schema(client: AsyncClient):
+    """Verify that the health response matches HealthResponse schema."""
+    r = await client.get("/api/v1/health")
+    body = r.json()
+    assert "status" in body, f"Missing 'status': {body}"
+    assert "version" in body, f"Missing 'version': {body}"
+    assert "dependencies" in body, f"Missing 'dependencies': {body}"
+    assert isinstance(body["dependencies"], dict)
+
+
+@pytest.mark.asyncio
 async def test_health_mongodb_connected(client: AsyncClient):
-    data = r = await client.get("/api/v1/health")
+    r = await client.get("/api/v1/health")
     body = r.json()
     assert body["dependencies"]["mongodb"] == "connected", (
         f"MongoDB not connected. Full response: {body}"

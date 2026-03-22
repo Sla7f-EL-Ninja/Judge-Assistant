@@ -23,7 +23,8 @@ import json
 from langchain_core.documents import Document 
 from langchain_community.vectorstores import Chroma
 from langchain_groq import ChatGroq
-from config import LLM_MODEL, EMBEDDING_MODEL, DB_DIR
+from config.rag import LLM_MODEL, EMBEDDING_MODEL, DB_DIR
+from config import get_llm
 from langsmith import traceable
 
 logger = logging.getLogger("civil_law_rag")
@@ -40,7 +41,7 @@ embeddings = HuggingFaceEmbeddings(
     model_name=EMBEDDING_MODEL
 )
 
-llm = ChatGroq(model=LLM_MODEL)
+llm = get_llm("high")
 
 database = Chroma(
     persist_directory=DB_DIR,

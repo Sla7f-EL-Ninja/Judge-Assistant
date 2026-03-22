@@ -8,17 +8,29 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from api.dependencies import get_current_user, get_db
-from api.schemas.common import MessageResponse
+from api.schemas.common import ErrorEnvelope, MessageResponse
 from api.schemas.conversations import ConversationListResponse, ConversationResponse
 from api.services import conversation_service
 
 router = APIRouter(prefix="/api/v1", tags=["Conversations"])
+
+_AUTH_ERRORS = {
+    401: {"model": ErrorEnvelope, "description": "Missing or invalid JWT token"},
+    422: {"model": ErrorEnvelope, "description": "Request validation error"},
+}
 
 
 @router.get(
     "/cases/{case_id}/conversations",
     response_model=ConversationListResponse,
     summary="List conversations for a case",
+    description=(
+        "Returns a paginated list of conversations belonging to the given case "
+        "and authenticated user."
+    ),
+    responses={
+        **_AUTH_ERRORS,
+    },
 )
 async def list_conversations(
     case_id: str,
@@ -37,6 +49,11 @@ async def list_conversations(
     "/conversations/{conversation_id}",
     response_model=ConversationResponse,
     summary="Get full conversation history",
+    description="Retrieve a single conversation by ID, including all turns.",
+    responses={
+        **_AUTH_ERRORS,
+        404: {"model": ErrorEnvelope, "description": "Conversation not found"},
+    },
 )
 async def get_conversation(
     conversation_id: str,
@@ -53,6 +70,11 @@ async def get_conversation(
     "/conversations/{conversation_id}",
     response_model=MessageResponse,
     summary="Delete a conversation",
+    description="Permanently delete a conversation and all its turns (hard-delete).",
+    responses={
+        **_AUTH_ERRORS,
+        404: {"model": ErrorEnvelope, "description": "Conversation not found"},
+    },
 )
 async def delete_conversation(
     conversation_id: str,

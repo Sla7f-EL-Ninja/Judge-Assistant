@@ -14,6 +14,16 @@ from conftest import TestState, auth_headers
 HEADERS = auth_headers()
 
 
+def _assert_error_envelope(r, expected_status: int):
+    """Verify response matches the standard ErrorEnvelope shape."""
+    assert r.status_code == expected_status, r.text
+    body = r.json()
+    assert "error" in body, f"Missing 'error' key: {body}"
+    err = body["error"]
+    assert "code" in err and "detail" in err and "status" in err
+    assert err["status"] == r.status_code
+
+
 @pytest.mark.asyncio
 async def test_summary_endpoint_reachable(client: AsyncClient, state: TestState):
     if not state.case_id:
@@ -23,8 +33,10 @@ async def test_summary_endpoint_reachable(client: AsyncClient, state: TestState)
         f"/api/v1/cases/{state.case_id}/summary",
         headers=HEADERS,
     )
-    # Either a summary was generated (200) or it wasn't (404) — both are valid
+    # Either a summary was generated (200) or it wasn't (404) -- both are valid
     assert r.status_code in (200, 404), f"Unexpected status: {r.status_code} {r.text}"
+    if r.status_code == 404:
+        _assert_error_envelope(r, 404)
 
 
 @pytest.mark.asyncio
@@ -37,7 +49,7 @@ async def test_summary_structure_when_present(client: AsyncClient, state: TestSt
         headers=HEADERS,
     )
     if r.status_code == 404:
-        pytest.skip("No summary generated yet — fire a summarize query to test this")
+        pytest.skip("No summary generated yet -- fire a summarize query to test this")
 
     body = r.json()
     for field in ("case_id", "summary", "generated_at", "sources"):
@@ -52,11 +64,12 @@ async def test_summary_for_nonexistent_case_returns_404(client: AsyncClient):
         "/api/v1/cases/case_doesnotexist999/summary",
         headers=HEADERS,
     )
-    assert r.status_code == 404
+    _assert_error_envelope(r, 404)
 
 
 @pytest.mark.asyncio
 async def test_summary_wrong_user_returns_404(client: AsyncClient, state: TestState):
+    """Another user should not be able to access the summary."""
     if not state.case_id:
         pytest.skip("case_id not set")
 
@@ -65,4 +78,4 @@ async def test_summary_wrong_user_returns_404(client: AsyncClient, state: TestSt
         f"/api/v1/cases/{state.case_id}/summary",
         headers=other,
     )
-    assert r.status_code == 404
+    _assert_error_envelope(r, 404)

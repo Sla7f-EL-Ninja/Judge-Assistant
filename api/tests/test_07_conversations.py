@@ -13,6 +13,16 @@ from conftest import TestState, auth_headers
 HEADERS = auth_headers()
 
 
+def _assert_error_envelope(r, expected_status: int):
+    """Verify response matches the standard ErrorEnvelope shape."""
+    assert r.status_code == expected_status, r.text
+    body = r.json()
+    assert "error" in body, f"Missing 'error' key: {body}"
+    err = body["error"]
+    assert "code" in err and "detail" in err and "status" in err
+    assert err["status"] == r.status_code
+
+
 @pytest.mark.asyncio
 async def test_list_conversations_for_case(client: AsyncClient, state: TestState):
     if not state.case_id:
@@ -28,9 +38,24 @@ async def test_list_conversations_for_case(client: AsyncClient, state: TestState
 
 
 @pytest.mark.asyncio
+async def test_list_conversations_pagination(client: AsyncClient, state: TestState):
+    """Verify pagination params work on the list endpoint."""
+    if not state.case_id:
+        pytest.skip("case_id not set")
+
+    r = await client.get(
+        f"/api/v1/cases/{state.case_id}/conversations?skip=0&limit=1",
+        headers=HEADERS,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["conversations"]) <= 1
+
+
+@pytest.mark.asyncio
 async def test_conversation_was_persisted_after_query(client: AsyncClient, state: TestState):
     if not state.conversation_id:
-        pytest.skip("conversation_id not set — run query tests first")
+        pytest.skip("conversation_id not set -- run query tests first")
 
     r = await client.get(
         f"/api/v1/conversations/{state.conversation_id}",
@@ -82,7 +107,17 @@ async def test_get_nonexistent_conversation_returns_404(client: AsyncClient):
         "/api/v1/conversations/conv_doesnotexist999",
         headers=HEADERS,
     )
-    assert r.status_code == 404
+    _assert_error_envelope(r, 404)
+
+
+@pytest.mark.asyncio
+async def test_get_invalid_conversation_id_format(client: AsyncClient):
+    """A conversation ID with invalid format should return 404."""
+    r = await client.get(
+        "/api/v1/conversations/!@#$%^&*()",
+        headers=HEADERS,
+    )
+    _assert_error_envelope(r, 404)
 
 
 @pytest.mark.asyncio
@@ -95,8 +130,12 @@ async def test_other_user_cannot_read_conversation(client: AsyncClient, state: T
         f"/api/v1/conversations/{state.conversation_id}",
         headers=other,
     )
-    assert r.status_code == 404
+    _assert_error_envelope(r, 404)
 
+
+# ---------------------------------------------------------------------------
+# Delete conversation -- after we finish reading it
+# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
 async def test_delete_conversation(client: AsyncClient, state: TestState):
@@ -120,4 +159,4 @@ async def test_deleted_conversation_is_gone(client: AsyncClient, state: TestStat
         f"/api/v1/conversations/{state.conversation_id}",
         headers=HEADERS,
     )
-    assert r.status_code == 404
+    _assert_error_envelope(r, 404)

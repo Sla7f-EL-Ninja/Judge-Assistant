@@ -8,8 +8,9 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from api.config import Settings
+from config.api import Settings
 from api.dependencies import get_current_user, get_db, get_settings
+from api.schemas.common import ErrorEnvelope
 from api.schemas.query import QueryRequest
 from api.services.query_service import run_query_sse
 
@@ -19,8 +20,18 @@ router = APIRouter(prefix="/api/v1", tags=["Query"])
 @router.post(
     "/query",
     summary="Run a supervisor query with SSE progress streaming",
+    description=(
+        "Submit a judge's question to the multi-agent supervisor graph. The response is "
+        "a Server-Sent Events stream with event types: `progress`, `result`, `error`, `done`. "
+        "If `conversation_id` is null, a new conversation is created automatically. "
+        "If `conversation_id` is provided but not found, an error event is emitted."
+    ),
     response_description="Server-Sent Events stream",
     status_code=status.HTTP_200_OK,
+    responses={
+        401: {"model": ErrorEnvelope, "description": "Missing or invalid JWT token"},
+        422: {"model": ErrorEnvelope, "description": "Request validation error"},
+    },
 )
 async def supervisor_query(
     body: QueryRequest,

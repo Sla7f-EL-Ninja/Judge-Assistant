@@ -11,7 +11,7 @@ from jose import JWTError, jwt
 
 from typing import Optional
 
-from api.config import Settings
+from config.api import Settings
 
 
 class AuthError(Exception):

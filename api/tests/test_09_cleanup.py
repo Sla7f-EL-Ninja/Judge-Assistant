@@ -13,10 +13,20 @@ from conftest import TestState, auth_headers
 HEADERS = auth_headers()
 
 
+def _assert_error_envelope(r, expected_status: int):
+    """Verify response matches the standard ErrorEnvelope shape."""
+    assert r.status_code == expected_status, r.text
+    body = r.json()
+    assert "error" in body, f"Missing 'error' key: {body}"
+    err = body["error"]
+    assert "code" in err and "detail" in err and "status" in err
+    assert err["status"] == r.status_code
+
+
 @pytest.mark.asyncio
 async def test_delete_test_case(client: AsyncClient, state: TestState):
     if not state.case_id:
-        pytest.skip("No case was created — nothing to clean up")
+        pytest.skip("No case was created -- nothing to clean up")
 
     r = await client.delete(
         f"/api/v1/cases/{state.case_id}",
@@ -35,4 +45,4 @@ async def test_deleted_case_is_gone(client: AsyncClient, state: TestState):
         f"/api/v1/cases/{state.case_id}",
         headers=HEADERS,
     )
-    assert r.status_code == 404
+    _assert_error_envelope(r, 404)

@@ -7,8 +7,9 @@ POST /api/v1/files/upload -- file upload endpoint.
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from api.config import Settings
+from config.api import Settings
 from api.dependencies import get_current_user, get_db, get_settings
+from api.schemas.common import ErrorEnvelope
 from api.schemas.files import FileUploadResponse
 from api.services.file_service import save_upload
 
@@ -20,6 +21,16 @@ router = APIRouter(prefix="/api/v1/files", tags=["Files"])
     response_model=FileUploadResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Upload a file",
+    description=(
+        "Upload a file for later ingestion into a case. Supported MIME types: "
+        "application/pdf, image/png, image/jpeg, image/tiff, image/bmp, image/webp. "
+        "Maximum file size: 20 MB."
+    ),
+    responses={
+        400: {"model": ErrorEnvelope, "description": "Invalid MIME type or file too large"},
+        401: {"model": ErrorEnvelope, "description": "Missing or invalid JWT token"},
+        422: {"model": ErrorEnvelope, "description": "Request validation error"},
+    },
 )
 async def upload_file(
     file: UploadFile,

@@ -16,7 +16,7 @@ from typing import List, Optional
 
 from PIL import Image
 
-import config
+import config.ocr as config
 from schemas import OCRLine, OCRPageResult, OCRWord
 
 logger = logging.getLogger(__name__)

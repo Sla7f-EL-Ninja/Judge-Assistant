@@ -18,6 +18,8 @@ from langgraph.graph import StateGraph, START, END
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
+from config import get_llm
+
 # Load environment variables (ensure GOOGLE_API_KEY is set)
 load_dotenv()
 
@@ -85,8 +87,8 @@ def extract_issues_node(state: CaseReasonerState) -> Dict[str, Any]:
     - Categorizes issues by legal domain to guide subsequent law retrieval.
     """
     
-    # Initialize Gemini model
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
+    # Initialize LLM via centralized tier system
+    llm = get_llm("high")
     structured_llm = llm.with_structured_output(ExtractedIssues)
 
     # Prompt Template

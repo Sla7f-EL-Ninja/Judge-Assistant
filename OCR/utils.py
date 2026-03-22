@@ -18,7 +18,7 @@ from typing import List, Union
 
 from PIL import Image
 
-import config
+import config.ocr as config
 
 logger = logging.getLogger(__name__)
 

@@ -37,11 +37,21 @@ def _minimal_pdf() -> bytes:
 
 
 def _pdf_content(test_pdf_path) -> tuple[bytes, str]:
-    """Return (bytes, filename) for upload — real file if provided, else minimal."""
+    """Return (bytes, filename) for upload -- real file if provided, else minimal."""
     if test_pdf_path and os.path.isfile(test_pdf_path):
         with open(test_pdf_path, "rb") as f:
             return f.read(), os.path.basename(test_pdf_path)
     return _minimal_pdf(), "test_document.pdf"
+
+
+def _assert_error_envelope(r, expected_status: int):
+    """Verify response matches the standard ErrorEnvelope shape."""
+    assert r.status_code == expected_status, r.text
+    body = r.json()
+    assert "error" in body, f"Missing 'error' key: {body}"
+    err = body["error"]
+    assert "code" in err and "detail" in err and "status" in err
+    assert err["status"] == r.status_code
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +77,7 @@ async def test_upload_pdf_returns_201(client: AsyncClient, state: TestState, tes
 
 @pytest.mark.asyncio
 async def test_uploaded_file_has_id_prefix(client: AsyncClient, state: TestState):
-    assert state.file_id, "file_id not set — run test_upload_pdf_returns_201 first"
+    assert state.file_id, "file_id not set -- run test_upload_pdf_returns_201 first"
     assert state.file_id.startswith("file_"), (
         f"Expected file_id to start with 'file_', got: {state.file_id}"
     )
@@ -80,8 +90,8 @@ async def test_upload_wrong_mime_type_rejected(client: AsyncClient):
         files={"file": ("malware.exe", b"MZ\x90\x00", "application/octet-stream")},
         headers=HEADERS,
     )
-    assert r.status_code == 400
-    assert "not allowed" in r.json()["detail"].lower()
+    _assert_error_envelope(r, 400)
+    assert r.json()["error"]["code"] == "INVALID_MIME_TYPE"
 
 
 @pytest.mark.asyncio
@@ -93,13 +103,23 @@ async def test_upload_oversized_file_rejected(client: AsyncClient):
         files={"file": ("big.pdf", oversized, "application/pdf")},
         headers=HEADERS,
     )
-    assert r.status_code == 400
-    assert "exceeds" in r.json()["detail"].lower()
+    _assert_error_envelope(r, 400)
+    assert r.json()["error"]["code"] == "FILE_TOO_LARGE"
+
+
+@pytest.mark.asyncio
+async def test_upload_no_file_returns_422(client: AsyncClient):
+    """Sending a POST without any file should return 422."""
+    r = await client.post(
+        "/api/v1/files/upload",
+        headers=HEADERS,
+    )
+    _assert_error_envelope(r, 422)
 
 
 @pytest.mark.asyncio
 async def test_upload_image_png_accepted(client: AsyncClient):
-    """PNG is also an allowed MIME type — make sure it's accepted."""
+    """PNG is also an allowed MIME type -- make sure it's accepted."""
     # 1x1 pixel valid PNG
     tiny_png = (
         b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"

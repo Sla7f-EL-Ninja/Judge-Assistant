@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from api.config import Settings
+from config.api import Settings
 from api.db.collections import FILES
 from api.services.case_service import add_document_to_case
 

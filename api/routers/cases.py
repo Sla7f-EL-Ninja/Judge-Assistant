@@ -14,11 +14,17 @@ from api.schemas.cases import (
     CaseResponse,
     CaseUpdate,
 )
-from api.schemas.common import MessageResponse
+from api.schemas.common import ErrorEnvelope, MessageResponse
 from api.services import case_service
 from api.services.conversation_service import count_conversations_for_case
 
 router = APIRouter(prefix="/api/v1/cases", tags=["Cases"])
+
+# Shared error responses for endpoints that require auth
+_AUTH_ERRORS = {
+    401: {"model": ErrorEnvelope, "description": "Missing or invalid JWT token"},
+    422: {"model": ErrorEnvelope, "description": "Request validation error"},
+}
 
 
 def _enrich(doc: dict, conv_count: int = 0) -> dict:
@@ -32,6 +38,13 @@ def _enrich(doc: dict, conv_count: int = 0) -> dict:
     response_model=CaseResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new case",
+    description=(
+        "Create a new case for the authenticated user. The case groups documents, "
+        "conversations, and summaries together. Requires a non-empty title."
+    ),
+    responses={
+        **_AUTH_ERRORS,
+    },
 )
 async def create_case(
     body: CaseCreate,
@@ -48,6 +61,13 @@ async def create_case(
     "",
     response_model=CaseListResponse,
     summary="List cases for the authenticated user",
+    description=(
+        "Returns a paginated list of cases belonging to the authenticated user. "
+        "Soft-deleted cases are excluded. Each case includes a `conversation_count` field."
+    ),
+    responses={
+        **_AUTH_ERRORS,
+    },
 )
 async def list_cases(
     skip: int = Query(0, ge=0),
@@ -67,6 +87,11 @@ async def list_cases(
     "/{case_id}",
     response_model=CaseResponse,
     summary="Get case details",
+    description="Retrieve a single case by ID. Returns 404 if the case does not exist or belongs to another user.",
+    responses={
+        **_AUTH_ERRORS,
+        404: {"model": ErrorEnvelope, "description": "Case not found"},
+    },
 )
 async def get_case(
     case_id: str,
@@ -84,6 +109,15 @@ async def get_case(
     "/{case_id}",
     response_model=CaseResponse,
     summary="Update case metadata or status",
+    description=(
+        "Partially update a case. Only the provided fields are changed. "
+        "Valid status values: active, archived, closed."
+    ),
+    responses={
+        **_AUTH_ERRORS,
+        400: {"model": ErrorEnvelope, "description": "No fields to update"},
+        404: {"model": ErrorEnvelope, "description": "Case not found"},
+    },
 )
 async def update_case(
     case_id: str,
@@ -105,6 +139,11 @@ async def update_case(
     "/{case_id}",
     response_model=MessageResponse,
     summary="Soft-delete a case",
+    description="Mark a case as deleted (soft-delete). The case data is retained but excluded from list results.",
+    responses={
+        **_AUTH_ERRORS,
+        404: {"model": ErrorEnvelope, "description": "Case not found"},
+    },
 )
 async def delete_case(
     case_id: str,

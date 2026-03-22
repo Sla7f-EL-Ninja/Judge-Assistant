@@ -37,7 +37,7 @@ Clear separation between:
 """
 import os
 from langchain_community.document_loaders import TextLoader
-from config import DOCS_PATH, DB_DIR, BATCH_SIZE
+from config.rag import DOCS_PATH, DB_DIR, BATCH_SIZE
 from splitter import split_egyptian_civil_law
 from vectorstore import load_vectorstore
 

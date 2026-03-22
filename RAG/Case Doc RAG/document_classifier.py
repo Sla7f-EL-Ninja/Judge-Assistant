@@ -27,6 +27,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langgraph.graph import END, StateGraph
 
+from config import get_llm  # already points to config/__init__.py
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -129,7 +131,7 @@ def confidence_router(state: ClassifierState) -> str:
 
 def llm_classifier_node(state: ClassifierState) -> ClassifierState:
     """Use an LLM to classify the document when heuristics are not confident."""
-    llm = ChatGroq(model_name="llama-3.3-70b-versatile")
+    llm = get_llm("medium")
 
     prompt = f"""
     صنّف نوع هذا المستند المدني المصري بدقة شديدة.

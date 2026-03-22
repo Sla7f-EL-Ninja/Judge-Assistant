@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from api.app import create_app
-from api.config import get_settings
+from config.api import get_settings
 from api.db.mongodb import connect_mongo, close_mongo
 
 

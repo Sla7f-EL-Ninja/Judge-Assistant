@@ -2,11 +2,13 @@
 test_auth.py
 
 Verify that the JWT guard works correctly:
-  - Missing header → 422  (FastAPI required-header validation)
-  - Wrong format   → 401
-  - Tampered token → 401
-  - Expired token  → 401
-  - Valid token    → passes through (tested implicitly by every other test)
+  - Missing header   -> 422  (FastAPI required-header validation)
+  - Wrong format     -> 401
+  - Tampered token   -> 401
+  - Expired token    -> 401
+  - Valid token      -> passes through (tested implicitly by every other test)
+
+All error responses are validated against the ErrorEnvelope schema.
 """
 
 import pytest
@@ -14,7 +16,7 @@ from datetime import datetime, timezone, timedelta
 from httpx import AsyncClient
 from jose import jwt
 
-from api.config import get_settings
+from config.api import get_settings
 
 
 def _sign(payload: dict) -> str:
@@ -41,7 +43,19 @@ def _tampered_token() -> str:
     return good[:-1] + ("X" if good[-1] != "X" else "Y")
 
 
-# Use any protected endpoint — /api/v1/cases is convenient
+def _assert_error_envelope(r, expected_status: int):
+    """Verify response matches the standard ErrorEnvelope shape."""
+    assert r.status_code == expected_status, r.text
+    body = r.json()
+    assert "error" in body, f"Missing 'error' key: {body}"
+    err = body["error"]
+    assert "code" in err
+    assert "detail" in err
+    assert "status" in err
+    assert err["status"] == r.status_code
+
+
+# Use any protected endpoint -- /api/v1/cases is convenient
 PROTECTED = "/api/v1/cases"
 
 
@@ -49,30 +63,32 @@ PROTECTED = "/api/v1/cases"
 async def test_missing_auth_header_is_rejected(client: AsyncClient):
     r = await client.get(PROTECTED)
     assert r.status_code == 422  # FastAPI missing required header
+    _assert_error_envelope(r, 422)
 
 
 @pytest.mark.asyncio
 async def test_malformed_bearer_prefix_is_rejected(client: AsyncClient):
     r = await client.get(PROTECTED, headers={"Authorization": "Token abc123"})
     assert r.status_code == 401
-    assert "Bearer" in r.json()["detail"]
+    _assert_error_envelope(r, 401)
+    assert r.json()["error"]["code"] == "UNAUTHORIZED"
 
 
 @pytest.mark.asyncio
 async def test_tampered_token_is_rejected(client: AsyncClient):
     r = await client.get(PROTECTED, headers={"Authorization": f"Bearer {_tampered_token()}"})
-    assert r.status_code == 401
+    _assert_error_envelope(r, 401)
 
 
 @pytest.mark.asyncio
 async def test_expired_token_is_rejected(client: AsyncClient):
     r = await client.get(PROTECTED, headers={"Authorization": f"Bearer {_expired_token()}"})
-    assert r.status_code == 401
+    _assert_error_envelope(r, 401)
 
 
 @pytest.mark.asyncio
 async def test_token_without_user_id_is_rejected(client: AsyncClient):
     token = _sign({"sub": "no_user_id_field", "exp": datetime.now(timezone.utc) + timedelta(hours=1)})
     r = await client.get(PROTECTED, headers={"Authorization": f"Bearer {token}"})
-    assert r.status_code == 401
-    assert "user_id" in r.json()["detail"]
+    _assert_error_envelope(r, 401)
+    assert "user_id" in r.json()["error"]["detail"]

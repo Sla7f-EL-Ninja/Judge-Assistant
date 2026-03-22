@@ -29,7 +29,7 @@ inconsistency across the system.
 """
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from config import EMBEDDING_MODEL, DB_DIR
+from config.rag import EMBEDDING_MODEL, DB_DIR
 
 
 def get_embeddings():
