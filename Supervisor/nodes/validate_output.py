@@ -10,10 +10,7 @@ the merged response before it reaches the judge.
 import logging
 from typing import Any, Dict
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_groq import ChatGroq
-
-from Supervisor.config import LLM_MODEL, LLM_TEMPERATURE
+from config import get_llm
 from Supervisor.prompts import VALIDATION_SYSTEM_PROMPT, VALIDATION_USER_TEMPLATE
 from Supervisor.state import SupervisorState, ValidationResult
 
@@ -53,7 +50,7 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
     )
 
     try:
-        llm = ChatGroq(model_name="llama-3.3-70b-versatile")
+        llm = get_llm("low")
         structured_llm = llm.with_structured_output(ValidationResult)
 
         messages = [

@@ -22,7 +22,7 @@ dynamically without a restart.
 import logging
 from typing import Any, Dict, List
 
-from Supervisor.config import (
+from config.supervisor import (
     CHROMA_COLLECTION,
     CHROMA_PERSIST_DIR,
     EMBEDDING_MODEL,

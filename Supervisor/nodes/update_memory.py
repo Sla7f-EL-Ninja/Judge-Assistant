@@ -10,7 +10,7 @@ conversation history and trims to stay within the configured window.
 import logging
 from typing import Any, Dict, List
 
-from Supervisor.config import MAX_CONVERSATION_TURNS
+from config.supervisor import MAX_CONVERSATION_TURNS
 from Supervisor.state import SupervisorState
 
 logger = logging.getLogger(__name__)

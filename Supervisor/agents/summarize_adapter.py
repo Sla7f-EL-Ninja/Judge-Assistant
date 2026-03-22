@@ -24,7 +24,7 @@ def _fetch_documents_from_mongo(case_id: str) -> List[Dict[str, str]]:
     """
     try:
         from pymongo import MongoClient
-        from Supervisor.config import MONGO_URI, MONGO_DB, MONGO_COLLECTION
+        from config.supervisor import MONGO_URI, MONGO_DB, MONGO_COLLECTION
 
         client = MongoClient(MONGO_URI)
         collection = client[MONGO_DB][MONGO_COLLECTION]
@@ -74,7 +74,7 @@ class SummarizeAdapter(AgentAdapter):
             from dotenv import load_dotenv
             load_dotenv()
 
-            from langchain_groq import ChatGroq
+            from config import get_llm
             from graph import create_pipeline
 
             # --- 1. Explicit documents list ---
@@ -132,7 +132,7 @@ class SummarizeAdapter(AgentAdapter):
                 )
 
             logger.info("Summarising %d document(s).", len(documents))
-            llm = ChatGroq(model_name="llama-3.3-70b-versatile")
+            llm = get_llm("high")
             pipeline = create_pipeline(llm)
             result = pipeline.invoke({"documents": documents})
 

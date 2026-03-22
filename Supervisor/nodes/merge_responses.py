@@ -11,9 +11,7 @@ it simply passes the response through.
 import logging
 from typing import Any, Dict, List
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-
-from Supervisor.config import LLM_MODEL, LLM_TEMPERATURE
+from config import get_llm
 from Supervisor.prompts import (
     MERGE_RESPONSES_SYSTEM_PROMPT,
     MERGE_RESPONSES_USER_TEMPLATE,
@@ -78,9 +76,7 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
     )
 
     try:
-        llm = ChatGoogleGenerativeAI(
-            model=LLM_MODEL, temperature=LLM_TEMPERATURE
-        )
+        llm = get_llm("high")
         messages = [
             {"role": "system", "content": MERGE_RESPONSES_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},

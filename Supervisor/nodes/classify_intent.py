@@ -10,10 +10,8 @@ one of the supported intents and determine which agents to invoke.
 import logging
 from typing import Any, Dict
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_groq import ChatGroq
-
-from Supervisor.config import LLM_MODEL, LLM_TEMPERATURE, VALID_INTENTS, AGENT_NAMES
+from config import get_llm
+from config.supervisor import VALID_INTENTS, AGENT_NAMES
 from Supervisor.prompts import (
     INTENT_CLASSIFICATION_SYSTEM_PROMPT,
     INTENT_CLASSIFICATION_USER_TEMPLATE,
@@ -62,7 +60,7 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
     )
 
     try:
-        llm = ChatGroq(model_name="llama-3.3-70b-versatile")
+        llm = get_llm("medium")
         structured_llm = llm.with_structured_output(IntentClassification)
 
         messages = [

@@ -12,7 +12,7 @@ fallback after max retries.
 
 from langgraph.graph import END, START, StateGraph
 
-from Supervisor.config import MAX_RETRIES
+from config.supervisor import MAX_RETRIES
 from Supervisor.nodes.classify_intent import classify_intent_node
 from Supervisor.nodes.classify_and_store_document import classify_and_store_document_node
 from Supervisor.nodes.dispatch_agents import dispatch_agents_node

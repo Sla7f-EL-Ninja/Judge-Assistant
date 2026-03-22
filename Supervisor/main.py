@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from Supervisor.config import MAX_RETRIES
+from config.supervisor import MAX_RETRIES
 from Supervisor.graph import app
 from Supervisor.state import SupervisorState
 

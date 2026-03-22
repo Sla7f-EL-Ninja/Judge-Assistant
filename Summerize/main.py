@@ -20,6 +20,8 @@ import sys
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 
+from config import get_llm
+
 # Ensure Summerize directory is on the path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -46,7 +48,7 @@ def main():
 
     # Initialize LLM
     try:
-        llm = ChatGroq(model_name="llama-3.3-70b-versatile")
+        llm = get_llm("high")
     except Exception as e:
         print(f"Failed to initialize LLM: {e}")
         return
