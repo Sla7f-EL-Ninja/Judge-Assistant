@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 def _get_shared_vectorstore():
-    """Return the shared Chroma vector store used by the FileIngestor.
+    """Return the shared Qdrant vector store used by the FileIngestor.
 
     This ensures the Case Doc RAG reads from the *same* store that
     documents were indexed into, avoiding the empty-store problem that
-    occurs when ``rag_docs.py`` creates its own in-memory Chroma
+    occurs when ``rag_docs.py`` creates its own Qdrant client
     instance at import time.
     """
     from Supervisor.nodes.classify_and_store_document import _get_ingestor
@@ -63,7 +63,7 @@ class CaseDocRAGAdapter(AgentAdapter):
             from rag_docs import app
 
             # Inject the shared vector store so rag_docs queries the
-            # same Chroma instance that documents were indexed into.
+            # same Qdrant instance that documents were indexed into.
             try:
                 shared_vs = _get_shared_vectorstore()
                 rag_docs.set_vectorstore(shared_vs)
@@ -71,7 +71,7 @@ class CaseDocRAGAdapter(AgentAdapter):
             except Exception as exc:
                 logger.warning(
                     "Could not inject shared vectorstore: %s. "
-                    "rag_docs will use its own Chroma instance.",
+                    "rag_docs will use its own Qdrant instance.",
                     exc,
                 )
 

@@ -21,9 +21,9 @@ import logging
 import re
 import json
 from langchain_core.documents import Document 
-from langchain_community.vectorstores import Chroma
 from langchain_groq import ChatGroq
-from config.rag import LLM_MODEL, EMBEDDING_MODEL, DB_DIR
+from qdrant_client.models import Filter, FieldCondition, MatchValue
+from config.rag import LLM_MODEL, EMBEDDING_MODEL
 from config import get_llm
 from langsmith import traceable
 
@@ -35,7 +35,7 @@ from prompts import (
     LLM_GRADER_PROMPT,
     ANALYTICAL_PROMPT
 )
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 embeddings = HuggingFaceEmbeddings(
     model_name=EMBEDDING_MODEL
@@ -43,10 +43,9 @@ embeddings = HuggingFaceEmbeddings(
 
 llm = get_llm("high")
 
-database = Chroma(
-    persist_directory=DB_DIR,
-    embedding_function=embeddings
-)
+from vectorstore import load_vectorstore
+
+database = load_vectorstore()
 # ------------------------
 # State definition
 # ------------------------
@@ -65,7 +64,7 @@ class State(TypedDict):
     retrieval_history: List[List[Document]]
     answer_history: List[str]
     db_initialized: bool
-    db: Optional[Chroma]
+    db: Optional[object]
     split_config: dict
     rewritten_question: Optional[str]
     classification: Optional[str]  # analytical | textual | off_topic
@@ -187,12 +186,10 @@ def textual_node(state: dict) -> dict:
             docs += db.similarity_search(
                 f"المادة {num}",
                 k=1,
-                filter={
-                    "$and": [
-                        {"type": {"$eq": "article"}},
-                        {"index": {"$eq": num}}
-                    ]
-                }
+                filter=Filter(must=[
+                    FieldCondition(key="metadata.type", match=MatchValue(value="article")),
+                    FieldCondition(key="metadata.index", match=MatchValue(value=num)),
+                ]),
             )
         state["current_article"] = f"{start}-{end}"
         state["last_results"] = docs
@@ -208,12 +205,10 @@ def textual_node(state: dict) -> dict:
         docs: List[Document] = db.similarity_search(
             f"المادة {article_num}",
             k=1,
-            filter={
-                "$and": [
-                    {"type": {"$eq": "article"}},
-                    {"index": {"$eq": article_num}}
-                ]
-            }
+            filter=Filter(must=[
+                FieldCondition(key="metadata.type", match=MatchValue(value="article")),
+                FieldCondition(key="metadata.index", match=MatchValue(value=article_num)),
+            ]),
         )
         state["last_results"] = docs
         state["final_answer"] = "\n\n".join([doc.page_content for doc in docs]) if docs else \
@@ -224,7 +219,9 @@ def textual_node(state: dict) -> dict:
     docs: List[Document] = db.similarity_search(
         query,
         k=3,
-        filter={"type": {"$eq": "article"}}
+        filter=Filter(must=[
+            FieldCondition(key="metadata.type", match=MatchValue(value="article")),
+        ]),
     )
     state["last_results"] = docs
     state["final_answer"] = "\n\n".join([doc.page_content for doc in docs]) if docs else \
@@ -242,15 +239,16 @@ def retrieve_node(state: dict, k: int = 8) -> dict:
 
     Inputs:
         - state: current RAG state
-        - db: Chroma vector store
         - k: number of articles to retrieve
     """
-    db = database  # use the module-level Chroma instance (Bug 2 fix)
+    db = database  # use the module-level Qdrant instance
     query = state.get("rewritten_question") or state.get("last_query")
 
     # 1. Retrieve top-k relevant articles with relevance scores (Bug 3 fix)
     results_with_scores = db.similarity_search_with_relevance_scores(
-        query, k=k, filter={"type": "article"}
+        query, k=k, filter=Filter(must=[
+            FieldCondition(key="metadata.type", match=MatchValue(value="article")),
+        ]),
     )
 
     if not results_with_scores:

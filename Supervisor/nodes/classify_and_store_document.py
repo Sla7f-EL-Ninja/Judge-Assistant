@@ -2,7 +2,7 @@
 classify_and_store_document.py
 
 Supervisor node that classifies uploaded documents (after OCR or directly)
-and stores them in both MongoDB and the Chroma vector store.
+and stores them in both MongoDB and the Qdrant vector store.
 
 This node runs after dispatch_agents when OCR was involved, or processes
 raw text/PDF documents directly. It ensures every document stored in the
@@ -15,7 +15,7 @@ Supported file types:
 - Image files (.png, .jpg, .jpeg, .tiff, .bmp, .webp) -- processed via OCR.
 
 After classification and MongoDB storage, document chunks are indexed in
-the shared Chroma vector store so the Case Doc RAG can retrieve them
+the shared Qdrant vector store so the Case Doc RAG can retrieve them
 dynamically without a restart.
 """
 
@@ -23,12 +23,15 @@ import logging
 from typing import Any, Dict, List
 
 from config.supervisor import (
-    CHROMA_COLLECTION,
-    CHROMA_PERSIST_DIR,
     EMBEDDING_MODEL,
     MONGO_COLLECTION,
     MONGO_DB,
     MONGO_URI,
+    QDRANT_HOST,
+    QDRANT_PORT,
+    QDRANT_GRPC_PORT,
+    QDRANT_PREFER_GRPC,
+    QDRANT_COLLECTION_CASE
 )
 from Supervisor.services.file_ingestor import FileIngestor, detect_file_type
 from Supervisor.state import SupervisorState
@@ -48,8 +51,11 @@ def _get_ingestor() -> FileIngestor:
             mongo_db=MONGO_DB,
             mongo_collection=MONGO_COLLECTION,
             embedding_model=EMBEDDING_MODEL,
-            chroma_collection=CHROMA_COLLECTION,
-            chroma_persist_dir=CHROMA_PERSIST_DIR,
+            qdrant_host=QDRANT_HOST,
+            qdrant_port=QDRANT_PORT,
+            qdrant_grpc_port=QDRANT_GRPC_PORT,
+            qdrant_prefer_grpc=QDRANT_PREFER_GRPC,
+            qdrant_collection=QDRANT_COLLECTION_CASE,
         )
     return _ingestor
 
@@ -59,7 +65,7 @@ def classify_and_store_document_node(state: SupervisorState) -> Dict[str, Any]:
 
     This node inspects ``agent_results`` for OCR output. If OCR was run,
     it takes the extracted text, classifies the document type, and stores
-    it in MongoDB **and** the Chroma vector store.
+    it in MongoDB **and** the Qdrant vector store.
 
     If no OCR was needed but files were uploaded directly (text or PDF),
     it reads/extracts text, classifies, and stores in both backends.

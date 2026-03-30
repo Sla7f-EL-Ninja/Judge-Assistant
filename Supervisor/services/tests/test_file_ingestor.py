@@ -3,7 +3,7 @@ test_file_ingestor.py
 
 Unit tests for the FileIngestor service.
 
-These tests mock external dependencies (MongoDB, Chroma, OCR, classifier)
+These tests mock external dependencies (MongoDB, Qdrant, OCR, classifier)
 to verify the ingestion logic in isolation.
 """
 
@@ -100,8 +100,11 @@ class TestFileIngestor:
         ingestor._mongo_db_name = "TestDB"
         ingestor._mongo_col_name = "TestCol"
         ingestor._embedding_model_name = "test-model"
-        ingestor._chroma_collection_name = "test_collection"
-        ingestor._chroma_persist_dir = ""
+        ingestor._qdrant_host = "localhost"
+        ingestor._qdrant_port = 6333
+        ingestor._qdrant_grpc_port = 6334
+        ingestor._qdrant_prefer_grpc = True
+        ingestor._qdrant_collection_name = "test_collection"
         ingestor._mongo_client = None
         ingestor._vectorstore = None
         ingestor._classifier = None

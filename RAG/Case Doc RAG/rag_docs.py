@@ -5,7 +5,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 
 logger = logging.getLogger("case_doc_rag")
 logger.setLevel(logging.DEBUG)
-from langchain_community.vectorstores import Chroma
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -16,7 +17,7 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from langchain_groq import ChatGroq
 from difflib import SequenceMatcher
-
+from qdrant_client.models import Filter, FieldCondition, MatchValue
 from config import cfg, get_llm  # already points to config/__init__.py
 
 load_dotenv()
@@ -28,29 +29,36 @@ _MONGO_URI = cfg.mongodb.get("uri", "mongodb://localhost:27017/")
 _MONGO_DB = cfg.mongodb.get("database", "Rag")
 _MONGO_COLLECTION = cfg.mongodb.get("collection", "Document Storage")
 _EMBEDDING_MODEL = cfg.embedding.get("model", "BAAI/bge-m3")
-_CHROMA_COLLECTION = cfg.chroma.get("collection", "judicial_docs")
-_CHROMA_PERSIST_DIR = cfg.chroma.get("persist_dir", "./chroma_data")
+_QDRANT_HOST = cfg.qdrant.get("host", "localhost")
+_QDRANT_PORT = cfg.qdrant.get("port", 6333)
+_QDRANT_GRPC_PORT = cfg.qdrant.get("grpc_port", 6334)
+_QDRANT_PREFER_GRPC = cfg.qdrant.get("prefer_grpc", True)
+_QDRANT_COLLECTION = cfg.qdrant.get("collection", "judicial_docs")
 
 embedding_function = HuggingFaceEmbeddings(model_name=_EMBEDDING_MODEL)
 llm = get_llm("high")
 
-# Build Chroma kwargs -- use persist_directory when configured so that
+# Build Qdrant vector store -- connects to the Qdrant server so that
 # documents indexed by the FileIngestor are visible here.
-_chroma_kwargs = {
-    "collection_name": _CHROMA_COLLECTION,
-    "embedding_function": embedding_function,
-}
-if _CHROMA_PERSIST_DIR:
-    _chroma_kwargs["persist_directory"] = _CHROMA_PERSIST_DIR
+_qdrant_client = QdrantClient(
+    host=_QDRANT_HOST,
+    port=_QDRANT_PORT,
+    grpc_port=_QDRANT_GRPC_PORT,
+    prefer_grpc=_QDRANT_PREFER_GRPC,
+)
 
-db = Chroma(**_chroma_kwargs)
+db = QdrantVectorStore(
+    client=_qdrant_client,
+    collection_name=_QDRANT_COLLECTION,
+    embedding=embedding_function,
+)
 retriever = db.as_retriever(search_type="mmr", search_kwargs={"k": 8})
 
 
 def set_vectorstore(vectorstore):
-    """Replace the module-level Chroma ``db`` and ``retriever`` with an
+    """Replace the module-level Qdrant ``db`` and ``retriever`` with an
     externally-provided vector store.  This allows the Supervisor adapter
-    to inject the *same* Chroma instance that the FileIngestor writes to,
+    to inject the *same* Qdrant instance that the FileIngestor writes to,
     so documents indexed at ingest time are visible during retrieval."""
     global db, retriever
     db = vectorstore
@@ -69,7 +77,8 @@ def get_available_doc_titles():
     by the FileIngestor (before or during a run) are immediately visible.
     """
     docs = list(collection.find({}, {"title": 1}))
-    return [doc["title"] for doc in docs if "title" in doc]
+    return [doc["title"] for doc in docs if doc.get("title")]  # filters None and ""
+
 
 
 def fuzzy_match_doc_title(candidate, available_titles, threshold=0.5):
@@ -80,6 +89,8 @@ def fuzzy_match_doc_title(candidate, available_titles, threshold=0.5):
     best_match = None
     best_score = 0.0
     for title in available_titles:
+        if not title:  # skip None or empty titles
+            continue
         score = SequenceMatcher(None, candidate, title).ratio()
         if score > best_score:
             best_score = score
@@ -432,14 +443,15 @@ def retrieve(state: AgentState):
 
         # Build the metadata filter -- always include the doc type and
         # optionally scope to the current case when a case_id is available.
-        meta_filter = {"type": doc_target}
         if case_id:
-            meta_filter = {
-                "$and": [
-                    {"type": doc_target},
-                    {"case_id": case_id},
-                ]
-            }
+            meta_filter = Filter(must=[
+                FieldCondition(key="metadata.type", match=MatchValue(value=doc_target)),
+                FieldCondition(key="metadata.case_id", match=MatchValue(value=case_id)),
+            ])
+        else:
+            meta_filter = Filter(must=[
+                FieldCondition(key="metadata.type", match=MatchValue(value=doc_target)),
+            ])
 
         filtered_retriever = db.as_retriever(
             search_type="mmr",
@@ -458,7 +470,9 @@ def retrieve(state: AgentState):
                 search_type="mmr",
                 search_kwargs={
                     "k": 8,
-                    "filter": {"type": doc_target},
+                    "filter": Filter(must=[
+                        FieldCondition(key="metadata.type", match=MatchValue(value=doc_target)),
+                    ])
                 },
             )
             docs = fallback_retriever.invoke(query)
@@ -471,7 +485,9 @@ def retrieve(state: AgentState):
                 search_type="mmr",
                 search_kwargs={
                     "k": 8,
-                    "filter": {"title": doc_target},
+                    "filter": Filter(must=[
+                        FieldCondition(key="metadata.title", match=MatchValue(value=doc_target)),
+                    ])
                 },
             )
             docs = title_retriever.invoke(query)
@@ -493,7 +509,9 @@ def retrieve(state: AgentState):
             search_type="mmr",
             search_kwargs={
                 "k": 8,
-                "filter": {"case_id": case_id},
+                "filter": Filter(must=[
+                    FieldCondition(key="metadata.case_id", match=MatchValue(value=case_id)),
+                ])
             },
         )
         docs = case_retriever.invoke(query)

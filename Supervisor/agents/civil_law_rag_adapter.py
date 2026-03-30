@@ -49,7 +49,7 @@ class CivilLawRAGAdapter(AgentAdapter):
             load_dotenv()
 
             from graph import app
-            from config import default_state_template
+            from config.rag import default_state_template 
 
             # Build initial state
             state = dict(default_state_template)
