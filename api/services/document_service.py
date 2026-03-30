@@ -31,8 +31,11 @@ def _get_ingestor(settings: Settings):
         mongo_db=settings.mongo_db,
         mongo_collection=settings.mongo_collection,
         embedding_model=settings.embedding_model,
-        chroma_collection=settings.chroma_collection,
-        chroma_persist_dir=settings.chroma_persist_dir,
+        qdrant_host=settings.qdrant_host,
+        qdrant_port=settings.qdrant_port,
+        qdrant_grpc_port=settings.qdrant_grpc_port,
+        qdrant_prefer_grpc=settings.qdrant_prefer_grpc,
+        qdrant_collection=settings.qdrant_collection,
     )
 
 

@@ -50,8 +50,17 @@ MONGO_DB: str = cfg.mongodb.get("database", "Rag")
 MONGO_COLLECTION: str = cfg.mongodb.get("collection", "Document Storage")
 
 # ---------------------------------------------------------------------------
-# Vector store (Chroma) configuration -- shared with Case Doc RAG
+# Vector store (Qdrant) configuration -- shared with Case Doc RAG
 # ---------------------------------------------------------------------------
 EMBEDDING_MODEL: str = cfg.embedding.get("model", "BAAI/bge-m3")
-CHROMA_COLLECTION: str = cfg.chroma.get("collection", "judicial_docs")
-CHROMA_PERSIST_DIR: str = cfg.chroma.get("persist_dir", "./chroma_data")
+QDRANT_HOST: str = cfg.qdrant.get("host", "localhost")
+QDRANT_PORT: int = cfg.qdrant.get("port", 6333)
+QDRANT_GRPC_PORT: int = cfg.qdrant.get("grpc_port", 6334)
+QDRANT_PREFER_GRPC: bool = cfg.qdrant.get("prefer_grpc", True)
+QDRANT_COLLECTION: str = cfg.qdrant.get("collection", "judicial_docs")
+QDRANT_COLLECTION_CASE: str = cfg.qdrant.get("case_collection", "case_docs")
+
+
+# Legacy aliases for backward compatibility
+CHROMA_COLLECTION: str = QDRANT_COLLECTION
+CHROMA_PERSIST_DIR: str = ""

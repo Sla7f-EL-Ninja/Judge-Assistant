@@ -2,7 +2,7 @@
 test_documents.py
 
 Ingest the uploaded file into the case through the real FileIngestor
-(OCR -> classify -> embed -> store in Chroma).
+(OCR -> classify -> embed -> store in Qdrant).
 
 Skipped automatically if:
   - TEST_PDF_PATH is not set (no real document to ingest)

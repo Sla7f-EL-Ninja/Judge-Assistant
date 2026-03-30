@@ -16,7 +16,6 @@ from config import cfg
 # -----------------------------
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS_PATH = os.path.join(_PROJECT_ROOT, "RAG", "Civil Law RAG", "docs", "civil_law_clean.txt")
-DB_DIR = os.path.join(_PROJECT_ROOT, "RAG", "Civil Law RAG", "db", "chroma_db")
 
 # -----------------------------
 # Initializations -- from central config

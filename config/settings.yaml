@@ -40,13 +40,50 @@ mongodb:
   uri: mongodb://localhost:27017/
   database: Rag
   collection: Document Storage
+  min_pool_size: 5
+  max_pool_size: 50
+  server_selection_timeout_ms: 5000
 
 # -------------------------------------------------------
-# Vector Store - Chroma
+# Vector Store - Qdrant (replaces ChromaDB)
 # -------------------------------------------------------
-chroma:
+qdrant:
+  host: localhost
+  port: 6333
+  grpc_port: 6334
   collection: judicial_docs
-  persist_dir: ./chroma_data
+  case_collection: case_docs
+  vector_size: 1024
+  prefer_grpc: true
+
+# -------------------------------------------------------
+# Redis - Caching, Rate Limiting, Sessions
+# -------------------------------------------------------
+redis:
+  url: redis://localhost:6379/0
+  max_connections: 20
+  cache_ttl_seconds: 3600
+  rate_limit_requests: 100
+  rate_limit_window_seconds: 60
+
+# -------------------------------------------------------
+# MinIO - Object/File Storage (S3-compatible)
+# -------------------------------------------------------
+minio:
+  endpoint: localhost:9000
+  access_key: minioadmin
+  secret_key: minioadmin
+  bucket: judge-assistant-files
+  secure: false
+
+# -------------------------------------------------------
+# PostgreSQL - Users, Roles, Audit Logging
+# -------------------------------------------------------
+postgresql:
+  url: postgresql+asyncpg://postgres:postgres@localhost:5432/judge_assistant
+  sync_url: postgresql://postgres:postgres@localhost:5432/judge_assistant
+  pool_size: 10
+  max_overflow: 20
 
 # -------------------------------------------------------
 # API Server
@@ -56,7 +93,7 @@ api:
   app_version: 0.1.0
   debug: false
   cors_origins: "*"
-  jwt_secret: change-me-in-production
+  jwt_secret: 123456
   jwt_algorithm: HS256
   max_upload_bytes: 20971520
   allowed_mime_types: application/pdf,image/png,image/jpeg,image/tiff,image/bmp,image/webp
@@ -67,7 +104,7 @@ api:
 # Supervisor
 # -------------------------------------------------------
 supervisor:
-  max_retries: 2
+  max_retries: 3
   max_conversation_turns: 20
   agent_names:
     - ocr

@@ -6,7 +6,12 @@ FastAPI dependencies used across routers.
 - ``get_current_user`` -- validates the JWT and returns the user_id.
 - ``get_db`` -- returns the async MongoDB database handle.
 - ``get_settings`` -- returns the application settings singleton.
+- ``get_qdrant`` -- returns the Qdrant vector store client.
+- ``get_redis_client`` -- returns the async Redis client.
+- ``get_pg_session`` -- yields a PostgreSQL async session.
 """
+
+from typing import AsyncGenerator, Optional
 
 from fastapi import Depends, Header, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -50,3 +55,25 @@ async def get_current_user(
         ) from exc
 
     return payload["user_id"]
+
+
+def get_qdrant():
+    """Return the active Qdrant client."""
+    from api.db.qdrant import get_qdrant_client
+
+    return get_qdrant_client()
+
+
+def get_redis_client():
+    """Return the active Redis client (may be None if Redis is down)."""
+    from api.db.redis import get_redis
+
+    return get_redis()
+
+
+async def get_pg_session() -> AsyncGenerator:
+    """Yield a PostgreSQL async session."""
+    from api.db.postgres import get_async_session
+
+    async for session in get_async_session():
+        yield session

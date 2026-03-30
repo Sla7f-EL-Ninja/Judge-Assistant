@@ -1,7 +1,7 @@
 """
 test_health.py
 
-Verify that the server boots, MongoDB is reachable, and Chroma dir exists.
+Verify that the server boots, MongoDB is reachable, and Qdrant is connected.
 This is always the first thing to confirm before running anything else.
 """
 
@@ -36,13 +36,13 @@ async def test_health_mongodb_connected(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_health_chroma_connected(client: AsyncClient):
+async def test_health_qdrant_connected(client: AsyncClient):
     r = await client.get("/api/v1/health")
     body = r.json()
-    chroma = body["dependencies"].get("chroma")
-    assert chroma == "connected", (
-        f"Chroma status: '{chroma}'. "
-        f"Make sure CHROMA_PERSIST_DIR exists and is accessible."
+    qdrant = body["dependencies"].get("qdrant")
+    assert qdrant == "connected", (
+        f"Qdrant status: '{qdrant}'. "
+        f"Make sure Qdrant server is running and accessible."
     )
 
 

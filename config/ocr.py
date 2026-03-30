@@ -18,7 +18,6 @@ _ocr = cfg.ocr
 # -----------------------------
 OCR_LANGUAGE = _ocr.get("language", "ar")
 USE_GPU = _ocr.get("use_gpu", True)
-OCR_MODEL_ID = _ocr.get("model_id", "NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct")
 
 # -----------------------------
 # Preprocessing
@@ -42,6 +41,8 @@ MEDIUM_CONFIDENCE_THRESHOLD = _confidence.get("medium_threshold", 0.60)
 # Post-processing
 # -----------------------------
 _postproc = _ocr.get("postprocessing", {})
+ENABLE_DICTIONARY_CORRECTION = _postproc.get("enable_dictionary_correction", True)
+MAX_LEVENSHTEIN_DISTANCE = _postproc.get("max_levenshtein_distance", 2)
 NORMALIZE_DIGITS = _postproc.get("normalize_digits", "arabic_indic")
 
 # -----------------------------
@@ -55,6 +56,7 @@ ALLOWED_EXTENSIONS = _security.get("allowed_extensions", [".png", ".jpg", ".jpeg
 # Performance
 # -----------------------------
 _perf = _ocr.get("performance", {})
+SURYA_BATCH_SIZE = _perf.get("surya_batch_size", 4)
 BATCH_WORKERS = _perf.get("batch_workers", 4)
 
 # -----------------------------

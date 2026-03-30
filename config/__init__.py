@@ -151,8 +151,20 @@ class AppConfig:
         return self._data.get("mongodb", {})
 
     @property
-    def chroma(self) -> Dict[str, Any]:
-        return self._data.get("chroma", {})
+    def qdrant(self) -> Dict[str, Any]:
+        return self._data.get("qdrant", {})
+
+    @property
+    def redis(self) -> Dict[str, Any]:
+        return self._data.get("redis", {})
+
+    @property
+    def minio(self) -> Dict[str, Any]:
+        return self._data.get("minio", {})
+
+    @property
+    def postgresql(self) -> Dict[str, Any]:
+        return self._data.get("postgresql", {})
 
     @property
     def api(self) -> Dict[str, Any]:

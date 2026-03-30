@@ -17,6 +17,10 @@ from fastapi.responses import JSONResponse
 
 from config.api import get_settings
 from api.db.mongodb import close_mongo, connect_mongo
+from api.db.qdrant import close_qdrant, connect_qdrant
+from api.db.redis import close_redis, connect_redis
+from api.db.minio_client import close_minio, connect_minio
+from api.db.postgres import close_postgres, connect_postgres
 from api.errors import INTERNAL_ERROR, UNAUTHORIZED, VALIDATION_ERROR
 from api.schemas.common import ErrorDetail, ErrorEnvelope
 
@@ -36,14 +40,55 @@ def _error_response(status_code: int, code: str, detail: str) -> JSONResponse:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage startup/shutdown: connect and disconnect MongoDB."""
+    """Manage startup/shutdown: connect and disconnect all databases."""
     settings = get_settings()
+
+    # -- MongoDB (required) ---------------------------------------------------
     logger.info("Connecting to MongoDB at %s ...", settings.mongo_uri)
     await connect_mongo(settings)
     logger.info("MongoDB connected (db=%s)", settings.mongo_db)
+
+    # -- Qdrant (required) ----------------------------------------------------
+    try:
+        logger.info("Connecting to Qdrant at %s:%s ...", settings.qdrant_host, settings.qdrant_port)
+        connect_qdrant(settings)
+        logger.info("Qdrant connected (collection=%s)", settings.qdrant_collection)
+    except Exception as exc:
+        logger.warning("Qdrant connection failed (non-fatal): %s", exc)
+
+    # -- Redis (optional -- degrades gracefully) ------------------------------
+    try:
+        logger.info("Connecting to Redis at %s ...", settings.redis_url)
+        await connect_redis(settings)
+        logger.info("Redis connected")
+    except Exception as exc:
+        logger.warning("Redis connection failed (non-fatal, caching disabled): %s", exc)
+
+    # -- MinIO (optional -- falls back to local disk) -------------------------
+    try:
+        logger.info("Connecting to MinIO at %s ...", settings.minio_endpoint)
+        connect_minio(settings)
+        logger.info("MinIO connected (bucket=%s)", settings.minio_bucket)
+    except Exception as exc:
+        logger.warning("MinIO connection failed (non-fatal, using local disk): %s", exc)
+
+    # -- PostgreSQL (optional -- user management disabled if unavailable) ------
+    try:
+        logger.info("Connecting to PostgreSQL ...")
+        await connect_postgres(settings)
+        logger.info("PostgreSQL connected")
+    except Exception as exc:
+        logger.warning("PostgreSQL connection failed (non-fatal, user management disabled): %s", exc)
+
     yield
-    logger.info("Shutting down -- closing MongoDB connection")
+
+    # -- Shutdown all connections ----------------------------------------------
+    logger.info("Shutting down -- closing all database connections")
     await close_mongo()
+    close_qdrant()
+    await close_redis()
+    close_minio()
+    await close_postgres()
 
 
 # -- OpenAPI tag descriptions -------------------------------------------------
