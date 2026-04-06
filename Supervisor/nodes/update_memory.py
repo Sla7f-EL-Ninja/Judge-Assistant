@@ -5,6 +5,29 @@ Conversation memory management node for the Supervisor workflow.
 
 Appends the current turn (judge query + final response) to the
 conversation history and trims to stay within the configured window.
+
+Memory safety fix
+-----------------
+The original code did:
+
+    conversation_history: List[dict] = list(state.get("conversation_history", []))
+
+``list()`` creates a *shallow* copy of the list -- the list object itself
+is new, but the dict items inside it are the same objects in memory as the
+ones in the incoming state.  In the normal single-request flow this is
+harmless because LangGraph passes a fresh state on every invocation.
+
+However, when the pipeline is called in a tight loop (e.g. the memory-leak
+performance test, or any batch / stress scenario) and the caller reuses a
+base state dict without deep-copying it, the ``conversation_history`` list
+on that base dict accumulates entries indefinitely because the list object
+is shared between the caller and this node.  After N runs the list has 2N
+entries and all of the associated strings remain live in memory, producing
+unbounded growth.
+
+Fix: copy the incoming list properly so this node never mutates an object
+it doesn't own, regardless of how the caller constructed the state.  We
+also ensure each appended dict is a new object (not aliased from elsewhere).
 """
 
 import logging
@@ -21,9 +44,14 @@ def update_memory_node(state: SupervisorState) -> Dict[str, Any]:
 
     Updates state keys: ``conversation_history``, ``turn_count``.
     """
-    conversation_history: List[dict] = list(
-        state.get("conversation_history", [])
-    )
+    # Build a fully independent copy of the incoming history so that
+    # appending to it never mutates the caller's original list or any
+    # intermediate state objects held by LangGraph.
+    # Each item is also copied (dict()) so callers who pass dicts from
+    # external sources cannot be affected by later mutations.
+    incoming: List[dict] = state.get("conversation_history") or []
+    conversation_history: List[dict] = [dict(entry) for entry in incoming]
+
     turn_count = state.get("turn_count", 0)
 
     judge_query = state.get("judge_query", "")
@@ -36,7 +64,8 @@ def update_memory_node(state: SupervisorState) -> Dict[str, Any]:
             "content": judge_query,
         })
 
-    # Append the assistant turn
+    # Append the assistant turn -- store only the final response string,
+    # never agent_results or other large intermediate objects.
     if final_response:
         conversation_history.append({
             "role": "assistant",

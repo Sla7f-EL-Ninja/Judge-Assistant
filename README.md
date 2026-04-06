@@ -4,6 +4,7 @@ An AI-powered legal assistant built for Egyptian judicial workflows. It combines
 
 ## Table of Contents
 
+- [Documentation](#documentation)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
@@ -18,6 +19,24 @@ An AI-powered legal assistant built for Egyptian judicial workflows. It combines
 - [Project Structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
+
+## Documentation
+
+Comprehensive project documentation lives in the [`docs/`](docs/) directory:
+
+| Document | Description |
+|---|---|
+| [Glossary](docs/GLOSSARY.md) | Bilingual reference of 30+ terms (Arabic/English) covering system components, legal domain, and technical concepts |
+| [Architecture](docs/ARCHITECTURE.md) | System design, component overview, supervisor graph flow, state management, LLM tier system |
+| [Agents](docs/AGENTS.md) | All 5 specialist agents: purpose, triggers, retrieval strategies, input/output schemas |
+| [Database](docs/DATABASE.md) | MongoDB collections, Qdrant vectors, Redis caching, MinIO storage, PostgreSQL user management |
+| [API Reference](docs/API.md) | Every endpoint documented with request/response schemas, SSE streaming guide, error codes |
+| [Setup](docs/SETUP.md) | Environment variables, Docker Compose, local development, common setup errors |
+| [Testing](docs/TESTING.md) | Test suite structure, running tests, writing new tests, CI/CD |
+| [Deployment](docs/DEPLOYMENT.md) | Docker Compose services, Dockerfile details, health checks, scaling, backups |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | 10 known issues with symptoms, root causes, and fixes; debugging guide |
+| [Decisions](docs/DECISIONS.md) | 7 Architecture Decision Records (ADRs) with context, rationale, and consequences |
+| [Contributing](docs/CONTRIBUTING.md) | Developer onboarding, adding agents/endpoints, code style, PR checklist |
 
 ## Features
 

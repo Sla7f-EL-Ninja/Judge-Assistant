@@ -5,6 +5,15 @@ Adapter for the Summarization pipeline (Summerize/graph.py).
 
 Wraps ``create_pipeline(llm)`` and returns an AgentResult with the
 rendered Arabic case brief.
+
+Performance fix
+---------------
+The original implementation added the Summerize directory to sys.path and
+re-imported ``get_llm`` / ``create_pipeline`` on every call.  The path
+guard (``if summerize_dir not in sys.path``) prevented duplicate path
+entries, but the import statements still ran every time.  The imported
+callables are now cached at the class level so the module-loading overhead
+happens only once per process.
 """
 
 import logging
@@ -16,6 +25,10 @@ from Supervisor.agents.base import AgentAdapter, AgentResult
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# MongoDB helper (unchanged from original)
+# ---------------------------------------------------------------------------
 
 def _fetch_documents_from_mongo(case_id: str) -> List[Dict[str, str]]:
     """Fetch raw document texts from MongoDB for the given case_id.
@@ -33,14 +46,17 @@ def _fetch_documents_from_mongo(case_id: str) -> List[Dict[str, str]]:
         documents = []
         for doc in cursor:
             raw_text = doc.get("text", "")
-            doc_id = str(doc.get("title") or doc.get("source_file") or doc.get("_id", "unknown"))
+            doc_id = str(
+                doc.get("title") or doc.get("source_file") or doc.get("_id", "unknown")
+            )
             if raw_text:
                 documents.append({"raw_text": raw_text, "doc_id": doc_id})
 
         client.close()
         logger.info(
             "Fetched %d document(s) from MongoDB for case_id='%s'",
-            len(documents), case_id,
+            len(documents),
+            case_id,
         )
         return documents
 
@@ -49,8 +65,47 @@ def _fetch_documents_from_mongo(case_id: str) -> List[Dict[str, str]]:
         return []
 
 
+# ---------------------------------------------------------------------------
+# One-time import loader
+# ---------------------------------------------------------------------------
+
+def _load_summarize_callables():
+    """Import and return (get_llm, create_pipeline) from the Summerize package.
+
+    Called once; result cached on the class.
+    """
+    summerize_dir = os.path.normpath(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "..", "Summerize"
+    ))
+    if summerize_dir not in sys.path:
+        sys.path.insert(0, summerize_dir)
+
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    from config import get_llm          # noqa: E402  resolved from summerize_dir
+    from graph import create_pipeline   # noqa: E402  resolved from summerize_dir
+
+    return get_llm, create_pipeline
+
+
+# ---------------------------------------------------------------------------
+# Adapter
+# ---------------------------------------------------------------------------
+
 class SummarizeAdapter(AgentAdapter):
     """Thin wrapper around the Summarization LangGraph pipeline."""
+
+    _get_llm = None
+    _create_pipeline = None
+
+    @classmethod
+    def _get_callables(cls):
+        if cls._get_llm is None:
+            logger.info("Loading Summarize pipeline (first call)...")
+            cls._get_llm, cls._create_pipeline = _load_summarize_callables()
+            logger.info("Summarize pipeline loaded and cached.")
+        return cls._get_llm, cls._create_pipeline
 
     def invoke(self, query: str, context: Dict[str, Any]) -> AgentResult:
         """Run the summarisation pipeline on the provided documents.
@@ -59,23 +114,10 @@ class SummarizeAdapter(AgentAdapter):
         1. ``context["documents"]``            -- pre-built {raw_text, doc_id} dicts.
         2. ``context["agent_results"]["ocr"]`` -- OCR ran earlier this turn.
         3. ``context["uploaded_files"]``       -- file paths; read from disk.
-        4. MongoDB                             -- fetch by context["case_id"] (most common
-                                                  case when files were pre-ingested).
+        4. MongoDB                             -- fetch by context["case_id"].
         """
         try:
-            # Add Summerize directory to path
-            summerize_dir = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)), "..", "..", "Summerize"
-            )
-            summerize_dir = os.path.normpath(summerize_dir)
-            if summerize_dir not in sys.path:
-                sys.path.insert(0, summerize_dir)
-
-            from dotenv import load_dotenv
-            load_dotenv()
-
-            from config import get_llm
-            from graph import create_pipeline
+            get_llm, create_pipeline = self._get_callables()
 
             # --- 1. Explicit documents list ---
             documents = context.get("documents")
@@ -103,24 +145,29 @@ class SummarizeAdapter(AgentAdapter):
                                 "raw_text": raw_text,
                                 "doc_id": os.path.basename(file_path),
                             })
-                            logger.info("Loaded file for summarisation: %s", file_path)
+                            logger.info(
+                                "Loaded file for summarisation: %s", file_path
+                            )
                         except Exception as read_err:
                             logger.warning(
                                 "Could not read uploaded file '%s': %s",
-                                file_path, read_err,
+                                file_path,
+                                read_err,
                             )
 
-            # --- 4. MongoDB fallback -- files were pre-ingested for this case ---
+            # --- 4. MongoDB fallback ---
             if not documents:
                 case_id = context.get("case_id", "")
                 if case_id:
                     logger.info(
-                        "No in-memory documents found; fetching from MongoDB for case_id='%s'",
+                        "No in-memory documents; fetching from MongoDB for case_id='%s'",
                         case_id,
                     )
                     documents = _fetch_documents_from_mongo(case_id)
                 else:
-                    logger.warning("No case_id in context; cannot fetch from MongoDB.")
+                    logger.warning(
+                        "No case_id in context; cannot fetch from MongoDB."
+                    )
 
             if not documents:
                 return AgentResult(
@@ -151,4 +198,7 @@ class SummarizeAdapter(AgentAdapter):
         except Exception as exc:
             error_msg = f"Summarize adapter error: {exc}"
             logger.exception(error_msg)
+            # Reset so the next call retries the import
+            SummarizeAdapter._get_llm = None
+            SummarizeAdapter._create_pipeline = None
             return AgentResult(response="", error=error_msg)
