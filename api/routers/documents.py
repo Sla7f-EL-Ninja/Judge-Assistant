@@ -10,7 +10,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from config.api import Settings
 from api.dependencies import get_current_user, get_db, get_settings
 from api.schemas.common import ErrorEnvelope
-from api.schemas.documents import IngestRequest, IngestResponse
+from api.schemas.documents import IngestRequest, IngestResponse, DocumentListResponse
 from api.services import case_service, document_service
 
 router = APIRouter(prefix="/api/v1/cases", tags=["Documents"])
@@ -51,3 +51,31 @@ async def ingest_documents(
         file_ids=body.file_ids,
     )
     return IngestResponse(**result)
+
+
+@router.get(
+    "/{case_id}/documents",
+    response_model=DocumentListResponse,
+    summary="List documents in a case",
+    description=(
+        "Returns all documents that have been ingested into the case. "
+        "The case must exist and belong to the authenticated user."
+    ),
+    responses={
+        401: {"model": ErrorEnvelope, "description": "Missing or invalid JWT token"},
+        404: {"model": ErrorEnvelope, "description": "Case not found"},
+        422: {"model": ErrorEnvelope, "description": "Request validation error"},
+    },
+)
+async def list_documents(
+    case_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Return all documents ingested into a case."""
+    case = await case_service.get_case(db, case_id, user_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    docs = await document_service.list_documents(db=db, case_id=case_id)
+    return DocumentListResponse(documents=docs, total=len(docs))

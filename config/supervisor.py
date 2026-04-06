@@ -13,7 +13,7 @@ from config import cfg
 # LLM configuration -- now driven by the tier system in config.get_llm()
 # These are retained only for any legacy code that reads them directly.
 # ---------------------------------------------------------------------------
-LLM_MODEL: str = cfg.llm.get("high", {}).get("model", "gemini-1.5-flash")
+LLM_MODEL: str = cfg.llm.get("high", {}).get("model", "gemini-2.5-flash")
 LLM_TEMPERATURE: float = cfg.llm.get("high", {}).get("temperature", 0.0)
 
 # ---------------------------------------------------------------------------

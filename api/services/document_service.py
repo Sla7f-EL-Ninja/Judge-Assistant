@@ -103,3 +103,13 @@ async def ingest_files(
             errors.append({"file_id": file_id, "error": str(exc)})
 
     return {"ingested": ingested, "errors": errors}
+
+async def list_documents(db, case_id: str) -> list:
+    cursor = db.documents.find(
+        {"case_id": case_id},
+        {"_id": 1, "title": 1, "source_file": 1, "created_at": 1}
+    ).sort("created_at", -1)
+    docs = await cursor.to_list(length=100)
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+    return docs

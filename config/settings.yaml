@@ -15,16 +15,16 @@
 # -------------------------------------------------------
 llm:
   high:
-    provider: groq            # groq | google
-    model: llama-3.3-70b-versatile
+    provider: google            # groq | google
+    model: gemini-2.5-flash
     temperature: 0.0
   medium:
-    provider: groq
-    model: llama-3.3-70b-versatile
+    provider: google
+    model: gemini-2.5-flash
     temperature: 0.0
   low:
-    provider: groq
-    model: llama-3.3-70b-versatile
+    provider: google
+    model: gemini-2.5-flash-lite
     temperature: 0.0
 
 # -------------------------------------------------------

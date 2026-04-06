@@ -36,16 +36,32 @@ from prompts import (
     ANALYTICAL_PROMPT
 )
 from langchain_huggingface import HuggingFaceEmbeddings
-
-embeddings = HuggingFaceEmbeddings(
-    model_name=EMBEDDING_MODEL
-)
-
-llm = get_llm("high")
-
 from vectorstore import load_vectorstore
 
-database = load_vectorstore()
+_embeddings = None
+_llm = None
+_database = None
+
+
+def get_embeddings():
+    global _embeddings
+    if _embeddings is None:
+        _embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+    return _embeddings
+
+
+def get_llm_instance():
+    global _llm
+    if _llm is None:
+        _llm = get_llm("high")
+    return _llm
+
+
+def get_database():
+    global _database
+    if _database is None:
+        _database = load_vectorstore()
+    return _database
 # ------------------------
 # State definition
 # ------------------------
@@ -117,7 +133,7 @@ def preprocessor_node(state: State) -> State:
 
     # 2. LLM call
     prompt = PREPROCESSOR_PROMPT.format(question=query)
-    response = llm.invoke(prompt)
+    response = get_llm_instance().invoke(prompt)
     content = response.content.strip()
 
     # 3. Parse JSON (strip markdown code fences that LLMs may add)
@@ -174,10 +190,8 @@ def textual_node(state: dict) -> dict:
     - Numbers in words → digits
     - Intervals like 'بين X و Y' → digits
     """
-    db = database
+    db = get_database()
     query = state.get("rewritten_question") or state["last_query"]
-
-    # Check for interval query: "بين X و Y"
     range_match = re.search(r"بين\s*(\d+)\s*و\s*(\d+)", query)
     if range_match:
         start, end = int(range_match.group(1)), int(range_match.group(2))
@@ -232,7 +246,7 @@ def textual_node(state: dict) -> dict:
 
 # Retriever Node
 @traceable(name="Retriever Node")
-def retrieve_node(state: dict, k: int = 8) -> dict:
+def retrieve_node(state: dict, k: int = 15) -> dict:
     """
     Retrieve relevant articles from the Egyptian Civil Law corpus
     based on the rewritten question. Stores results in state for grading.
@@ -241,7 +255,7 @@ def retrieve_node(state: dict, k: int = 8) -> dict:
         - state: current RAG state
         - k: number of articles to retrieve
     """
-    db = database  # use the module-level Qdrant instance
+    db = get_database()  # lazy-loaded Qdrant instance
     query = state.get("rewritten_question") or state.get("last_query")
 
     # 1. Retrieve top-k relevant articles with relevance scores (Bug 3 fix)
@@ -275,13 +289,16 @@ def retrieve_node(state: dict, k: int = 8) -> dict:
     # 4. Update state
     state["last_results"] = last_results
     state["retrieval_confidence"] = round(avg_confidence, 2)  # 0-1 scale
-
+    logger.info(
+        "[DIAGNOSTIC] query=%r | confidence=%.3f | docs=%d",
+        query, avg_confidence, len(last_results)
+    )
     return state
 
 
 # Rule Grader Node
 @traceable(name="Rule Grader Node")
-def rule_grader_node(state: dict, min_docs: int = 1, min_confidence: float = 0.5) -> dict:
+def rule_grader_node(state: dict, min_docs: int = 1, min_confidence: float = 0.35) -> dict:
     """
     Grades the quality of retrieved documents and decides
     whether refinement is needed.
@@ -313,6 +330,7 @@ def rule_grader_node(state: dict, min_docs: int = 1, min_confidence: float = 0.5
     if confidence < min_confidence:
         state["grade"] = "refine"
         return state
+    state["grade"] = "pass"
     logger.info(
         "[Layer 4 - Rule Grader] grade=%s | doc_count=%d | confidence=%.3f | "
         "retry_count=%d | failure_reason=%s",
@@ -341,7 +359,7 @@ def refine_node(state: dict) -> dict:
     .replace("{reason_block}", reason_block)
     )
 
-    response = llm.invoke(prompt)
+    response = get_llm_instance().invoke(prompt)
 
     try:
         data = json.loads(strip_code_fences(response.content))
@@ -383,7 +401,7 @@ def llm_grader_node(state: dict) -> dict:
         docs=docs_text
     )
 
-    response = llm.invoke(prompt)
+    response = get_llm_instance().invoke(prompt)
 
     try:
         result = json.loads(strip_code_fences(response.content))
@@ -426,7 +444,7 @@ def generate_answer_node(state: dict) -> dict:
         query=query
     )
 
-    response = llm.invoke(prompt)
+    response = get_llm_instance().invoke(prompt)
 
     state["final_answer"] = response.content
     return state

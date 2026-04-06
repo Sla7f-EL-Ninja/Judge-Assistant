@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     langgraph_module: str = cfg.api.get("langgraph_module", "Supervisor.graph")
 
     # -- LLM ------------------------------------------------------------------
-    supervisor_llm_model: str = cfg.llm.get("high", {}).get("model", "gemini-1.5-flash")
+    supervisor_llm_model: str = cfg.llm.get("high", {}).get("model", "gemini-2.5-flash")
     supervisor_llm_temperature: float = cfg.llm.get("high", {}).get("temperature", 0.0)
 
     # -- MongoDB --------------------------------------------------------------

@@ -159,6 +159,28 @@ def create_app() -> FastAPI:
         expose_headers=["*"],
     )
 
+    # -- Auth middleware (runs before body parsing so 401 always beats 422) ---
+    _PUBLIC_PATHS = {"/api/v1/health", "/health", "/docs", "/openapi.json", "/redoc"}
+
+    @app.middleware("http")
+    async def auth_middleware(request: Request, call_next):
+        if request.url.path in _PUBLIC_PATHS:
+            return await call_next(request)
+        token = request.headers.get("Authorization")
+        if not token or not token.startswith("Bearer "):
+            envelope = ErrorEnvelope(
+                error=ErrorDetail(
+                    code=UNAUTHORIZED,
+                    detail="Not authenticated",
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+            )
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content=envelope.model_dump(),
+            )
+        return await call_next(request)
+
     # -- Error handlers -------------------------------------------------------
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):

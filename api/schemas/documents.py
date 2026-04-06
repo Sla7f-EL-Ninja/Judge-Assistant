@@ -7,7 +7,7 @@ Schemas for document ingestion (POST /api/v1/cases/{case_id}/documents).
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
-
+from datetime import datetime
 
 class IngestRequest(BaseModel):
     """Request body for document ingestion."""
@@ -38,3 +38,13 @@ class IngestResponse(BaseModel):
 
     ingested: List[IngestResultItem] = Field(default_factory=list)
     errors: List[IngestErrorItem] = Field(default_factory=list)
+
+class DocumentItem(BaseModel):
+    id: str
+    title: str
+    source_file: str
+    created_at: datetime
+
+class DocumentListResponse(BaseModel):
+    documents: List[DocumentItem]
+    total: int
