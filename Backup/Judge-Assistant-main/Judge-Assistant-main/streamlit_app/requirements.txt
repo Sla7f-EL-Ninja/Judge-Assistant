@@ -1,4 +1,0 @@
-streamlit>=1.30
-requests>=2.31
-python-jose[cryptography]>=3.3
-sseclient-py>=1.7
