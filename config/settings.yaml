@@ -1,0 +1,147 @@
+# config/settings.yaml
+#
+# Centralized configuration for Judge Assistant.
+# Local overrides go in settings.local.yaml (gitignored).
+# Environment variables with JA_ prefix override any YAML value.
+# See CONFIG.md for full documentation.
+
+# -------------------------------------------------------
+# LLM Tier Configuration
+# -------------------------------------------------------
+# Three tiers based on task complexity:
+#   high   - Complex reasoning, synthesis, legal analysis
+#   medium - Classification, grading, structured extraction
+#   low    - Simple routing, validation, fallback tasks
+# -------------------------------------------------------
+llm:
+  high:
+    provider: google            # groq | google
+    model: gemini-2.5-flash
+    temperature: 0.0
+  medium:
+    provider: google
+    model: gemini-2.5-flash
+    temperature: 0.0
+  low:
+    provider: google
+    model: gemini-2.5-flash-lite
+    temperature: 0.0
+
+# -------------------------------------------------------
+# Embedding Model
+# -------------------------------------------------------
+embedding:
+  model: BAAI/bge-m3
+
+# -------------------------------------------------------
+# MongoDB
+# -------------------------------------------------------
+mongodb:
+  uri: mongodb://localhost:27017/
+  database: Rag
+  collection: Document Storage
+  min_pool_size: 5
+  max_pool_size: 50
+  server_selection_timeout_ms: 5000
+
+# -------------------------------------------------------
+# Vector Store - Qdrant (replaces ChromaDB)
+# -------------------------------------------------------
+qdrant:
+  host: localhost
+  port: 6333
+  grpc_port: 6334
+  collection: judicial_docs
+  case_collection: case_docs
+  vector_size: 1024
+  prefer_grpc: true
+
+# -------------------------------------------------------
+# Redis - Caching, Rate Limiting, Sessions
+# -------------------------------------------------------
+redis:
+  url: redis://localhost:6379/0
+  max_connections: 20
+  cache_ttl_seconds: 3600
+  rate_limit_requests: 100
+  rate_limit_window_seconds: 60
+
+# -------------------------------------------------------
+# MinIO - Object/File Storage (S3-compatible)
+# -------------------------------------------------------
+minio:
+  endpoint: localhost:9000
+  access_key: minioadmin
+  secret_key: minioadmin
+  bucket: judge-assistant-files
+  secure: false
+
+# -------------------------------------------------------
+# PostgreSQL - Users, Roles, Audit Logging
+# -------------------------------------------------------
+postgresql:
+  url: postgresql+asyncpg://postgres:postgres@localhost:5432/judge_assistant
+  sync_url: postgresql://postgres:postgres@localhost:5432/judge_assistant
+  pool_size: 10
+  max_overflow: 20
+
+# -------------------------------------------------------
+# API Server
+# -------------------------------------------------------
+api:
+  app_name: Judge Assistant API
+  app_version: 0.1.0
+  debug: false
+  cors_origins: "*"
+  jwt_secret: 123456
+  jwt_algorithm: HS256
+  max_upload_bytes: 20971520
+  allowed_mime_types: application/pdf,image/png,image/jpeg,image/tiff,image/bmp,image/webp
+  upload_dir: ./uploads
+  langgraph_module: Supervisor.graph
+
+# -------------------------------------------------------
+# Supervisor
+# -------------------------------------------------------
+supervisor:
+  max_retries: 3
+  max_conversation_turns: 20
+  agent_names:
+    - ocr
+    - summarize
+    - civil_law_rag
+    - case_doc_rag
+    - reason
+
+# -------------------------------------------------------
+# OCR Pipeline
+# -------------------------------------------------------
+ocr:
+  language: ar
+  use_gpu: true
+  preprocessing:
+    enable_resolution_check: true
+    min_dpi: 150
+    enable_deskew: true
+    enable_denoise: false
+    enable_border_removal: true
+    enable_contrast_enhancement: true
+  confidence:
+    high_threshold: 0.85
+    medium_threshold: 0.60
+  postprocessing:
+    enable_dictionary_correction: true
+    max_levenshtein_distance: 2
+    normalize_digits: arabic_indic
+  security:
+    max_file_size_mb: 50
+    allowed_extensions:
+      - .png
+      - .jpg
+      - .jpeg
+      - .tiff
+      - .bmp
+      - .pdf
+  performance:
+    surya_batch_size: 4
+    batch_workers: 4

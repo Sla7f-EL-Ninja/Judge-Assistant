@@ -1,0 +1,62 @@
+# -- Web framework -----------------------------------------------------------
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+
+# -- Data validation ---------------------------------------------------------
+pydantic>=2.7
+pydantic-settings>=2.3
+
+# -- Auth --------------------------------------------------------------------
+python-jose[cryptography]>=3.3
+
+# -- Async MongoDB -----------------------------------------------------------
+motor>=3.5
+
+# -- Sync MongoDB (Supervisor/services/file_ingestor.py) --------------------
+pymongo>=4.7
+
+# -- Vector store (Qdrant - replaces ChromaDB) -------------------------------
+qdrant-client>=1.9
+langchain-qdrant>=0.1
+
+# -- Redis (caching, rate limiting, sessions) --------------------------------
+redis[hiredis]>=5.0
+
+# -- MinIO (S3-compatible object storage) ------------------------------------
+minio>=7.2
+
+# -- PostgreSQL (user management, RBAC, audit logging) -----------------------
+sqlalchemy[asyncio]>=2.0
+asyncpg>=0.29
+psycopg2-binary>=2.9
+
+# -- LLM / LangChain --------------------------------------------------------
+langchain>=0.2
+langchain-core>=0.2
+langchain-community>=0.2
+langchain-groq>=0.1
+langchain-google-genai>=1.0
+langchain-huggingface>=0.0.3
+langgraph>=0.2
+langsmith>=0.1
+
+# -- Embeddings --------------------------------------------------------------
+sentence-transformers>=3.0
+
+# -- OCR (Surya, NOT EasyOCR) -----------------------------------------------
+surya-ocr>=0.6
+
+# -- PDF extraction ----------------------------------------------------------
+PyPDF2>=3.0
+
+# -- Image processing --------------------------------------------------------
+Pillow>=10.0
+numpy>=1.26
+opencv-python-headless>=4.9
+
+# -- Configuration -----------------------------------------------------------
+PyYAML>=6.0
+
+# -- Environment variables ---------------------------------------------------
+python-dotenv>=1.0
