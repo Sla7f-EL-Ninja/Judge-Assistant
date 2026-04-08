@@ -39,7 +39,7 @@ def ask_question(query: str, db) -> str:
 
     Args:
         query (str): The user's question in Arabic, ideally related to Egyptian Civil Law.
-        db: The Chroma vectorstore instance.
+        db: The Qdrant vectorstore instance.
 
     Returns:
         str: The final answer produced by the system.

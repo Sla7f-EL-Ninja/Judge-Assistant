@@ -18,6 +18,10 @@ from nodes import *
 from routers import *
 from config.rag import default_state_template, START, END
 from langgraph.graph import StateGraph
+from indexer import ensure_civil_law_indexed
+
+# Ensure the civil law corpus is indexed in Qdrant before first query
+ensure_civil_law_indexed()
 
 # Initialize the graph
 graph = StateGraph(State)
