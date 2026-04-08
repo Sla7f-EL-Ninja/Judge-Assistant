@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_context-mode_context-mode__ctx_execute",
+      "Bash(python -c ':*)",
+      "Bash(mkdir -p graphify-out)",
+      "mcp__plugin_context-mode_context-mode__ctx_stats",
+      "mcp__plugin_context-mode_context-mode__ctx_execute_file",
+      "mcp__plugin_context-mode_context-mode__ctx_search"
+    ],
+    "deny": [
+      "Read(**/*.log)",
+      "Read(**/*.lock)",
+      "Read(**/node_modules/**)",
+      "Read(**/__pycache__/**)",
+      "Read(**/.pytest_cache/**)"
+    ]
+  }
+}
