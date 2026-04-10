@@ -197,8 +197,15 @@ def mergeAnswers(state: AgentState) -> Dict[str, Any]:
     if len(sub_answers) == 1:
         final_answer = sub_answers[0].get("answer", "")
     else:
-        # Multi-question: Supervisor reads sub_answers directly
-        final_answer = ""
+        parts = []
+        for i, sa in enumerate(sub_answers, 1):
+            q = sa.get("question", "")
+            a = sa.get("answer", "")
+            if q:
+                parts.append(f"**{q}**\n{a}")
+            else:
+                parts.append(a)
+        final_answer = "\n\n---\n\n".join(parts)
 
     found_count = sum(1 for sa in sub_answers if sa.get("found"))
     logger.info(
