@@ -199,10 +199,19 @@ def dispatchQuestions(state: AgentState) -> List[Send]:
             "sub_answer": "",
             "sources": [],
             "found": False,
+            "sub_answers": [],
         })]
 
+    # Deduplicate sub-questions while preserving order
+    seen: set = set()
+    unique_questions = []
+    for q in sub_questions:
+        if q not in seen:
+            seen.add(q)
+            unique_questions.append(q)
+
     sends = []
-    for sub_q in sub_questions:
+    for sub_q in unique_questions:
         sub_state = {
             "sub_question": sub_q,
             "case_id": state.get("case_id", ""),
@@ -216,6 +225,7 @@ def dispatchQuestions(state: AgentState) -> List[Send]:
             "sub_answer": "",
             "sources": [],
             "found": False,
+            "sub_answers": [],
         }
         sends.append(Send("retrieve_branch", sub_state))
 

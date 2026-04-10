@@ -19,8 +19,22 @@ from RAG.case_doc_rag.state import SubQuestionState
 
 logger = logging.getLogger("case_doc_rag.retrieval_nodes")
 
-# Module-level constant for score threshold -- easy to tune
+# Module-level constants -- easy to tune
 _SCORE_THRESHOLD = 0.45
+_RETRIEVAL_K = 8
+
+
+def _search_with_threshold(vs, query: str, k: int, score_threshold: float,
+                           qdrant_filter=None):
+    """Search vectorstore and enforce score_threshold via post-filtering.
+
+    Uses similarity_search_with_relevance_scores which actually honours
+    the threshold, unlike MMR's search_kwargs which silently ignores it.
+    """
+    results = vs.similarity_search_with_relevance_scores(
+        query, k=k, **({"filter": qdrant_filter} if qdrant_filter else {}),
+    )
+    return [doc for doc, score in results if score >= score_threshold]
 
 # Grading system prompt -- tightly coupled to GradeDocument schema, used only here
 _GRADING_SYSTEM_PROMPT = (
@@ -58,11 +72,7 @@ def retrieve(state: SubQuestionState) -> Dict[str, Any]:
                 FieldCondition(key="metadata.case_id", match=MatchValue(value=case_id)),
                 FieldCondition(key="metadata.title", match=MatchValue(value=doc_target)),
             ])
-            retriever = vs.as_retriever(
-                search_type="mmr",
-                search_kwargs={"k": 8, "filter": meta_filter, "score_threshold": _SCORE_THRESHOLD},
-            )
-            docs = retriever.invoke(sub_question)
+            docs = _search_with_threshold(vs, sub_question, _RETRIEVAL_K, _SCORE_THRESHOLD, meta_filter)
             logger.debug(
                 "[%s] retrieve attempt1 (case_id+title): %d docs",
                 request_id, len(docs),
@@ -73,11 +83,7 @@ def retrieve(state: SubQuestionState) -> Dict[str, Any]:
             meta_filter = Filter(must=[
                 FieldCondition(key="metadata.case_id", match=MatchValue(value=case_id)),
             ])
-            retriever = vs.as_retriever(
-                search_type="mmr",
-                search_kwargs={"k": 8, "filter": meta_filter, "score_threshold": _SCORE_THRESHOLD},
-            )
-            docs = retriever.invoke(sub_question)
+            docs = _search_with_threshold(vs, sub_question, _RETRIEVAL_K, _SCORE_THRESHOLD, meta_filter)
             logger.debug(
                 "[%s] retrieve attempt2 (case_id only): %d docs",
                 request_id, len(docs),
@@ -88,11 +94,7 @@ def retrieve(state: SubQuestionState) -> Dict[str, Any]:
             meta_filter = Filter(must=[
                 FieldCondition(key="metadata.type", match=MatchValue(value=doc_target)),
             ])
-            retriever = vs.as_retriever(
-                search_type="mmr",
-                search_kwargs={"k": 8, "filter": meta_filter, "score_threshold": _SCORE_THRESHOLD},
-            )
-            docs = retriever.invoke(sub_question)
+            docs = _search_with_threshold(vs, sub_question, _RETRIEVAL_K, _SCORE_THRESHOLD, meta_filter)
             if docs:
                 logger.warning(
                     "[%s] retrieve attempt3 (metadata.type, no case isolation): %d docs",
@@ -101,7 +103,7 @@ def retrieve(state: SubQuestionState) -> Dict[str, Any]:
 
         # Attempt 4: unfiltered last resort
         if not docs:
-            docs = get_retriever({"k": 8, "score_threshold": _SCORE_THRESHOLD}).invoke(sub_question)
+            docs = _search_with_threshold(vs, sub_question, _RETRIEVAL_K, _SCORE_THRESHOLD)
             if docs:
                 logger.warning(
                     "[%s] retrieve attempt4 (unfiltered): %d docs",
@@ -116,18 +118,14 @@ def retrieve(state: SubQuestionState) -> Dict[str, Any]:
             meta_filter = Filter(must=[
                 FieldCondition(key="metadata.case_id", match=MatchValue(value=case_id)),
             ])
-            retriever = vs.as_retriever(
-                search_type="mmr",
-                search_kwargs={"k": 8, "filter": meta_filter, "score_threshold": _SCORE_THRESHOLD},
-            )
-            docs = retriever.invoke(sub_question)
+            docs = _search_with_threshold(vs, sub_question, _RETRIEVAL_K, _SCORE_THRESHOLD, meta_filter)
             logger.debug(
                 "[%s] retrieve (case_id): %d docs", request_id, len(docs),
             )
 
         # Attempt 2: unfiltered fallback
         if not docs:
-            docs = get_retriever({"k": 8, "score_threshold": _SCORE_THRESHOLD}).invoke(sub_question)
+            docs = _search_with_threshold(vs, sub_question, _RETRIEVAL_K, _SCORE_THRESHOLD)
             logger.warning(
                 "[%s] retrieve (unfiltered fallback): %d docs",
                 request_id, len(docs),
