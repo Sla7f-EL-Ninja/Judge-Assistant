@@ -1,3 +1,5 @@
 .env
 DataBases/
 __pycache__/
+.claude/
+/.claude/

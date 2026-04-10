@@ -25,6 +25,7 @@ _embedding_fn = None
 _llm_cache: Dict[str, Any] = {}
 _qdrant_client = None
 _vectorstore = None
+_mongo_client = None
 _mongo_collection = None
 
 # A single reentrant lock guards all singleton accessors.  RLock is used
@@ -140,7 +141,7 @@ def get_retriever(search_kwargs: Optional[dict] = None):
 
 def get_mongo_collection():
     """Return the shared MongoDB collection (lazy, thread-safe)."""
-    global _mongo_collection
+    global _mongo_client, _mongo_collection
     if _mongo_collection is not None:
         return _mongo_collection
     with _singleton_lock:
@@ -154,6 +155,6 @@ def get_mongo_collection():
                 "Initializing MongoDB connection db=%s collection=%s",
                 db_name, coll_name,
             )
-            client = MongoClient(uri)
-            _mongo_collection = client[db_name][coll_name]
+            _mongo_client = MongoClient(uri)
+            _mongo_collection = _mongo_client[db_name][coll_name]
     return _mongo_collection
