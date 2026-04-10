@@ -11,6 +11,14 @@ from langchain_core.documents import Document
 from typing_extensions import TypedDict
 
 
+def _last_value(existing, new):
+    """Reducer that keeps the latest value. Required for fields shared between
+    AgentState and SubQuestionState so that concurrent fan-out branches do not
+    cause INVALID_CONCURRENT_GRAPH_UPDATE at merge time.
+    """
+    return new
+
+
 class AgentState(TypedDict):
     """Main graph state contract between all nodes and the Supervisor.
 
@@ -20,19 +28,20 @@ class AgentState(TypedDict):
 
     # -- Input fields (set once, never modified by nodes) --
     query: str
-    case_id: str
-    conversation_history: List[Dict[str, str]]
-    request_id: str
+    case_id: Annotated[str, _last_value]
+    conversation_history: Annotated[List[Dict[str, str]], _last_value]
+    request_id: Annotated[str, _last_value]
 
     # -- Query processing fields --
     sub_questions: List[str]
     on_topic: bool
 
     # -- Document selection fields --
-    doc_selection_mode: Literal[
-        "retrieve_specific_doc", "restrict_to_doc", "no_doc_specified"
+    doc_selection_mode: Annotated[
+        Literal["retrieve_specific_doc", "restrict_to_doc", "no_doc_specified"],
+        _last_value,
     ]
-    selected_doc_id: Optional[str]
+    selected_doc_id: Annotated[Optional[str], _last_value]
     doc_titles: List[str]
 
     # -- Fan-out result field (CRITICAL: annotated reducer required) --
@@ -54,11 +63,11 @@ class SubQuestionState(TypedDict):
 
     # -- Fields copied from AgentState at dispatch time (read-only) --
     sub_question: str
-    case_id: str
-    conversation_history: List[Dict[str, str]]
-    selected_doc_id: Optional[str]
-    doc_selection_mode: str
-    request_id: str
+    case_id: Annotated[str, _last_value]
+    conversation_history: Annotated[List[Dict[str, str]], _last_value]
+    selected_doc_id: Annotated[Optional[str], _last_value]
+    doc_selection_mode: Annotated[str, _last_value]
+    request_id: Annotated[str, _last_value]
 
     # -- Retrieval field --
     retrieved_docs: List[Document]
@@ -71,3 +80,4 @@ class SubQuestionState(TypedDict):
     sub_answer: str
     sources: List[str]
     found: bool
+    sub_answers: Annotated[List[Dict[str, Any]], operator.add]

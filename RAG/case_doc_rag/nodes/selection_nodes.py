@@ -206,14 +206,20 @@ def DocumentFinalizer(state: AgentState) -> Dict[str, Any]:
             "[%s] DocumentFinalizer: MongoDB error for doc_id='%s'",
             request_id, doc_id,
         )
-        return {"error": f"Failed to retrieve document '{doc_id}' from MongoDB"}
+        return {
+            "error": f"Failed to retrieve document '{doc_id}' from MongoDB",
+            "final_answer": "حدث خطأ أثناء استرجاع المستند من قاعدة البيانات.",
+        }
 
     if doc is None:
         logger.warning(
             "[%s] DocumentFinalizer: doc '%s' not found in MongoDB",
             request_id, doc_id,
         )
-        return {"error": f"Document '{doc_id}' not found in MongoDB"}
+        return {
+            "error": f"Document '{doc_id}' not found in MongoDB",
+            "final_answer": f"لم يتم العثور على المستند '{doc_id}' في قاعدة البيانات.",
+        }
 
     # Extract text content -- try field names in priority order
     extracted_text = ""
