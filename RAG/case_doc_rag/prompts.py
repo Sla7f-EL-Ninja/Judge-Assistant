@@ -81,12 +81,17 @@ You are a legal document-selection classifier for Egyptian civil-case files.
 Your job:
 Detect whether the judge's query refers to ANY specific document in the case file.
 
-IMPORTANT: The ONLY documents that exist in this case are listed below.
-You MUST NOT invent or guess document names. If the judge refers to a document,
-match it to one of the titles below. If none match, set doc_id to None and
-mode to "no_doc_specified".
+CRITICAL RULES FOR doc_id:
+- You MUST copy the title CHARACTER-FOR-CHARACTER from the numbered list below.
+- Partial titles are STRICTLY FORBIDDEN. For example, if the list contains
+  "مذكرة بدفاع المدعى عليها الثانية" and "مذكرة بدفاع المدعى عليه الأول",
+  you MUST return the full title, NEVER just "مذكرة بدفاع".
+- If the query is ambiguous and could match more than one title, set doc_id to
+  None and mode to "no_doc_specified" -- do NOT guess.
+- If no title matches, set doc_id to None and mode to "no_doc_specified".
+- You MUST NOT invent, abbreviate, or paraphrase document names.
 
-Available documents in this case:
+Available documents in this case (copy the title exactly as written):
 {available_docs}
 
 You MUST classify the query into exactly one category:
@@ -114,7 +119,7 @@ You MUST classify the query into exactly one category:
 
 You must return:
 - mode: one of the 3 options
-- doc_id: the EXACT title from the available documents list above, or None"""
+- doc_id: the FULL, EXACT title copied from the numbered list above, or None"""
 
 RAG_ANSWER_TEMPLATE = """\
 أنت مساعد قانوني متخصص يعمل مع قضاة المحاكم المدنية في مصر.

@@ -1,7 +1,18 @@
 """case_doc_rag.nodes.selection_nodes -- Document selection and finalization nodes.
 
-Nodes: documentSelector, DocumentFinalizer
-Utilities: get_available_doc_titles, fuzzy_match_doc_title
+Public nodes
+------------
+documentSelector        -- Main-graph title-fetch step (LLM removed, Phase 2).
+branchDocSelector       -- Per-branch doc classification node (Phase 3).
+BranchDocumentFinalizer -- Per-branch short-circuit finalizer (Phase 4).
+DocumentFinalizer       -- DEPRECATED: kept for reference / test compatibility.
+                           No longer wired into any graph. Will be removed in a
+                           future cleanup pass once all tests are updated.
+
+Utilities
+---------
+get_available_doc_titles(case_id) -- MongoDB fetch with TTL cache.
+fuzzy_match_doc_title(candidate, available_titles, threshold) -- SequenceMatcher helper.
 """
 
 import json
@@ -11,13 +22,12 @@ import time
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional
 
-from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 
 from RAG.case_doc_rag.infrastructure import get_llm, get_mongo_collection
 from RAG.case_doc_rag.models import DocSelection
 from RAG.case_doc_rag.prompts import DOC_SELECTOR_SYSTEM_PROMPT_TEMPLATE
-from RAG.case_doc_rag.state import AgentState
+from RAG.case_doc_rag.state import AgentState, SubQuestionState
 
 logger = logging.getLogger("case_doc_rag.selection_nodes")
 
@@ -69,7 +79,6 @@ def get_available_doc_titles(case_id: str) -> List[str]:
             case_id in _titles_cache
             and time.time() - _titles_cache_ts.get(case_id, 0) < _CACHE_TTL
         ):
-            # Another thread filled the cache while we queried; use its result.
             return _titles_cache[case_id]
 
         _titles_cache[case_id] = titles
@@ -105,30 +114,81 @@ def fuzzy_match_doc_title(
 
 
 # ---------------------------------------------------------------------------
-# Node functions
+# Main-graph node (Phase 2 — title fetch only, LLM removed)
 # ---------------------------------------------------------------------------
 
 
 def documentSelector(state: AgentState) -> Dict[str, Any]:
-    """Classify the query's document intent and select the target document.
+    """Fetch available document titles for the case and write them to AgentState.
 
-    Fixes: Bug 9 (.content crash on query), Perf 2 (MongoDB caching).
+    Phase 2 refactor: the LLM classification call has been removed entirely.
+    This node is now a lightweight MongoDB prefetch step. Its only job is to
+    populate AgentState.doc_titles before fan-out so that every branch's
+    branchDocSelector can classify without hitting MongoDB again.
+
+    The per-sub-question doc-selection classification (mode + doc_id) is now
+    handled by branchDocSelector inside the branch sub-graph.
+
+    Returns
+    -------
+    {"doc_titles": List[str]}
+        Only doc_titles is written. doc_selection_mode and selected_doc_id are
+        intentionally NOT written here -- they are branch-local after the refactor.
     """
     request_id = state.get("request_id", "")
-    query = state.get("query", "")
-
-    if not query or not query.strip():
-        return {
-            "doc_selection_mode": "no_doc_specified",
-            "selected_doc_id": None,
-            "doc_titles": [],
-        }
-
     case_id = state.get("case_id", "")
-    available_titles = get_available_doc_titles(case_id)
 
-    if available_titles:
-        docs_list = "\n".join(f"- {title}" for title in available_titles)
+    titles = get_available_doc_titles(case_id)
+
+    logger.info(
+        "[%s] documentSelector (title-fetch): %d titles for case_id=%s",
+        request_id, len(titles), case_id,
+    )
+    return {"doc_titles": titles}
+
+
+# ---------------------------------------------------------------------------
+# Branch node (Phase 3 — per-sub-question LLM classifier)
+# ---------------------------------------------------------------------------
+
+
+def branchDocSelector(state: SubQuestionState) -> Dict[str, Any]:
+    """Classify one sub-question's document intent inside the branch.
+
+    Runs as the first node of every parallel branch. Reuses the existing
+    DOC_SELECTOR_SYSTEM_PROMPT_TEMPLATE, DocSelection model, and
+    fuzzy_match_doc_title helper -- no new logic, just relocated from
+    documentSelector.
+
+    Reads doc_titles from SubQuestionState (injected at dispatch time from
+    AgentState.doc_titles). This means zero extra MongoDB calls regardless of
+    fan-out width.
+
+    NOTE: Each parallel branch invocation incurs one extra LLM call here. For
+    a 3-sub-question fan-out that is 3 additional calls. This is the explicit
+    tradeoff of per-branch accuracy vs. main-graph classification latency.
+
+    On any exception, falls back to mode="no_doc_specified", doc_id=None so the
+    branch continues to retrieval rather than crashing.
+
+    Returns
+    -------
+    {"doc_selection_mode": str, "selected_doc_id": Optional[str]}
+    """
+    request_id = state.get("request_id", "")
+    sub_question = state.get("sub_question", "")
+    doc_titles = state.get("doc_titles", [])
+
+    # Graceful no-op for empty sub_question
+    if not sub_question or not sub_question.strip():
+        logger.warning(
+            "[%s] branchDocSelector: empty sub_question, defaulting to no_doc_specified",
+            request_id,
+        )
+        return {"doc_selection_mode": "no_doc_specified", "selected_doc_id": None}
+
+    if doc_titles:
+        docs_list = "\n".join(f"- {title}" for title in doc_titles)
     else:
         docs_list = "(No documents available in the case file)"
 
@@ -142,60 +202,82 @@ def documentSelector(state: AgentState) -> Dict[str, Any]:
             ("human", "{query}"),
         ])
         chain = prompt | get_llm("high").with_structured_output(DocSelection)
-        result = chain.invoke({"query": query})
+        result = chain.invoke({"query": sub_question})
         mode = result.mode
         doc_id = result.doc_id
     except Exception:
-        logger.exception("[%s] LLM error in documentSelector", request_id)
-        return {
-            "doc_selection_mode": "no_doc_specified",
-            "selected_doc_id": None,
-            "doc_titles": available_titles,
-        }
+        logger.exception(
+            "[%s] branchDocSelector: LLM error, falling back to no_doc_specified",
+            request_id,
+        )
+        return {"doc_selection_mode": "no_doc_specified", "selected_doc_id": None}
 
-    # Validate doc_id against available titles
-    if doc_id is not None and available_titles:
-        if doc_id not in available_titles:
-            matched = fuzzy_match_doc_title(doc_id, available_titles)
+    # Validate doc_id against available titles using fuzzy match
+    if doc_id is not None and doc_titles:
+        if doc_id not in doc_titles:
+            matched = fuzzy_match_doc_title(doc_id, doc_titles)
             if matched:
                 logger.info(
-                    "[%s] documentSelector: fuzzy matched '%s' -> '%s'",
+                    "[%s] branchDocSelector: fuzzy matched '%s' -> '%s'",
                     request_id, doc_id, matched,
                 )
                 doc_id = matched
             else:
                 logger.warning(
-                    "[%s] documentSelector: doc_id '%s' not found, falling back",
+                    "[%s] branchDocSelector: doc_id '%s' not found in titles, "
+                    "falling back to no_doc_specified",
                     request_id, doc_id,
                 )
                 doc_id = None
                 mode = "no_doc_specified"
 
     logger.info(
-        "[%s] documentSelector: mode=%s doc_id=%s",
-        request_id, mode, doc_id,
+        "[%s] branchDocSelector: sub_question=%r mode=%s doc_id=%s",
+        request_id, sub_question[:80], mode, doc_id,
     )
-    return {
-        "doc_selection_mode": mode,
-        "selected_doc_id": doc_id,
-        "doc_titles": available_titles,
-    }
+    return {"doc_selection_mode": mode, "selected_doc_id": doc_id}
 
 
-def DocumentFinalizer(state: AgentState) -> Dict[str, Any]:
+# ---------------------------------------------------------------------------
+# Branch finalizer node (Phase 4 — operates on SubQuestionState)
+# ---------------------------------------------------------------------------
+
+
+def BranchDocumentFinalizer(state: SubQuestionState) -> Dict[str, Any]:
     """Retrieve and return a specific document directly from MongoDB.
 
-    Fixes: Bug 5 (retrieved_docs set to raw MongoDB dict instead of Document).
-    Goes directly to END -- must write sub_answers and final_answer.
+    Branch-adapted version of the former main-graph DocumentFinalizer.
+    Operates on SubQuestionState instead of AgentState:
+      - reads  sub_question  (instead of query)
+      - writes sub_answer / sources / found / sub_answers
+
+    This node is a terminal branch node -- it routes to END of the branch
+    sub-graph when branchDocSelectorRouter returns "BranchDocumentFinalizer".
+
+    On any failure, returns a graceful Arabic error string in sub_answers so
+    that mergeAnswers / the Supervisor can surface it to the judge without
+    crashing the pipeline.
     """
     request_id = state.get("request_id", "")
     doc_id = state.get("selected_doc_id")
+    sub_question = state.get("sub_question", "")
 
     if doc_id is None:
-        logger.warning("[%s] DocumentFinalizer: no doc_id specified", request_id)
+        logger.warning(
+            "[%s] BranchDocumentFinalizer: no doc_id specified", request_id
+        )
+        message = "لم يتم تحديد مستند للاسترجاع."
+        entry = {
+            "question": sub_question,
+            "answer": message,
+            "sources": [],
+            "found": False,
+        }
         return {
-            "final_answer": "لم يتم تحديد مستند للاسترجاع.",
-            "error": "DocumentFinalizer reached with no doc_id",
+            "sub_answer": message,
+            "sources": [],
+            "found": False,
+            "sub_answers": [entry],
         }
 
     try:
@@ -203,22 +285,40 @@ def DocumentFinalizer(state: AgentState) -> Dict[str, Any]:
         doc = collection.find_one({"title": doc_id})
     except Exception:
         logger.exception(
-            "[%s] DocumentFinalizer: MongoDB error for doc_id='%s'",
+            "[%s] BranchDocumentFinalizer: MongoDB error for doc_id='%s'",
             request_id, doc_id,
         )
+        message = "حدث خطأ أثناء استرجاع المستند من قاعدة البيانات."
+        entry = {
+            "question": sub_question,
+            "answer": message,
+            "sources": [],
+            "found": False,
+        }
         return {
-            "error": f"Failed to retrieve document '{doc_id}' from MongoDB",
-            "final_answer": "حدث خطأ أثناء استرجاع المستند من قاعدة البيانات.",
+            "sub_answer": message,
+            "sources": [],
+            "found": False,
+            "sub_answers": [entry],
         }
 
     if doc is None:
         logger.warning(
-            "[%s] DocumentFinalizer: doc '%s' not found in MongoDB",
+            "[%s] BranchDocumentFinalizer: doc '%s' not found in MongoDB",
             request_id, doc_id,
         )
+        message = f"لم يتم العثور على المستند '{doc_id}' في قاعدة البيانات."
+        entry = {
+            "question": sub_question,
+            "answer": message,
+            "sources": [],
+            "found": False,
+        }
         return {
-            "error": f"Document '{doc_id}' not found in MongoDB",
-            "final_answer": f"لم يتم العثور على المستند '{doc_id}' في قاعدة البيانات.",
+            "sub_answer": message,
+            "sources": [],
+            "found": False,
+            "sub_answers": [entry],
         }
 
     # Extract text content -- try field names in priority order
@@ -236,7 +336,86 @@ def DocumentFinalizer(state: AgentState) -> Dict[str, Any]:
 
     source_file = doc.get("source_file", "unknown")
     chunk_index = doc.get("chunk_index", 0)
+    source_ref = f"{source_file}:chunk_{chunk_index}"
 
+    answer_entry = {
+        "question": sub_question,
+        "answer": extracted_text,
+        "sources": [source_ref],
+        "found": True,
+    }
+
+    logger.info(
+        "[%s] BranchDocumentFinalizer: returning doc '%s' (%d chars)",
+        request_id, doc_id, len(extracted_text),
+    )
+    return {
+        "sub_answer": extracted_text,
+        "sources": [source_ref],
+        "found": True,
+        "sub_answers": [answer_entry],
+    }
+
+
+# ---------------------------------------------------------------------------
+# DEPRECATED: main-graph DocumentFinalizer (Phase 9)
+# ---------------------------------------------------------------------------
+
+
+def DocumentFinalizer(state: AgentState) -> Dict[str, Any]:
+    """DEPRECATED -- no longer wired into any graph.
+
+    The per-branch equivalent is BranchDocumentFinalizer (above).
+    Kept temporarily so that existing unit tests that import this symbol do not
+    raise ImportError. Remove this function once all tests are updated to target
+    BranchDocumentFinalizer via the branch sub-graph (Phase 10).
+    """
+    logger.warning(
+        "DocumentFinalizer (main-graph) was called -- this node is deprecated "
+        "and should not be reachable in the current graph. Use "
+        "BranchDocumentFinalizer instead."
+    )
+    request_id = state.get("request_id", "")
+    doc_id = state.get("selected_doc_id")
+
+    if doc_id is None:
+        return {
+            "final_answer": "لم يتم تحديد مستند للاسترجاع.",
+            "error": "DocumentFinalizer (deprecated) reached with no doc_id",
+        }
+
+    try:
+        collection = get_mongo_collection()
+        doc = collection.find_one({"title": doc_id})
+    except Exception:
+        logger.exception(
+            "[%s] DocumentFinalizer (deprecated): MongoDB error for doc_id='%s'",
+            request_id, doc_id,
+        )
+        return {
+            "error": f"Failed to retrieve document '{doc_id}' from MongoDB",
+            "final_answer": "حدث خطأ أثناء استرجاع المستند من قاعدة البيانات.",
+        }
+
+    if doc is None:
+        return {
+            "error": f"Document '{doc_id}' not found in MongoDB",
+            "final_answer": f"لم يتم العثور على المستند '{doc_id}' في قاعدة البيانات.",
+        }
+
+    extracted_text = ""
+    for field_name in ("content", "text", "body"):
+        val = doc.get(field_name)
+        if val and isinstance(val, str) and val.strip():
+            extracted_text = val
+            break
+
+    if not extracted_text:
+        doc_copy = {k: v for k, v in doc.items() if k != "_id"}
+        extracted_text = json.dumps(doc_copy, ensure_ascii=False, default=str)
+
+    source_file = doc.get("source_file", "unknown")
+    chunk_index = doc.get("chunk_index", 0)
     answer_entry = {
         "question": state.get("query", ""),
         "answer": extracted_text,
@@ -244,10 +423,6 @@ def DocumentFinalizer(state: AgentState) -> Dict[str, Any]:
         "found": True,
     }
 
-    logger.info(
-        "[%s] DocumentFinalizer: returning doc '%s' (%d chars)",
-        request_id, doc_id, len(extracted_text),
-    )
     return {
         "sub_answers": [answer_entry],
         "final_answer": extracted_text,

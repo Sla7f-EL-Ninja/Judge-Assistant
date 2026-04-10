@@ -31,43 +31,41 @@ def onTopicRouter(state: AgentState) -> str:
     return "offTopicResponse"
 
 
-def docSelectorRouter(state: AgentState) -> str:
-    """Route after documentSelector: DocumentFinalizer / dispatchQuestions / errorResponse.
-
-    NOTE: Kept for backwards-compatibility / reference. The graph now uses
-    docSelectorDispatchRouter which merges routing + fan-out into one
-    conditional-edge function.
-    """
-    if state.get("error"):
-        return "errorResponse"
-    if state.get("doc_selection_mode") == "retrieve_specific_doc":
-        return "DocumentFinalizer"
-    return "dispatchQuestions"
-
-
 def docSelectorDispatchRouter(
     state: AgentState,
 ) -> Union[str, List[Send]]:
-    """Conditional-edge function after documentSelector.
+    """Conditional-edge function after documentSelector (title-fetch step).
 
-    Returns a string key for DocumentFinalizer / errorResponse, **or** a list
-    of Send objects that fan-out each sub-question to ``retrieve_branch``.
+    Phase 8 refactor: the retrieve_specific_doc → DocumentFinalizer short-circuit
+    has been removed from the main graph. That decision is now branch-local, made
+    by branchDocSelector + branchDocSelectorRouter inside each parallel branch.
 
-    This replaces the old pattern where ``dispatchQuestions`` was registered as
-    a regular node (which crashed because nodes must return dicts, not Sends).
+    This router now has two responsibilities only:
+      1. Guard against pipeline errors  → return "errorResponse"
+      2. Guard against empty sub_questions → return "errorResponse"
+      3. Otherwise: unconditionally fan-out every sub-question to retrieve_branch
+         via Send(), injecting doc_titles so branches never hit MongoDB.
+
+    doc_titles is read from AgentState (populated by documentSelector) and copied
+    verbatim into every branch's initial SubQuestionState.
     """
     if state.get("error"):
+        logger.error(
+            "[%s] docSelectorDispatchRouter: routing to errorResponse due to error: %s",
+            state.get("request_id", ""), state.get("error"),
+        )
         return "errorResponse"
-    if state.get("doc_selection_mode") == "retrieve_specific_doc":
-        return "DocumentFinalizer"
 
-    # --- Fan-out logic (previously in query_nodes.dispatchQuestions) ---
     request_id = state.get("request_id", "")
     sub_questions = state.get("sub_questions", [])
+    doc_titles = state.get("doc_titles", [])
 
     if not sub_questions:
-        logger.error("[%s] No sub-questions to dispatch", request_id)
-        sub_questions = [""]
+        logger.error(
+            "[%s] docSelectorDispatchRouter: no sub_questions, routing to errorResponse",
+            request_id,
+        )
+        return "errorResponse"
 
     sends: List[Send] = []
     for sub_q in sub_questions:
@@ -75,17 +73,23 @@ def docSelectorDispatchRouter(
             Send(
                 "retrieve_branch",
                 {
+                    # Sub-question for this branch
                     "sub_question": sub_q,
+                    # Copied from AgentState (read-only inside branch)
                     "case_id": state.get("case_id", ""),
                     "conversation_history": state.get("conversation_history", []),
-                    "selected_doc_id": state.get("selected_doc_id"),
-                    "doc_selection_mode": state.get(
-                        "doc_selection_mode", "no_doc_specified"
-                    ),
                     "request_id": request_id,
+                    # Pre-fetched titles -- branchDocSelector reads this instead
+                    # of hitting MongoDB, giving zero extra DB calls at fan-out.
+                    "doc_titles": doc_titles,
+                    # Sentinel defaults; overwritten by branchDocSelector
+                    "selected_doc_id": None,
+                    "doc_selection_mode": "no_doc_specified",
+                    # Retrieval / grading fields (branch-local)
                     "retrieved_docs": [],
                     "proceedToGenerate": False,
                     "rephraseCount": 0,
+                    # Output fields
                     "sub_answer": "",
                     "sources": [],
                     "found": False,
@@ -96,10 +100,42 @@ def docSelectorDispatchRouter(
 
     logger.info(
         "[%s] docSelectorDispatchRouter: dispatching %d branches",
-        request_id,
-        len(sends),
+        request_id, len(sends),
     )
     return sends
+
+
+def branchDocSelectorRouter(state: SubQuestionState) -> str:
+    """Route after branchDocSelector inside the branch sub-graph.
+
+    Phase 5: pure function, zero side effects.
+
+    Returns
+    -------
+    "BranchDocumentFinalizer"
+        When doc_selection_mode == "retrieve_specific_doc".
+        The branch short-circuits to BranchDocumentFinalizer → END without
+        touching retrieval or grading.
+
+    "retrieve"
+        For "restrict_to_doc" or "no_doc_specified". The branch continues
+        through the normal retrieve → retrievalGrader → ... pipeline.
+        In the "restrict_to_doc" case, selected_doc_id has been set by
+        branchDocSelector and retrieve() will scope its Qdrant filter to that doc.
+    """
+    mode = state.get("doc_selection_mode", "no_doc_specified")
+    if mode == "retrieve_specific_doc":
+        logger.debug(
+            "[%s] branchDocSelectorRouter -> BranchDocumentFinalizer (mode=%s)",
+            state.get("request_id", ""), mode,
+        )
+        return "BranchDocumentFinalizer"
+
+    logger.debug(
+        "[%s] branchDocSelectorRouter -> retrieve (mode=%s)",
+        state.get("request_id", ""), mode,
+    )
+    return "retrieve"
 
 
 def proceedRouter(state: SubQuestionState) -> str:
@@ -112,3 +148,20 @@ def proceedRouter(state: SubQuestionState) -> str:
     if state.get("rephraseCount", 0) >= _MAX_REPHRASE:
         return "cannotAnswer"
     return "refineQuestion"
+
+
+# ---------------------------------------------------------------------------
+# DEPRECATED: docSelectorRouter
+# ---------------------------------------------------------------------------
+
+
+def docSelectorRouter(state: AgentState) -> str:
+    """DEPRECATED -- superseded by docSelectorDispatchRouter.
+
+    Kept for backwards-compatibility / reference only. Not wired into any graph.
+    """
+    if state.get("error"):
+        return "errorResponse"
+    if state.get("doc_selection_mode") == "retrieve_specific_doc":
+        return "DocumentFinalizer"
+    return "dispatchQuestions"
