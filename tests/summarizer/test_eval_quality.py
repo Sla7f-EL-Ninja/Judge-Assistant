@@ -28,6 +28,33 @@ import pytest
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 _SUMMARIZE_DIR = _REPO_ROOT / "Summerize"
+
+
+# ---------------------------------------------------------------------------
+# Robust JSON extraction helper
+# ---------------------------------------------------------------------------
+
+def _extract_json(response_content: str) -> dict:
+    """Robustly extract a JSON object from an LLM response.
+
+    Handles:
+    - Raw JSON (no wrapping)
+    - ```json ... ``` code blocks
+    - ``` ... ``` code blocks
+    - JSON preceded/followed by explanatory text
+    """
+    content = response_content.strip()
+    # Try markdown code blocks first
+    if "```json" in content:
+        content = content.split("```json")[1].split("```")[0].strip()
+    elif "```" in content:
+        content = content.split("```")[1].split("```")[0].strip()
+    else:
+        # Try extracting the outermost {...} block
+        match = re.search(r'\{[\s\S]*\}', content)
+        if match:
+            content = match.group(0).strip()
+    return json.loads(content)
 for _p in [str(_REPO_ROOT), str(_SUMMARIZE_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -305,13 +332,7 @@ class TestLinguisticQuality:
                 ("human", f"المذكرة:\n\n{rendered[:3000]}"),
             ]
             response = llm.invoke(messages)
-            content = response.content.strip()
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0].strip()
-
-            scores = json.loads(content)
+            scores = _extract_json(response.content)
             total = scores.get("total", 0)
 
             eval_report["EV-05"] = {
@@ -360,22 +381,17 @@ class TestFactualFaithfulness:
                 google_api_key=os.getenv("GOOGLE_API_KEY", ""),
                 temperature=0.0,
             )
-            prompt = FAITHFULNESS_PROMPT.format(
-                fixture_excerpts=fixture_excerpts[:2000],
-                brief_text=rendered[:2000],
+            human_content = (
+                f"الوثائق الأصلية:\n\n{fixture_excerpts[:2000]}"
+                f"\n\n---\n\nالمذكرة:\n\n{rendered[:2000]}"
+                f"\n\nقيّم أمانة المذكرة للوثائق الأصلية."
             )
             messages = [
-                ("system", prompt),
-                ("human", "قيّم أمانة المذكرة للوثائق الأصلية."),
+                ("system", FAITHFULNESS_PROMPT),
+                ("human", human_content),
             ]
             response = llm.invoke(messages)
-            content = response.content.strip()
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0].strip()
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0].strip()
-
-            scores = json.loads(content)
+            scores = _extract_json(response.content)
             total = scores.get("total", 0)
 
             eval_report["EV-06"] = {

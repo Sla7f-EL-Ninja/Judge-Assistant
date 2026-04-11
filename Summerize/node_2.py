@@ -1,6 +1,7 @@
 import uuid
 import sys
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any
 from collections import defaultdict
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -186,9 +187,18 @@ class Node2_BulletExtractor:
 
         all_bullets: List[dict] = []
 
-        for role, chunks in role_groups.items():
+        def _extract_role(args):
+            role, chunks = args
+            results: List[dict] = []
             for i in range(0, len(chunks), self.BATCH_SIZE):
                 batch = chunks[i : i + self.BATCH_SIZE]
-                all_bullets.extend(self.process_batch(batch, role))
+                results.extend(self.process_batch(batch, role))
+            return results
+
+        role_items = list(role_groups.items())
+        max_workers = min(len(role_items), 8)
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            for result in ex.map(_extract_role, role_items):
+                all_bullets.extend(result)
 
         return {"bullets": all_bullets}
