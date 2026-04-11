@@ -1,5 +1,6 @@
 import sys
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Tuple
 from collections import defaultdict
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -364,5 +365,7 @@ class Node4A_ThematicClustering:
             return {"themed_roles": []}
 
         logger.info("--- Node 4A: Thematic Clustering ---")
-        themed_roles = [self.process_role(ra) for ra in role_aggregations]
+        max_workers = min(len(role_aggregations), 6)
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            themed_roles = list(ex.map(self.process_role, role_aggregations))
         return {"themed_roles": themed_roles}

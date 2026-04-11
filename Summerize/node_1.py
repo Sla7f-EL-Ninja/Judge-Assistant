@@ -1,4 +1,5 @@
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Tuple
 
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -121,15 +122,23 @@ class Node1_RoleClassifier:
 
         classified_chunks: List[dict] = []
 
-        for (doc_type, party), group_chunks in doc_groups.items():
+        def _classify_group(args):
+            (doc_type, party), group_chunks = args
             doc_meta = {"doc_type": doc_type, "party": party}
             logger.info(
                 "  Classifying %d chunk(s) for doc_type='%s', party='%s'",
                 len(group_chunks), doc_type, party,
             )
-
+            results: List[dict] = []
             for i in range(0, len(group_chunks), self.BATCH_SIZE):
                 batch = group_chunks[i : i + self.BATCH_SIZE]
-                classified_chunks.extend(self.process_batch(batch, doc_meta))
+                results.extend(self.process_batch(batch, doc_meta))
+            return results
+
+        group_items = list(doc_groups.items())
+        max_workers = min(len(group_items), 8)
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            for result in ex.map(_classify_group, group_items):
+                classified_chunks.extend(result)
 
         return {"classified_chunks": classified_chunks}

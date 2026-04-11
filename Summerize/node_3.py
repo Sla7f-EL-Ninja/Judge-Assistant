@@ -1,5 +1,6 @@
 import sys
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any
 from collections import defaultdict
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -225,15 +226,29 @@ class Node3_Aggregator:
 
         disputed = []
         for item in llm_result.disputed:
-            positions = [
-                {
-                    "party": side.party,
-                    "bullets": self.resolve_bullet_texts(side.bullet_ids, lookup),
-                    "sources": self.resolve_sources(side.bullet_ids, lookup),
+            positions = []
+            for side in item.sides:
+                if not side.bullet_ids:
+                    continue
+                # Anchor party label to source-document ground truth rather
+                # than trusting the LLM's inference (which can reverse parties).
+                # If all bullets for this side share the same original party,
+                # use that; otherwise fall back to the LLM's label.
+                source_parties = {
+                    lookup[bid]["party"]
+                    for bid in side.bullet_ids
+                    if bid in lookup
                 }
-                for side in item.sides
-                if side.bullet_ids
-            ]
+                inferred_party = (
+                    source_parties.pop() if len(source_parties) == 1 else side.party
+                )
+                positions.append(
+                    {
+                        "party": inferred_party,
+                        "bullets": self.resolve_bullet_texts(side.bullet_ids, lookup),
+                        "sources": self.resolve_sources(side.bullet_ids, lookup),
+                    }
+                )
             if positions:
                 disputed.append({"subject": item.subject, "positions": positions})
 
@@ -347,10 +362,14 @@ class Node3_Aggregator:
         lookup = self.build_bullet_lookup(bullets)
         role_groups = self.group_by_role(bullets)
 
-        role_aggregations = []
-        for role, role_bullets in role_groups.items():
+        def _process_role_item(args):
+            role, role_bullets = args
             logger.info("  Processing role '%s' (%d bullets)", role, len(role_bullets))
-            agg = self.process_role(role, role_bullets, lookup)
-            role_aggregations.append(agg)
+            return self.process_role(role, role_bullets, lookup)
+
+        role_items = list(role_groups.items())
+        max_workers = min(len(role_items), 6)
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            role_aggregations = list(ex.map(_process_role_item, role_items))
 
         return {"role_aggregations": role_aggregations}
