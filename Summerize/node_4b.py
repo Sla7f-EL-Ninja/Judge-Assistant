@@ -1,15 +1,18 @@
 import sys
 import os
+import concurrent.futures
 from typing import List, Dict, Any
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 
-# Add parent directory to path for shared schema imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from schemas import (
     LegalRoleEnum,
     ThemeSummary, RoleThemeSummaries, Node4BOutput,
 )
+from utils import get_logger, llm_invoke_with_retry
+
+logger = get_logger("hakim.node_4b")
 
 
 # --- Internal LLM Schema ---
@@ -20,9 +23,9 @@ class SynthesisResultLLM(BaseModel):
     key_disputes: List[str] = Field(description="عناوين مختصرة لنقاط الخلاف الجوهرية")
 
 
-# --- Prompt Templates ---
+# --- Static system prompt template (no user content) ---
 
-SYSTEM_PROMPT_4B = """أنت مساعد قضائي متخصص في تلخيص المعلومات القانونية للقاضي.
+_SYSTEM_TEMPLATE = """أنت مساعد قضائي متخصص في تلخيص المعلومات القانونية للقاضي.
 
 مهمتك: كتابة ملخص في 2-3 فقرات لموضوع "{theme}" ضمن "{role}".
 
@@ -39,19 +42,6 @@ SYSTEM_PROMPT_4B = """أنت مساعد قضائي متخصص في تلخيص ا
 - لا تختلق وقائع غير موجودة في النقاط المقدمة
 - اذكر عناوين مختصرة لنقاط الخلاف الجوهرية"""
 
-HUMAN_TEMPLATE_4B = """الموضوع: "{theme}" ضمن "{role}"
-
-النقاط المتفق عليها:
-{agreed_text}
-
-النقاط المتنازع عليها:
-{disputed_text}
-
-النقاط الخاصة بكل طرف:
-{party_specific_text}
-
-اكتب ملخصاً في 2-3 فقرات."""
-
 
 class Node4B_ThemeSynthesis:
 
@@ -59,8 +49,9 @@ class Node4B_ThemeSynthesis:
         self.llm = llm
         self.parser = llm.with_structured_output(SynthesisResultLLM)
 
+    # --- Formatting helpers ---
+
     def format_agreed(self, agreed: list) -> str:
-        """Format agreed items for prompt. Returns 'لا يوجد' if empty."""
         if not agreed:
             return "لا يوجد"
         lines = []
@@ -70,33 +61,33 @@ class Node4B_ThemeSynthesis:
         return "\n".join(lines)
 
     def format_disputed(self, disputed: list) -> str:
-        """Format disputed items showing both sides. Returns 'لا يوجد' if empty."""
         if not disputed:
             return "لا يوجد"
         lines = []
         for item in disputed:
             lines.append(f"- موضوع النزاع: {item.get('subject', '')}")
             for pos in item.get("positions", []):
-                party = pos.get("party", "")
                 bullets_text = "; ".join(pos.get("bullets", []))
                 sources_str = ", ".join(pos.get("sources", []))
-                lines.append(f"  * {party}: {bullets_text} [المصادر: {sources_str}]")
+                lines.append(
+                    f"  * {pos.get('party', '')}: {bullets_text} [المصادر: {sources_str}]"
+                )
         return "\n".join(lines)
 
     def format_party_specific(self, party_specific: list) -> str:
-        """Format party-specific items with party labels. Returns 'لا يوجد' if empty."""
         if not party_specific:
             return "لا يوجد"
         lines = []
         for item in party_specific:
-            party = item.get("party", "")
             sources_str = ", ".join(item.get("sources", []))
-            lines.append(f"- [{party}] {item.get('text', '')} [المصادر: {sources_str}]")
+            lines.append(
+                f"- [{item.get('party', '')}] {item.get('text', '')} [المصادر: {sources_str}]"
+            )
         return "\n".join(lines)
 
     def collect_sources(self, theme_cluster: dict) -> List[str]:
         """Gather all unique citations from a theme cluster."""
-        sources = []
+        sources: List[str] = []
         seen: set = set()
 
         for item in theme_cluster.get("agreed", []):
@@ -120,23 +111,27 @@ class Node4B_ThemeSynthesis:
 
         return sources
 
-    def create_prompt_messages(
-        self, theme: str, role: str,
-        agreed_text: str, disputed_text: str,
+    def _build_messages(
+        self,
+        theme: str,
+        role: str,
+        agreed_text: str,
+        disputed_text: str,
         party_specific_text: str,
     ) -> list:
-        """Build system + human messages."""
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT_4B),
-            ("human", HUMAN_TEMPLATE_4B),
-        ])
-        return prompt.format_messages(
-            theme=theme,
-            role=role,
-            agreed_text=agreed_text,
-            disputed_text=disputed_text,
-            party_specific_text=party_specific_text,
+        """Build system + human messages directly (S2-4: no ChatPromptTemplate)."""
+        system_content = _SYSTEM_TEMPLATE.format(theme=theme, role=role)
+        human_content = (
+            f'الموضوع: "{theme}" ضمن "{role}"\n\n'
+            f"النقاط المتفق عليها:\n{agreed_text}\n\n"
+            f"النقاط المتنازع عليها:\n{disputed_text}\n\n"
+            f"النقاط الخاصة بكل طرف:\n{party_specific_text}\n\n"
+            "اكتب ملخصاً في 2-3 فقرات."
         )
+        return [
+            SystemMessage(content=system_content),
+            HumanMessage(content=human_content),
+        ]
 
     def build_fallback_summary(self, theme_cluster: dict) -> str:
         """Build a raw-text fallback summary when LLM fails."""
@@ -170,38 +165,36 @@ class Node4B_ThemeSynthesis:
         return [item.get("subject", "") for item in disputed if item.get("subject")]
 
     def synthesize_theme(self, theme_cluster: dict, role: str) -> dict:
-        """Process one theme cluster into a ThemeSummary."""
+        """Process one theme cluster into a ThemeSummary dict."""
         theme_name = theme_cluster.get("theme_name", "")
         agreed = theme_cluster.get("agreed", [])
         disputed = theme_cluster.get("disputed", [])
         party_specific = theme_cluster.get("party_specific", [])
 
-        # Collect sources programmatically (not from LLM)
+        # Collect sources before LLM call so they survive fallback paths too
         sources = self.collect_sources(theme_cluster)
 
-        # Format sections for the prompt
         agreed_text = self.format_agreed(agreed)
         disputed_text = self.format_disputed(disputed)
         party_specific_text = self.format_party_specific(party_specific)
 
         try:
-            messages = self.create_prompt_messages(
-                theme_name, role,
-                agreed_text, disputed_text, party_specific_text,
+            messages = self._build_messages(
+                theme_name, role, agreed_text, disputed_text, party_specific_text
             )
-            llm_result = self.parser.invoke(messages)
+            llm_result = llm_invoke_with_retry(self.parser, messages, logger=logger)
 
             summary = llm_result.summary
             key_disputes = llm_result.key_disputes
 
-            # Validation: non-empty summary
             if not summary or not summary.strip():
-                print(f"  Warning: empty summary for theme '{theme_name}', using fallback.")
+                logger.warning("Empty summary for theme '%s', using fallback.", theme_name)
                 summary = self.build_fallback_summary(theme_cluster)
 
-            # Validation: key disputes present when disputed items exist
             if disputed and not key_disputes:
-                print(f"  Warning: no key disputes returned for theme '{theme_name}', extracting from data.")
+                logger.warning(
+                    "No key disputes for theme '%s', extracting from data.", theme_name
+                )
                 key_disputes = self.extract_dispute_subjects(disputed)
 
             return {
@@ -212,46 +205,74 @@ class Node4B_ThemeSynthesis:
             }
 
         except Exception as e:
-            print(f"  Error in LLM call for theme '{theme_name}': {e}")
-            # Fallback: raw text summary
-            key_disputes = self.extract_dispute_subjects(disputed)
+            logger.error("Error in LLM call for theme '%s': %s", theme_name, e)
             return {
                 "theme": theme_name,
                 "summary": self.build_fallback_summary(theme_cluster),
-                "key_disputes": key_disputes,
+                "key_disputes": self.extract_dispute_subjects(disputed),
                 "sources": sources,
             }
 
     def process_role(self, themed_role: dict) -> dict:
-        """Process all themes for one role."""
+        """Process all themes for one role.
+
+        S1-2: Themes are synthesized concurrently using a thread pool, since
+        each call is independent and LangChain clients are thread-safe.
+        """
         role = themed_role.get("role", "غير محدد")
         themes = themed_role.get("themes", [])
 
-        print(f"  Role '{role}': {len(themes)} theme(s) to synthesize")
+        logger.info("  Role '%s': %d theme(s) to synthesize", role, len(themes))
 
-        theme_summaries = []
-        for theme_cluster in themes:
-            theme_name = theme_cluster.get("theme_name", "")
-            print(f"    Synthesizing theme: '{theme_name}' "
-                  f"({theme_cluster.get('bullet_count', 0)} items)...")
-            summary = self.synthesize_theme(theme_cluster, role)
-            theme_summaries.append(summary)
+        if not themes:
+            return {"role": role, "theme_summaries": []}
 
-        return {
-            "role": role,
-            "theme_summaries": theme_summaries,
-        }
+        # Dispatch all theme synthesis tasks concurrently
+        results: List[Any] = [None] * len(themes)
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_idx = {
+                executor.submit(self.synthesize_theme, theme_cluster, role): i
+                for i, theme_cluster in enumerate(themes)
+            }
+
+            for future in concurrent.futures.as_completed(future_to_idx):
+                idx = future_to_idx[future]
+                theme_cluster = themes[idx]
+                theme_name = theme_cluster.get("theme_name", "")
+                try:
+                    results[idx] = future.result()
+                    logger.info(
+                        "    Theme '%s' (%d items) synthesized.",
+                        theme_name, theme_cluster.get("bullet_count", 0),
+                    )
+                except Exception as e:
+                    logger.error("Unexpected error for theme '%s': %s", theme_name, e)
+                    results[idx] = {
+                        "theme": theme_name,
+                        "summary": self.build_fallback_summary(theme_cluster),
+                        "key_disputes": self.extract_dispute_subjects(
+                            theme_cluster.get("disputed", [])
+                        ),
+                        "sources": self.collect_sources(theme_cluster),
+                    }
+
+        # Filter None (shouldn't happen) and preserve original order
+        theme_summaries = [r for r in results if r is not None]
+
+        return {"role": role, "theme_summaries": theme_summaries}
 
     def process(self, inputs: dict) -> dict:
-        """Entry point.
-        Input: Node4AOutput dict with {"themed_roles": [...]}
-        Output: Node4BOutput dict with {"role_theme_summaries": [...]}
+        """
+        Input:  {"themed_roles": [ThemedRole dicts]}
+        Output: {"role_theme_summaries": [RoleThemeSummaries dicts]}
         """
         themed_roles = inputs.get("themed_roles", [])
         if not themed_roles:
             return {"role_theme_summaries": []}
 
-        print("\n--- Node 4B: Theme-Level Synthesis ---")
+        logger.info("--- Node 4B: Theme-Level Synthesis ---")
+
         role_theme_summaries = []
         for themed_role in themed_roles:
             role_summary = self.process_role(themed_role)

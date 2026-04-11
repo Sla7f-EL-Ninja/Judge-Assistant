@@ -2,16 +2,18 @@ import sys
 import os
 from typing import List, Dict, Any
 from collections import defaultdict
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 
-# Add parent directory to path for shared schema imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from schemas import (
     LegalRoleEnum, PartyEnum,
     AgreedBullet, DisputePosition, DisputedPoint,
     PartyBullet, RoleAggregation, Node3Output,
 )
+from utils import get_logger, llm_invoke_with_retry
+
+logger = get_logger("hakim.node_3")
 
 
 # --- LLM Response Schemas (internal to Node 3) ---
@@ -24,7 +26,8 @@ class AgreedItemLLM(BaseModel):
 
 class DisputeSideLLM(BaseModel):
     """One party's side in a dispute (LLM output)."""
-    party: str = Field(description="اسم الطرف")
+    # S2-6: Use PartyEnum to constrain to valid party values
+    party: PartyEnum = Field(description="اسم الطرف")
     bullet_ids: List[str] = Field(description="معرفات نقاط هذا الطرف")
 
 
@@ -36,7 +39,8 @@ class DisputedItemLLM(BaseModel):
 
 class PartySpecificItemLLM(BaseModel):
     """A point unique to one party, not contested or matched (LLM output)."""
-    party: str = Field(description="الطرف صاحب النقطة")
+    # S2-6: Use PartyEnum to constrain to valid party values
+    party: PartyEnum = Field(description="الطرف صاحب النقطة")
     bullet_ids: List[str] = Field(description="معرفات النقاط - قد تكون مدمجة من تكرارات")
     text: str = Field(description="النص الموحد بعد دمج التكرارات")
 
@@ -48,9 +52,9 @@ class RoleAggregationLLM(BaseModel):
     party_specific: List[PartySpecificItemLLM] = Field(description="نقاط خاصة بطرف واحد")
 
 
-# --- Prompt Templates ---
+# --- Static prompt content (no user content) ---
 
-SYSTEM_PROMPT = """أنت مساعد قضائي متخصص في تحليل النزاعات القانونية المصرية.
+_SYSTEM_PROMPT_TEMPLATE = """أنت مساعد قضائي متخصص في تحليل النزاعات القانونية المصرية.
 
 مهمتك: تحليل مجموعة من النقاط القانونية المصنفة تحت دور "{role}" وتوزيعها على ثلاث فئات:
 
@@ -68,12 +72,6 @@ SYSTEM_PROMPT = """أنت مساعد قضائي متخصص في تحليل ال�
 - استخدم اللغة العربية القانونية الرسمية
 - لا تضف معلومات غير موجودة في النقاط الأصلية"""
 
-HUMAN_TEMPLATE = """النقاط التالية مصنفة تحت دور "{role}":
-
-{formatted_bullets}
-
-حلل هذه النقاط ووزعها على الفئات الثلاث."""
-
 
 class Node3_Aggregator:
     MAX_BULLETS_PER_CALL = 50
@@ -82,44 +80,46 @@ class Node3_Aggregator:
         self.llm = llm
         self.parser = llm.with_structured_output(RoleAggregationLLM)
 
+    # --- Helpers ---
+
     def build_bullet_lookup(self, bullets: List[dict]) -> dict:
         """Returns {bullet_id: bullet_dict} for source resolution."""
         return {b["bullet_id"]: b for b in bullets}
 
     def group_by_role(self, bullets: List[dict]) -> dict:
-        """Returns {role: [bullet_dicts]} using defaultdict."""
-        groups = defaultdict(list)
+        """Returns {role: [bullet_dicts]}."""
+        groups: Dict[str, List[dict]] = defaultdict(list)
         for b in bullets:
             groups[b["role"]].append(b)
         return groups
 
     def has_multiple_parties(self, bullets: List[dict]) -> bool:
         """Check if bullets come from more than one party."""
-        parties = {b["party"] for b in bullets}
-        return len(parties) > 1
+        return len({b["party"] for b in bullets}) > 1
 
     def format_bullets_for_prompt(self, bullets: List[dict]) -> str:
         """Format as: [bullet_id | party] bullet_text"""
-        lines = []
-        for b in bullets:
-            lines.append(f"[{b['bullet_id']} | {b['party']}] {b['bullet']}")
-        return "\n".join(lines)
-
-    def create_prompt_messages(self, formatted_bullets: str, role: str) -> list:
-        """Build system + human messages for the LLM."""
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
-            ("human", HUMAN_TEMPLATE),
-        ])
-        return prompt.format_messages(
-            role=role,
-            formatted_bullets=formatted_bullets,
+        return "\n".join(
+            f"[{b['bullet_id']} | {b['party']}] {b['bullet']}" for b in bullets
         )
+
+    def _build_messages(self, formatted_bullets: str, role: str) -> list:
+        """Build system + human messages directly (S2-4: avoids template escaping issues)."""
+        system_content = _SYSTEM_PROMPT_TEMPLATE.format(role=role)
+        human_content = (
+            f'النقاط التالية مصنفة تحت دور "{role}":\n\n'
+            f"{formatted_bullets}\n\n"
+            "حلل هذه النقاط ووزعها على الفئات الثلاث."
+        )
+        return [
+            SystemMessage(content=system_content),
+            HumanMessage(content=human_content),
+        ]
 
     def resolve_sources(self, bullet_ids: List[str], lookup: dict) -> List[str]:
         """Merge source lists from all referenced bullet_ids, deduped."""
-        sources = []
-        seen = set()
+        sources: List[str] = []
+        seen: set = set()
         for bid in bullet_ids:
             if bid not in lookup:
                 continue
@@ -131,11 +131,9 @@ class Node3_Aggregator:
 
     def resolve_bullet_texts(self, bullet_ids: List[str], lookup: dict) -> List[str]:
         """Get exact original bullet texts for given IDs."""
-        texts = []
-        for bid in bullet_ids:
-            if bid in lookup:
-                texts.append(lookup[bid]["bullet"])
-        return texts
+        return [lookup[bid]["bullet"] for bid in bullet_ids if bid in lookup]
+
+    # --- Coverage validation ---
 
     def validate_coverage(
         self,
@@ -144,56 +142,53 @@ class Node3_Aggregator:
         bullets: List[dict],
     ) -> RoleAggregationLLM:
         """Ensure every input bullet_id appears in exactly one bucket.
-        Missing IDs get added to party_specific.
-        Duplicate IDs (in multiple buckets) keep first occurrence only."""
 
-        # Build a map of bullet_id -> which bucket it first appeared in
+        Missing IDs → added to party_specific.
+        Duplicate IDs → keep first occurrence only.
+        """
         seen_ids: Dict[str, str] = {}
 
-        # --- Agreed ---
         for item in llm_result.agreed:
             clean = []
             for bid in item.bullet_ids:
                 if bid not in input_bullet_ids:
-                    print(f"Warning: LLM returned unknown bullet_id '{bid}' in agreed, dropping.")
+                    logger.warning("Unknown bullet_id '%s' in agreed, dropping.", bid)
                     continue
                 if bid in seen_ids:
-                    print(f"Warning: bullet_id '{bid}' duplicated (first in {seen_ids[bid]}), skipping in agreed.")
+                    logger.warning("Duplicate bullet_id '%s' (first in %s), skipping.", bid, seen_ids[bid])
                     continue
                 seen_ids[bid] = "agreed"
                 clean.append(bid)
             item.bullet_ids = clean
 
-        # --- Disputed ---
         for item in llm_result.disputed:
             for side in item.sides:
                 clean = []
                 for bid in side.bullet_ids:
                     if bid not in input_bullet_ids:
-                        print(f"Warning: LLM returned unknown bullet_id '{bid}' in disputed, dropping.")
+                        logger.warning("Unknown bullet_id '%s' in disputed, dropping.", bid)
                         continue
                     if bid in seen_ids:
-                        print(f"Warning: bullet_id '{bid}' duplicated (first in {seen_ids[bid]}), skipping in disputed.")
+                        logger.warning("Duplicate bullet_id '%s' (first in %s), skipping.", bid, seen_ids[bid])
                         continue
                     seen_ids[bid] = "disputed"
                     clean.append(bid)
                 side.bullet_ids = clean
 
-        # --- Party-specific ---
         for item in llm_result.party_specific:
             clean = []
             for bid in item.bullet_ids:
                 if bid not in input_bullet_ids:
-                    print(f"Warning: LLM returned unknown bullet_id '{bid}' in party_specific, dropping.")
+                    logger.warning("Unknown bullet_id '%s' in party_specific, dropping.", bid)
                     continue
                 if bid in seen_ids:
-                    print(f"Warning: bullet_id '{bid}' duplicated (first in {seen_ids[bid]}), skipping in party_specific.")
+                    logger.warning("Duplicate bullet_id '%s' (first in %s), skipping.", bid, seen_ids[bid])
                     continue
                 seen_ids[bid] = "party_specific"
                 clean.append(bid)
             item.bullet_ids = clean
 
-        # --- Find missing IDs and add them to party_specific ---
+        # Add missing IDs to party_specific
         missing_ids = input_bullet_ids - set(seen_ids.keys())
         if missing_ids:
             bullet_map = {b["bullet_id"]: b for b in bullets}
@@ -201,7 +196,7 @@ class Node3_Aggregator:
                 if mid not in bullet_map:
                     continue
                 b = bullet_map[mid]
-                print(f"Warning: bullet_id '{mid}' missing from LLM output, adding to party_specific.")
+                logger.warning("bullet_id '%s' missing from LLM output, adding to party_specific.", mid)
                 llm_result.party_specific.append(
                     PartySpecificItemLLM(
                         party=b["party"],
@@ -212,47 +207,45 @@ class Node3_Aggregator:
 
         return llm_result
 
-    def build_role_aggregation(self, role: str, llm_result: RoleAggregationLLM, lookup: dict) -> dict:
+    # --- Output construction ---
+
+    def build_role_aggregation(
+        self, role: str, llm_result: RoleAggregationLLM, lookup: dict
+    ) -> dict:
         """Convert LLM result + lookup into final RoleAggregation dict."""
 
-        # Agreed items
-        agreed = []
-        for item in llm_result.agreed:
-            if not item.bullet_ids:
-                continue
-            agreed.append({
+        agreed = [
+            {
                 "text": item.text,
                 "sources": self.resolve_sources(item.bullet_ids, lookup),
-            })
+            }
+            for item in llm_result.agreed
+            if item.bullet_ids
+        ]
 
-        # Disputed items
         disputed = []
         for item in llm_result.disputed:
-            positions = []
-            for side in item.sides:
-                if not side.bullet_ids:
-                    continue
-                positions.append({
+            positions = [
+                {
                     "party": side.party,
                     "bullets": self.resolve_bullet_texts(side.bullet_ids, lookup),
                     "sources": self.resolve_sources(side.bullet_ids, lookup),
-                })
+                }
+                for side in item.sides
+                if side.bullet_ids
+            ]
             if positions:
-                disputed.append({
-                    "subject": item.subject,
-                    "positions": positions,
-                })
+                disputed.append({"subject": item.subject, "positions": positions})
 
-        # Party-specific items
-        party_specific = []
-        for item in llm_result.party_specific:
-            if not item.bullet_ids:
-                continue
-            party_specific.append({
+        party_specific = [
+            {
                 "party": item.party,
                 "text": item.text,
                 "sources": self.resolve_sources(item.bullet_ids, lookup),
-            })
+            }
+            for item in llm_result.party_specific
+            if item.bullet_ids
+        ]
 
         return {
             "role": role,
@@ -260,6 +253,27 @@ class Node3_Aggregator:
             "disputed": disputed,
             "party_specific": party_specific,
         }
+
+    def _call_llm_for_batch(self, bullets: List[dict], role: str) -> RoleAggregationLLM:
+        """Single LLM call for a subset of bullets."""
+        formatted = self.format_bullets_for_prompt(bullets)
+        messages = self._build_messages(formatted, role)
+        return llm_invoke_with_retry(self.parser, messages, logger=logger)
+
+    def _fallback_aggregation(self, bullets: List[dict]) -> RoleAggregationLLM:
+        """Fallback: put every bullet into party_specific."""
+        return RoleAggregationLLM(
+            agreed=[],
+            disputed=[],
+            party_specific=[
+                PartySpecificItemLLM(
+                    party=b["party"],
+                    bullet_ids=[b["bullet_id"]],
+                    text=b["bullet"],
+                )
+                for b in bullets
+            ],
+        )
 
     def process_role(self, role: str, bullets: List[dict], lookup: dict) -> dict:
         """Process all bullets for one role. Returns RoleAggregation dict."""
@@ -280,42 +294,52 @@ class Node3_Aggregator:
                 ],
             }
 
-        # Multi-party: call LLM
         input_bullet_ids = {b["bullet_id"] for b in bullets}
-        formatted = self.format_bullets_for_prompt(bullets)
 
-        try:
-            messages = self.create_prompt_messages(formatted, role)
-            llm_result = self.parser.invoke(messages)
+        # S2-3 / S1-4: Enforce MAX_BULLETS_PER_CALL — batch large roles
+        if len(bullets) <= self.MAX_BULLETS_PER_CALL:
+            # Single LLM call (common path)
+            try:
+                llm_result = self._call_llm_for_batch(bullets, role)
+            except Exception as e:
+                logger.error("LLM call failed for role '%s': %s", role, e)
+                llm_result = self._fallback_aggregation(bullets)
+        else:
+            # Multiple batches — merge results afterwards
+            logger.info(
+                "  Role '%s': %d bullets exceeds MAX_BULLETS_PER_CALL=%d, batching.",
+                role, len(bullets), self.MAX_BULLETS_PER_CALL,
+            )
+            batch_results: List[RoleAggregationLLM] = []
+            for start in range(0, len(bullets), self.MAX_BULLETS_PER_CALL):
+                batch = bullets[start : start + self.MAX_BULLETS_PER_CALL]
+                logger.info(
+                    "    Processing batch %d (%d bullets)...",
+                    start // self.MAX_BULLETS_PER_CALL + 1, len(batch),
+                )
+                try:
+                    batch_result = self._call_llm_for_batch(batch, role)
+                except Exception as e:
+                    logger.error("LLM call failed for role '%s' batch: %s", role, e)
+                    batch_result = self._fallback_aggregation(batch)
+                batch_results.append(batch_result)
 
-            # Validate coverage
-            llm_result = self.validate_coverage(llm_result, input_bullet_ids, bullets)
+            # Merge by simple concatenation; validate_coverage handles dedup & missing
+            llm_result = RoleAggregationLLM(
+                agreed=[a for r in batch_results for a in r.agreed],
+                disputed=[d for r in batch_results for d in r.disputed],
+                party_specific=[p for r in batch_results for p in r.party_specific],
+            )
 
-            # Build final output
-            return self.build_role_aggregation(role, llm_result, lookup)
-
-        except Exception as e:
-            print(f"Error in LLM call for role '{role}': {e}")
-            # Fallback: all bullets go to party_specific
-            return {
-                "role": role,
-                "agreed": [],
-                "disputed": [],
-                "party_specific": [
-                    {
-                        "party": b["party"],
-                        "text": b["bullet"],
-                        "sources": b["source"],
-                    }
-                    for b in bullets
-                ],
-            }
+        # Validate and build final output
+        llm_result = self.validate_coverage(llm_result, input_bullet_ids, bullets)
+        return self.build_role_aggregation(role, llm_result, lookup)
 
     def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        """Main entry point.
-        Input: {"bullets": [...]} from Node 2
-        Output: {"role_aggregations": [...]}"""
-
+        """
+        Input:  {"bullets": [LegalBullet dicts]}
+        Output: {"role_aggregations": [RoleAggregation dicts]}
+        """
         bullets = inputs.get("bullets", [])
         if not bullets:
             return {"role_aggregations": []}
@@ -325,6 +349,7 @@ class Node3_Aggregator:
 
         role_aggregations = []
         for role, role_bullets in role_groups.items():
+            logger.info("  Processing role '%s' (%d bullets)", role, len(role_bullets))
             agg = self.process_role(role, role_bullets, lookup)
             role_aggregations.append(agg)
 

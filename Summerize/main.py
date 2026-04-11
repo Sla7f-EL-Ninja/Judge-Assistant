@@ -78,7 +78,8 @@ def main():
             print("No valid documents loaded. Exiting.")
             return
     else:
-        print(f"No document paths provided.")
+        print("No document paths provided.")
+        return
 
     # Run the pipeline
     print("\n" + "=" * 60)
