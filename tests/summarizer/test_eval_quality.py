@@ -32,7 +32,7 @@ for _p in [str(_REPO_ROOT), str(_SUMMARIZE_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from eval_config import (
+from .eval_config import (
     EVAL_DIMENSIONS,
     EXTENDED_BIAS_KEYWORDS,
     FAITHFULNESS_PROMPT,
@@ -54,15 +54,8 @@ FIXTURE_DIR = _REPO_ROOT / "tests" / "CASE_RAG" / "fixtures"
 def real_llm_high():
     """High-tier LLM for pipeline."""
     try:
-        from config import get_settings
-        from langchain_groq import ChatGroq
-
-        settings = get_settings()
-        return ChatGroq(
-            model=getattr(settings, "groq_model", "llama-3.1-8b-instant"),
-            api_key=getattr(settings, "groq_api_key", ""),
-            temperature=0.0,
-        )
+        from config import get_llm
+        return get_llm("high")
     except Exception as exc:
         pytest.skip(f"Real LLM unavailable: {exc}")
 
@@ -296,7 +289,7 @@ class TestLinguisticQuality:
             from langchain_google_genai import ChatGoogleGenerativeAI
 
             llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
+                model="gemini-2.5-flash",
                 google_api_key=os.getenv("GOOGLE_API_KEY", ""),
                 temperature=0.0,
             )
@@ -356,7 +349,7 @@ class TestFactualFaithfulness:
             from langchain_google_genai import ChatGoogleGenerativeAI
 
             llm = ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
+                model="gemini-2.5-flash",
                 google_api_key=os.getenv("GOOGLE_API_KEY", ""),
                 temperature=0.0,
             )

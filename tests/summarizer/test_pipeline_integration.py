@@ -34,15 +34,8 @@ FIXTURE_DIR = _REPO_ROOT / "tests" / "CASE_RAG" / "fixtures"
 def real_llm():
     """Initialize LLM from config; skip if config/API key not available."""
     try:
-        from config import get_settings
-        from langchain_groq import ChatGroq
-
-        settings = get_settings()
-        llm = ChatGroq(
-            model=getattr(settings, "groq_model", "llama-3.1-8b-instant"),
-            api_key=getattr(settings, "groq_api_key", ""),
-            temperature=0.0,
-        )
+        from config import get_llm
+        llm = get_llm("low")
         return llm
     except Exception as exc:
         pytest.skip(f"Real LLM unavailable: {exc}")
