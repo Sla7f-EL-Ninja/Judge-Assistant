@@ -3,12 +3,14 @@ import sys
 import os
 from typing import List, Dict, Any
 from collections import defaultdict
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 
-# Add parent directory to path for shared schema imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from schemas import LegalRoleEnum, PartyEnum, LegalBullet, Node2Output
+from utils import get_logger, llm_invoke_with_retry
+
+logger = get_logger("hakim.node_2")
 
 
 # --- LLM Response Schemas (internal to Node 2) ---
@@ -16,7 +18,9 @@ from schemas import LegalRoleEnum, PartyEnum, LegalBullet, Node2Output
 class ChunkBullets(BaseModel):
     """LLM output: extracted bullets for a single chunk."""
     chunk_id: str = Field(description="معرف الفقرة الأصلية")
-    bullets: List[str] = Field(description="قائمة النقاط القانونية المستخرجة - فكرة واحدة لكل نقطة")
+    bullets: List[str] = Field(
+        description="قائمة النقاط القانونية المستخرجة - فكرة واحدة لكل نقطة"
+    )
 
 
 class BatchBulletResult(BaseModel):
@@ -33,13 +37,11 @@ ROLE_HINTS = {
     "المستندات": "ركز على: وصف كل مستند، ما يثبته، الطرف المقدم له.",
     "الأساس القانوني": "ركز على: رقم المادة، اسم القانون، مبدأ النقض، وجه الانطباق.",
     "الإجراءات": "ركز على: تاريخ كل إجراء، نوعه، قرار المحكمة فيه.",
-    "غير محدد": "حاول استخراج أي محتوى قانوني مفيد. إذا كان النص إدارياً بحتاً، أرجع قائمة فارغة."
+    "غير محدد": "حاول استخراج أي محتوى قانوني مفيد. إذا كان النص إدارياً بحتاً، أرجع قائمة فارغة.",
 }
 
-
-# --- System Prompt Template ---
-
-SYSTEM_PROMPT = """أنت مساعد قضائي متخصص في استخراج النقاط القانونية من المستندات القضائية المصرية.
+# --- Static system prompt template (no user content) ---
+_SYSTEM_PROMPT_TEMPLATE = """أنت مساعد قضائي متخصص في استخراج النقاط القانونية من المستندات القضائية المصرية.
 
 مهمتك: تحويل كل فقرة إلى نقاط قانونية ذرية (فكرة واحدة لكل نقطة).
 
@@ -68,47 +70,45 @@ class Node2_BulletExtractor:
         """Build a human-readable source reference from chunk metadata."""
         return f"{chunk['doc_id']} ص{chunk['page_number']} ف{chunk['paragraph_number']}"
 
-    def create_prompt_messages(self, chunks: List[dict], role: str) -> list:
-        """Build role-aware prompt messages for a batch of chunks."""
+    def _build_messages(self, chunks: List[dict], role: str) -> list:
+        """Build messages directly without ChatPromptTemplate (S2-4 safety)."""
         role_hint = ROLE_HINTS.get(role, ROLE_HINTS["غير محدد"])
 
-        # Format chunks for the human message
+        system_content = _SYSTEM_PROMPT_TEMPLATE.format(role=role, role_hint=role_hint)
+
         formatted_chunks = ""
         for chunk in chunks:
-            formatted_chunks += f"ID: {chunk['chunk_id']}\nالنص: {chunk['clean_text']}\n---\n"
+            formatted_chunks += (
+                f"ID: {chunk['chunk_id']}\n"
+                f"النص: {chunk['clean_text']}\n---\n"
+            )
 
-        human_message = f'الفقرات التالية مصنفة كـ "{role}". استخرج النقاط القانونية الذرية من كل فقرة:\n\n{formatted_chunks}'
-
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
-            ("human", "{human_text}")
-        ])
-
-        return prompt.format_messages(
-            role=role,
-            role_hint=role_hint,
-            human_text=human_message
+        human_content = (
+            f'الفقرات التالية مصنفة كـ "{role}". '
+            f"استخرج النقاط القانونية الذرية من كل فقرة:\n\n{formatted_chunks}"
         )
+
+        return [
+            SystemMessage(content=system_content),
+            HumanMessage(content=human_content),
+        ]
 
     def process_batch(self, chunks: List[dict], role: str) -> List[dict]:
         """Process a single batch: call LLM and return extracted bullet dicts."""
-        # Build lookup for input chunks by chunk_id
-        chunk_map = {c['chunk_id']: c for c in chunks}
+        chunk_map = {c["chunk_id"]: c for c in chunks}
         results = []
 
         try:
-            prompt_messages = self.create_prompt_messages(chunks, role)
-            batch_result = self.parser.invoke(prompt_messages)
+            messages = self._build_messages(chunks, role)
+            batch_result = llm_invoke_with_retry(self.parser, messages, logger=logger)
 
-            # Track which chunk_ids the LLM responded to
             seen_ids = set()
 
             for extraction in batch_result.extractions:
                 cid = extraction.chunk_id
 
-                # Validate: drop unknown chunk_ids
                 if cid not in chunk_map:
-                    print(f"Warning: LLM returned unknown chunk_id '{cid}', dropping.")
+                    logger.warning("LLM returned unknown chunk_id '%s', dropping.", cid)
                     continue
 
                 seen_ids.add(cid)
@@ -121,77 +121,74 @@ class Node2_BulletExtractor:
                         continue
                     results.append({
                         "bullet_id": str(uuid.uuid4()),
-                        "role": source_chunk.get('role', role),
+                        "role": source_chunk.get("role", role),
                         "bullet": bullet_text,
                         "source": [citation],
-                        "party": source_chunk.get('party', 'غير محدد'),
-                        "chunk_id": cid
+                        "party": source_chunk.get("party", "غير محدد"),
+                        "chunk_id": cid,
                     })
 
-            # Fallback for any chunk_ids the LLM missed
+            # Fallback for chunk_ids the LLM missed
             for cid, chunk in chunk_map.items():
                 if cid not in seen_ids:
-                    clean_text = chunk.get('clean_text', '').strip()
+                    clean_text = chunk.get("clean_text", "").strip()
                     if not clean_text:
                         continue
-                    print(f"Warning: LLM missed chunk_id '{cid}', using fallback.")
+                    logger.warning("LLM missed chunk_id '%s', using fallback.", cid)
                     results.append({
                         "bullet_id": str(uuid.uuid4()),
-                        "role": chunk.get('role', role),
+                        "role": chunk.get("role", role),
                         "bullet": clean_text,
                         "source": [self.build_citation(chunk)],
-                        "party": chunk.get('party', 'غير محدد'),
-                        "chunk_id": cid
+                        "party": chunk.get("party", "غير محدد"),
+                        "chunk_id": cid,
                     })
 
         except Exception as e:
-            print(f"Error in batch bullet extraction: {e}")
+            logger.error("Error in batch bullet extraction: %s", e)
             # Fallback: wrap each chunk's clean_text as a single bullet
             for chunk in chunks:
-                clean_text = chunk.get('clean_text', '').strip()
+                clean_text = chunk.get("clean_text", "").strip()
                 if not clean_text:
                     continue
                 results.append({
                     "bullet_id": str(uuid.uuid4()),
-                    "role": chunk.get('role', role),
+                    "role": chunk.get("role", role),
                     "bullet": clean_text,
                     "source": [self.build_citation(chunk)],
-                    "party": chunk.get('party', 'غير محدد'),
-                    "chunk_id": chunk.get('chunk_id', '')
+                    "party": chunk.get("party", "غير محدد"),
+                    "chunk_id": chunk.get("chunk_id", ""),
                 })
 
         return results
 
     def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Entry point for the Node 2 pipeline step.
-        Input: {"classified_chunks": [ClassifiedChunk dicts...]} (from Node 1)
-        Output: {"bullets": [LegalBullet dicts...]}
+        Entry point for Node 2.
+        Input:  {"classified_chunks": [ClassifiedChunk dicts]}
+        Output: {"bullets": [LegalBullet dicts]}
         """
         classified_chunks = inputs.get("classified_chunks", [])
-
         if not classified_chunks:
             return {"bullets": []}
 
         # Filter out chunks with empty clean_text
-        classified_chunks = [c for c in classified_chunks if c.get('clean_text', '').strip()]
-
+        classified_chunks = [
+            c for c in classified_chunks if c.get("clean_text", "").strip()
+        ]
         if not classified_chunks:
             return {"bullets": []}
 
         # Group chunks by role
-        role_groups = defaultdict(list)
+        role_groups: Dict[str, List[dict]] = defaultdict(list)
         for chunk in classified_chunks:
-            role = chunk.get('role', 'غير محدد')
-            role_groups[role].append(chunk)
+            role_groups[chunk.get("role", "غير محدد")].append(chunk)
 
-        all_bullets = []
+        all_bullets: List[dict] = []
 
-        # Process each role group in batches
         for role, chunks in role_groups.items():
             for i in range(0, len(chunks), self.BATCH_SIZE):
-                batch = chunks[i:i + self.BATCH_SIZE]
-                batch_bullets = self.process_batch(batch, role)
-                all_bullets.extend(batch_bullets)
+                batch = chunks[i : i + self.BATCH_SIZE]
+                all_bullets.extend(self.process_batch(batch, role))
 
         return {"bullets": all_bullets}
