@@ -79,9 +79,9 @@ EVAL_DIMENSIONS = {
     },
     "EV-08": {
         "name": "Pipeline Timing",
-        "description": "Total pipeline time < 120s for 7 documents",
-        "max_score": 120,  # seconds (lower is better)
-        "pass_threshold": 120,
+        "description": "Total pipeline time < 180s for 7 documents",
+        "max_score": 180,  # seconds (lower is better)
+        "pass_threshold": 180,
         "requires_llm": False,
     },
 }

@@ -216,6 +216,28 @@ class TestExtractMetadata:
 
         assert not parser.invoke.called
 
+    def test_defendant_not_matched_as_plaintiff(self):
+        """Regression T-NODE0-15: 'المدعى عليه' must NOT match as 'المدعي'.
+
+        Root cause: المدعي is a substring of المدعى عليه. PARTY_KEYWORDS must
+        order المدعى عليه before المدعي to prevent the wrong match.
+        """
+        node = make_node0()
+        result = node.extract_metadata("مذكرة بدفاع المدعى عليه الأول في الدعوى")
+        assert result.party == "المدعى عليه", (
+            f"Expected 'المدعى عليه' but got '{result.party}'. "
+            "PARTY_KEYWORDS ordering bug: المدعي is a substring of المدعى عليه."
+        )
+
+    def test_female_defendant_detected(self):
+        """Regression T-NODE0-16: 'المدعى عليها' (feminine) maps to 'المدعى عليه'."""
+        node = make_node0()
+        result = node.extract_metadata("مذكرة بدفاع المدعى عليها الثانية")
+        assert result.party == "المدعى عليه", (
+            f"Expected 'المدعى عليه' but got '{result.party}'. "
+            "المدعى عليها (feminine form) must be detected as المدعى عليه."
+        )
+
 
 # ---------------------------------------------------------------------------
 # segment_document tests

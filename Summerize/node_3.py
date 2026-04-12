@@ -68,8 +68,10 @@ _SYSTEM_PROMPT_TEMPLATE = """أنت مساعد قضائي متخصص في تحل
 - عند دمج نقاط مكررة من نفس الطرف، اذكر جميع معرفاتها
 - في "محل النزاع"، حدد موضوع النزاع باختصار واذكر معرفات نقاط كل طرف
 - في "المتفق عليه"، اكتب نصاً موحداً يعبر عن النقطة المتفق عليها
-- الوقائع غير المتنازع عليها تعتبر "متفق عليه" حتى لو ذكرها طرف واحد فقط
+- الوقائع المادية الموضوعية (تواريخ، مبالغ محددة، أسماء عقود) التي يذكرها طرف واحد دون نزاع من الطرف الآخر تعتبر "متفق عليه". أما الادعاءات التقييمية (مثل "تزوير"، "إهمال"، "سوء نية") فتصنف "خاص بطرف" حتى لو لم ينازع فيها الآخر
 - الادعاءات والحجج القانونية الخاصة بطرف واحد تصنف "خاص بطرف"
+- مثال: إذا ذكر المدعي "تم إبرام عقد بيع" وذكر المدعى عليه "تم إبرام عقد بيع" → متفق عليه. لكن إذا قال المدعي "العقد صحيح" وقال المدعى عليه "العقد مزور" → محل نزاع
+- عند كتابة النص الموحد للنقاط المتفق عليها، انقل الأرقام والمبالغ والتواريخ كما وردت تماماً
 - استخدم اللغة العربية القانونية الرسمية
 - لا تضف معلومات غير موجودة في النقاط الأصلية"""
 
@@ -252,15 +254,25 @@ class Node3_Aggregator:
             if positions:
                 disputed.append({"subject": item.subject, "positions": positions})
 
-        party_specific = [
-            {
-                "party": item.party,
+        party_specific = []
+        for item in llm_result.party_specific:
+            if not item.bullet_ids:
+                continue
+            # Anchor party label to source-document ground truth (same logic as
+            # disputed sides above) to prevent LLM hallucination of party labels.
+            source_parties = {
+                lookup[bid]["party"]
+                for bid in item.bullet_ids
+                if bid in lookup
+            }
+            inferred_party = (
+                source_parties.pop() if len(source_parties) == 1 else item.party
+            )
+            party_specific.append({
+                "party": inferred_party,
                 "text": item.text,
                 "sources": self.resolve_sources(item.bullet_ids, lookup),
-            }
-            for item in llm_result.party_specific
-            if item.bullet_ids
-        ]
+            })
 
         return {
             "role": role,

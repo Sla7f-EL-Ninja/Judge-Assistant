@@ -2,7 +2,7 @@ import hashlib
 import re
 import uuid
 from typing import List
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 import sys
 import os
@@ -22,12 +22,13 @@ DOC_TYPE_KEYWORDS = {
     "مذكرة دفاع": ["مذكرة بدفاع", "مذكرة دفاع", "مذكرة رد"],
     "حافظة مستندات": ["حافظة مستندات", "بيان مستندات"],
     "محضر جلسة": ["محضر جلسة"],
-    "حكم تمهيدي": ["حكم تمهيدي"],
+    "حكم تمهيدي": ["حكم تمهيدي", "حكم المحكمة", "حكم صادر", "منطوق الحكم"],
 }
 
 PARTY_KEYWORDS = {
+    # MUST come before المدعي — المدعى عليه is a superstring of المدعي
+    "المدعى عليه": ["المدعى عليه", "المدعى عليها", "المعلن إليه"],
     "المدعي": ["مقدمة من / ... (المدعي)", "المدعي", "الطالب"],
-    "المدعى عليه": ["المدعى عليه", "المعلن إليه"],
     "النيابة": ["النيابة العامة"],
     "المحكمة": ["المحكمة", "الهيئة الموقرة"],
     "خبير": ["تقرير خبير", "الخبير"],
@@ -94,20 +95,23 @@ class Node0_DocumentIntake:
         if found_type != "غير محدد" and found_party != "غير محدد":
             return DocumentMetadata(doc_type=found_type, party=found_party)
 
-        # LLM Fallback
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """أنت نظام ذكي لتصنيف المستندات القانونية المصرية.
+        # LLM Fallback — use direct message construction to avoid ChatPromptTemplate
+        # escaping issues if the Arabic text contains curly braces.
+        system_text = """أنت نظام ذكي لتصنيف المستندات القانونية المصرية.
 مهمتك: استخراج (نوع المستند) و (الصفة القانونية للجهة المقدمة) من النص التالي.
 
 القواعد:
 1. نوع المستند (doc_type) يجب أن يكون واحداً من: ["صحيفة دعوى", "مذكرة دفاع", "مذكرة رد", "حافظة مستندات", "محضر جلسة", "حكم تمهيدي", "غير محدد"].
 2. الطرف (party) يجب أن يكون واحداً من: ["المدعي", "المدعى عليه", "النيابة", "المحكمة", "خبير", "غير محدد"].
-3. إذا كان النص غير واضح، ارجع "غير محدد"."""),
-            ("human", "{text}")
-        ])
+3. النصوص التي تحتوي على "بدفاع المدعى عليه" أو "بدفاع المدعى عليها" → party = "المدعى عليه".
+4. إذا كان النص غير واضح، ارجع "غير محدد"."""
+        messages = [
+            SystemMessage(content=system_text),
+            HumanMessage(content=header_text[:2000]),
+        ]
 
         try:
-            return self.metadata_parser.invoke(prompt.format(text=header_text[:2000]))
+            return self.metadata_parser.invoke(messages)
         except Exception as e:
             logger.warning("LLM metadata extraction failed: %s", e)
             return DocumentMetadata(doc_type="غير محدد", party="غير محدد")

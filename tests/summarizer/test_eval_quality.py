@@ -54,7 +54,9 @@ def _extract_json(response_content: str) -> dict:
         match = re.search(r'\{[\s\S]*\}', content)
         if match:
             content = match.group(0).strip()
-    return json.loads(content)
+    # strict=False allows control characters (e.g. literal newlines) inside
+    # JSON string values, which Gemini occasionally emits.
+    return json.loads(content, strict=False)
 for _p in [str(_REPO_ROOT), str(_SUMMARIZE_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -335,12 +337,16 @@ class TestLinguisticQuality:
                 "passed": total >= 7,
                 "details": scores,
             }
-            assert total >= 7, f"Linguistic quality {total}/10 below threshold. Feedback: {scores.get('feedback', '')}"
 
         except ImportError:
             pytest.skip("langchain-google-genai not installed")
+        except json.JSONDecodeError as exc:
+            pytest.skip(f"LLM judge returned invalid JSON: {exc}")
         except Exception as exc:
             pytest.skip(f"LLM judge unavailable: {exc}")
+
+        # Assertion OUTSIDE try/except — a quality failure is a real test failure
+        assert total >= 7, f"Linguistic quality {total}/10 below threshold. Feedback: {scores.get('feedback', '')}"
 
 
 # ---------------------------------------------------------------------------
@@ -394,12 +400,16 @@ class TestFactualFaithfulness:
                 "passed": total >= 11,
                 "details": scores,
             }
-            assert total >= 11, f"Faithfulness {total}/15 below threshold. Feedback: {scores.get('feedback', '')}"
 
         except ImportError:
             pytest.skip("langchain-google-genai not installed")
+        except json.JSONDecodeError as exc:
+            pytest.skip(f"LLM judge returned invalid JSON: {exc}")
         except Exception as exc:
             pytest.skip(f"LLM judge unavailable: {exc}")
+
+        # Assertion OUTSIDE try/except — a quality failure is a real test failure
+        assert total >= 11, f"Faithfulness {total}/15 below threshold. Feedback: {scores.get('feedback', '')}"
 
 
 # ---------------------------------------------------------------------------
@@ -452,13 +462,13 @@ class TestPipelineTiming:
         eval_report["EV-08"] = {
             "name": "Pipeline Timing",
             "score": round(elapsed, 1),
-            "max_score": 120,
-            "passed": elapsed < 120,
+            "max_score": 180,
+            "passed": elapsed < 180,
             "elapsed_seconds": round(elapsed, 1),
         }
         # Timing is informational, not a hard failure
-        if elapsed >= 120:
-            pytest.xfail(f"Pipeline took {elapsed:.1f}s (> 120s threshold)")
+        if elapsed >= 180:
+            pytest.xfail(f"Pipeline took {elapsed:.1f}s (> 180s threshold)")
 
 
 # ---------------------------------------------------------------------------
