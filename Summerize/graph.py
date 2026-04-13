@@ -36,9 +36,165 @@ from node_3 import Node3_Aggregator
 from node_4a import Node4A_ThematicClustering
 from node_4b import Node4B_ThemeSynthesis
 from node_5 import Node5_BriefGenerator
-from utils import get_logger
+from utils import get_logger, normalize_arabic_for_matching
 
 logger = get_logger("hakim.graph")
+
+
+# ---------------------------------------------------------------------------
+# Defendant disambiguation
+# ---------------------------------------------------------------------------
+
+# Arabic ordinal pairs: (masculine, feminine) for ranks 1-10.
+# For n > 10, _get_ordinal() falls back to 'رقم {n}'.
+_ARABIC_ORDINALS = {
+    1:  ("الأول",   "الأولى"),
+    2:  ("الثاني",  "الثانية"),
+    3:  ("الثالث",  "الثالثة"),
+    4:  ("الرابع",  "الرابعة"),
+    5:  ("الخامس",  "الخامسة"),
+    6:  ("السادس",  "السادسة"),
+    7:  ("السابع",  "السابعة"),
+    8:  ("الثامن",  "الثامنة"),
+    9:  ("التاسع",  "التاسعة"),
+    10: ("العاشر",  "العاشرة"),
+}
+
+# Ordered list of normalized ordinal signals to detect rank from a doc_id.
+# Each tuple: (normalized_signal, rank). Checked in order — more specific first.
+_ORDINAL_SIGNALS = [
+    ("العاشر",    10), ("العاشرة",   10),
+    ("التاسع",     9), ("التاسعة",    9),
+    ("الثامن",     8), ("الثامنة",    8),
+    ("السابع",     7), ("السابعة",    7),
+    ("السادس",     6), ("السادسة",    6),
+    ("الخامس",     5), ("الخامسة",    5),
+    ("الرابع",     4), ("الرابعة",    4),
+    ("الثالث",     3), ("الثالثة",    3),
+    ("الثاني",     2), ("الثانية",    2),
+    # "الاول" is the normalized form of "الأول" (Hamza stripped)
+    ("الاول",      1), ("الاولي",     1),
+    # digit fallback
+    ("10", 10), ("9", 9), ("8", 8), ("7", 7), ("6", 6),
+    ("5",   5), ("4", 4), ("3", 3), ("2", 2), ("1", 1),
+]
+
+_DEFENSE_DOC_TYPES = {"مذكرة دفاع", "مذكرة رد"}
+
+
+def _get_ordinal(n: int, feminine: bool) -> str:
+    """Return Arabic ordinal word for rank n with correct gender.
+    Falls back to 'رقم {n}' for n > 10."""
+    if n in _ARABIC_ORDINALS:
+        return _ARABIC_ORDINALS[n][1 if feminine else 0]
+    return f"رقم {n}"
+
+
+def _detect_rank(doc_id: str) -> int | None:
+    """Try to extract an ordinal rank from a doc_id string.
+    Returns the integer rank or None if no signal found."""
+    norm = normalize_arabic_for_matching(doc_id)
+    for signal, rank in _ORDINAL_SIGNALS:
+        if signal in norm:
+            return rank
+    return None
+
+
+def _disambiguate_defendants(all_chunks: list) -> list:
+    """Post-process chunks to add ordinal suffixes to defendant party labels.
+
+    Only affects chunks where:
+      - party == 'المدعى عليه'  (base value assigned by node 0)
+      - doc_type in {'مذكرة دفاع', 'مذكرة رد'}  (defense documents only)
+      - AND there are >= 2 distinct doc_ids in that filtered set
+
+    All other chunks (hearing minutes, expert reports, plaintiff docs, etc.)
+    are returned unchanged.
+
+    Gender detection: 'عليها' in the original doc_id → feminine suffix.
+    Rank detection:   ordinal signal in normalized doc_id → explicit rank;
+                      no signal → assigned by first-seen discovery order,
+                      filling smallest unused rank slot.
+
+    Returns new chunk dicts (no mutation of inputs).
+    """
+    # Step 1: Identify defense chunks from multiple defendants
+    defense_indices = [
+        i for i, c in enumerate(all_chunks)
+        if c.get("party") == "المدعى عليه"
+        and c.get("doc_type") in _DEFENSE_DOC_TYPES
+    ]
+
+    # Collect distinct doc_ids preserving first-seen order
+    seen: dict = {}
+    for i in defense_indices:
+        did = all_chunks[i].get("doc_id", "")
+        if did not in seen:
+            seen[did] = i  # store first-seen index for ordering
+
+    distinct_doc_ids = list(seen.keys())
+
+    if len(distinct_doc_ids) <= 1:
+        # Single defendant (or none) — nothing to do
+        return all_chunks
+
+    logger.info(
+        "  _disambiguate_defendants: %d defense doc(s) detected → %s",
+        len(distinct_doc_ids), distinct_doc_ids,
+    )
+
+    # Step 2: Assign ranks to each doc_id
+    # First pass: doc_ids with explicit ordinal signals
+    claimed: dict = {}   # rank -> doc_id
+    unranked: list = []  # doc_ids with no signal, in discovery order
+
+    for did in distinct_doc_ids:
+        rank = _detect_rank(did)
+        if rank is not None and rank not in claimed:
+            claimed[rank] = did
+        elif rank is not None and rank in claimed:
+            # Collision: two doc_ids claim the same rank → treat this one as unranked
+            logger.warning(
+                "  Rank %d claimed by both '%s' and '%s' — treating latter as unranked.",
+                rank, claimed[rank], did,
+            )
+            unranked.append(did)
+        else:
+            unranked.append(did)
+
+    # Second pass: fill unranked by smallest unused rank
+    rank_counter = 1
+    doc_rank: dict = {did: rank for rank, did in claimed.items()}
+    for did in unranked:
+        while rank_counter in claimed:
+            rank_counter += 1
+        doc_rank[did] = rank_counter
+        claimed[rank_counter] = did
+        rank_counter += 1
+
+    # Step 3: Detect gender and build party string per doc_id
+    doc_party: dict = {}
+    for did in distinct_doc_ids:
+        feminine = "عليها" in did
+        rank = doc_rank[did]
+        base = "المدعى عليها" if feminine else "المدعى عليه"
+        doc_party[did] = f"{base} {_get_ordinal(rank, feminine)}"
+        logger.info("  '%s' → '%s'", did, doc_party[did])
+
+    # Step 4: Build index set of affected chunk indices for fast lookup
+    affected = set(defense_indices)
+
+    # Step 5: Return new chunk list
+    result = []
+    for i, chunk in enumerate(all_chunks):
+        if i in affected:
+            did = chunk.get("doc_id", "")
+            new_party = doc_party.get(did)
+            if new_party:
+                result.append({**chunk, "party": new_party})
+                continue
+        result.append(chunk)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +307,12 @@ def create_pipeline(llm_or_config):
         if not isinstance(all_chunks, list):
             logger.warning("Node 0 validation: 'chunks' is not a list — resetting.")
             all_chunks = []
+
+        # Defendant disambiguation: if multiple defense documents exist from
+        # different defendants, assign ordinal suffixes (الأول, الثاني, ...).
+        # Must run BEFORE party_manifest is built so the manifest reflects
+        # the correct, disambiguated values.
+        all_chunks = _disambiguate_defendants(all_chunks)
 
         # Fix 1/7: Build party manifest — {party: [doc_types]} — from all chunks.
         # This becomes the ground truth for which parties submitted which doc types,

@@ -16,7 +16,7 @@ _LLM_CALL_TIMEOUT = 120
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from schemas import (
-    LegalRoleEnum, PartyEnum,
+    LegalRoleEnum,
     AgreedBullet, DisputePosition, DisputedPoint,
     PartyBullet, RoleAggregation, Node3Output,
 )
@@ -35,8 +35,9 @@ class AgreedItemLLM(BaseModel):
 
 class DisputeSideLLM(BaseModel):
     """One party's side in a dispute (LLM output)."""
-    # S2-6: Use PartyEnum to constrain to valid party values
-    party: PartyEnum = Field(description="اسم الطرف")
+    # str (not PartyEnum) — node 3 overrides this via source anchoring from
+    # bullet lookup; disambiguated ordinals like 'المدعى عليه الرابع' are valid.
+    party: str = Field(description="اسم الطرف")
     bullet_ids: List[str] = Field(description="معرفات نقاط هذا الطرف")
 
 
@@ -48,8 +49,9 @@ class DisputedItemLLM(BaseModel):
 
 class PartySpecificItemLLM(BaseModel):
     """A point unique to one party, not contested or matched (LLM output)."""
-    # S2-6: Use PartyEnum to constrain to valid party values
-    party: PartyEnum = Field(description="الطرف صاحب النقطة")
+    # str (not PartyEnum) — node 3 overrides this via source anchoring from
+    # bullet lookup; disambiguated ordinals like 'المدعى عليه الرابع' are valid.
+    party: str = Field(description="الطرف صاحب النقطة")
     bullet_ids: List[str] = Field(description="معرفات النقاط - قد تكون مدمجة من تكرارات")
     text: str = Field(description="النص الموحد بعد دمج التكرارات")
 

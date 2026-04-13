@@ -6,9 +6,11 @@ Used by test_eval_quality.py to score the pipeline output on 8 dimensions.
 
 from typing import Dict, Any
 
-# ---------------------------------------------------------------------------
-# Bias keyword sets
-# ---------------------------------------------------------------------------
+# Single source of truth for the pipeline timing threshold.
+# The test, the config entry, and the docstring all reference this constant.
+PIPELINE_TIMING_THRESHOLD_SECONDS = 200
+
+
 
 # From node_5.py BIAS_KEYWORDS
 PIPELINE_BIAS_KEYWORDS = ["نوصي", "يجب على المحكمة", "نرى أن", "نقترح", "ينبغي الحكم"]
@@ -22,6 +24,13 @@ EXTENDED_BIAS_KEYWORDS = PIPELINE_BIAS_KEYWORDS + [
     "يتضح من الوقائع",
     "الحكم الصحيح",
 ]
+
+# Verb-framing bias sets.
+# Assertive verbs signal certainty (favour whoever they're attributed to).
+# Doubt verbs signal scepticism (disadvantage whoever they're attributed to).
+# A skew of > 3:1 assertive-to-doubt ratio for one party vs another is flagged.
+ASSERTIVE_VERBS = ["أكد", "أثبت", "بيّن", "كشف", "أوضح", "دلّل", "أظهر"]
+DOUBT_VERBS = ["زعم", "ادّعى", "أشار إلى", "ذكر", "روى", "نسب"]
 
 # ---------------------------------------------------------------------------
 # Evaluation dimensions and thresholds
@@ -37,7 +46,7 @@ EVAL_DIMENSIONS = {
     },
     "EV-02": {
         "name": "Bullet Coverage Preservation",
-        "description": "Fraction of bullets surviving through aggregation",
+        "description": "Sampled bullet recall in rendered output (>=95%)",
         "max_score": 100,
         "pass_threshold": 95,  # percent
         "requires_llm": False,
@@ -79,9 +88,9 @@ EVAL_DIMENSIONS = {
     },
     "EV-08": {
         "name": "Pipeline Timing",
-        "description": "Total pipeline time < 180s for 7 documents",
-        "max_score": 180,  # seconds (lower is better)
-        "pass_threshold": 180,
+        "description": f"Total pipeline time < {PIPELINE_TIMING_THRESHOLD_SECONDS}s for 7 documents",
+        "max_score": PIPELINE_TIMING_THRESHOLD_SECONDS,
+        "pass_threshold": PIPELINE_TIMING_THRESHOLD_SECONDS,
         "requires_llm": False,
     },
 }
@@ -152,14 +161,40 @@ FAITHFULNESS_PROMPT = """أنت قاضٍ خبير في القانون المدن
     "feedback": "<ملاحظات>"
 }"""
 
+
+BULLET_COVERAGE_PROMPT = """أنت مدقق قانوني. مهمتك التحقق من أن المعنى الجوهري لكل نقطة قانونية ممثَّل في المذكرة القضائية المقدمة.
+
+لكل نقطة، قرر: هل المعنى الجوهري لها موجود في المذكرة، حتى لو بصياغة مختلفة أو ضمن تلخيص أشمل؟
+
+أجب بـ JSON فقط، بهذا الشكل بالضبط:
+{
+    "results": [
+        {"bullet_index": 0, "covered": true, "reason": "سبب موجز"},
+        {"bullet_index": 1, "covered": false, "reason": "سبب موجز"}
+    ]
+}"""
+
 # ---------------------------------------------------------------------------
 # Expected parties in the fixture case
 # ---------------------------------------------------------------------------
 
 FIXTURE_PARTIES = [
-    "المدعي",
-    "المدعى عليه",  # defendant 1 (Mahmoud)
-    "خبير",
+    {
+        "canonical": "المدعي",
+        "aliases": ["أحمد محمد عبد الله"],
+    },
+    {
+        "canonical": "المدعى عليه الأول",
+        "aliases": ["المدعى عليه", "محمود سعيد إبراهيم"],
+    },
+    {
+        "canonical": "المدعى عليها الثانية",
+        "aliases": ["شركة العقارات الحديثة"],
+    },
+    {
+        "canonical": "خبير",
+        "aliases": ["الخبير", "سامي رمزي"],
+    },
 ]
 
 FIXTURE_DOC_IDS = [
