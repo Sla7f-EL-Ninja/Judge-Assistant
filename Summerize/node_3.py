@@ -1,10 +1,18 @@
 import sys
 import os
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import ThreadPoolExecutor, Future
 from typing import List, Dict, Any
 from collections import defaultdict
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
+
+# Cap concurrent LLM calls across all Node 3 worker threads.
+# Groq / most LLM APIs throttle at ~5-10 concurrent connections;
+# exceeding this causes silent hangs rather than clean rate-limit errors.
+_LLM_SEMAPHORE = threading.Semaphore(4)
+# Per-call timeout (seconds) — prevents a single hung call from blocking forever.
+_LLM_CALL_TIMEOUT = 120
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from schemas import (
@@ -73,11 +81,13 @@ _SYSTEM_PROMPT_TEMPLATE = """أنت مساعد قضائي متخصص في تحل
 - مثال: إذا ذكر المدعي "تم إبرام عقد بيع" وذكر المدعى عليه "تم إبرام عقد بيع" → متفق عليه. لكن إذا قال المدعي "العقد صحيح" وقال المدعى عليه "العقد مزور" → محل نزاع
 - عند كتابة النص الموحد للنقاط المتفق عليها، انقل الأرقام والمبالغ والتواريخ كما وردت تماماً
 - استخدم اللغة العربية القانونية الرسمية
-- لا تضف معلومات غير موجودة في النقاط الأصلية"""
+- لا تضف معلومات غير موجودة في النقاط الأصلية
+- تنبيه: نتائج تقارير الخبراء (نسب تشابه، تحليل حبر، أوصاف فنية) تصنف "خاص بطرف" مع party=خبير ما لم يقبلها الطرفان صراحة. لا تصنّفها "متفق عليه" تلقائياً
+- عند الشك: صنّف النقطة "خاص بطرف" وليس "متفق عليه" — الخطأ في توسيع "المتفق عليه" أخطر من تضييقه"""
 
 
 class Node3_Aggregator:
-    MAX_BULLETS_PER_CALL = 50
+    MAX_BULLETS_PER_CALL = 12  # Gemini structured output times out on >~15 Arabic legal bullets
 
     def __init__(self, llm):
         self.llm = llm
@@ -282,10 +292,16 @@ class Node3_Aggregator:
         }
 
     def _call_llm_for_batch(self, bullets: List[dict], role: str) -> RoleAggregationLLM:
-        """Single LLM call for a subset of bullets."""
+        """Single LLM call for a subset of bullets.
+
+        Protected by _LLM_SEMAPHORE to cap concurrent API calls (prevents
+        silent hangs when thread pool saturates the upstream rate limiter).
+        """
         formatted = self.format_bullets_for_prompt(bullets)
         messages = self._build_messages(formatted, role)
-        return llm_invoke_with_retry(self.parser, messages, logger=logger)
+
+        with _LLM_SEMAPHORE:
+            return llm_invoke_with_retry(self.parser, messages, max_retries=1, logger=logger)
 
     def _fallback_aggregation(self, bullets: List[dict]) -> RoleAggregationLLM:
         """Fallback: put every bullet into party_specific."""
@@ -304,6 +320,24 @@ class Node3_Aggregator:
 
     def process_role(self, role: str, bullets: List[dict], lookup: dict) -> dict:
         """Process all bullets for one role. Returns RoleAggregation dict."""
+
+        # غير محدد shortcut: expert/forensic/unclassified content — no aggregation value,
+        # skip LLM entirely to avoid large payload timeouts on Gemini.
+        if role == "غير محدد":
+            logger.info("  Skipping LLM for 'غير محدد' role — dumping directly to party_specific.")
+            return {
+                "role": role,
+                "agreed": [],
+                "disputed": [],
+                "party_specific": [
+                    {
+                        "party": b["party"],
+                        "text": b["bullet"],
+                        "sources": b["source"],
+                    }
+                    for b in bullets
+                ],
+            }
 
         # Single-party shortcut: no comparison possible
         if not self.has_multiple_parties(bullets):
@@ -380,8 +414,32 @@ class Node3_Aggregator:
             return self.process_role(role, role_bullets, lookup)
 
         role_items = list(role_groups.items())
-        max_workers = min(len(role_items), 6)
+        max_workers = min(len(role_items), 4)  # match semaphore limit — no point having more workers than permits
+        role_aggregations = []
+
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            role_aggregations = list(ex.map(_process_role_item, role_items))
+            future_map = {ex.submit(_process_role_item, item): item for item in role_items}
+            # Per-role timeout: each role gets at most (batches * _LLM_CALL_TIMEOUT) seconds.
+            # We use a generous fixed ceiling per role to avoid hanging indefinitely.
+            per_role_timeout = _LLM_CALL_TIMEOUT * 3  # allows up to 3 batches per role
+            for future, (role, _) in future_map.items():
+                try:
+                    result = future.result(timeout=per_role_timeout)
+                    role_aggregations.append(result)
+                except Exception as exc:
+                    logger.error(
+                        "Role '%s' failed or timed out (%s) — falling back to party_specific only.",
+                        role, exc,
+                    )
+                    role_bullets = dict(role_items)[role]
+                    role_aggregations.append({
+                        "role": role,
+                        "agreed": [],
+                        "disputed": [],
+                        "party_specific": [
+                            {"party": b["party"], "text": b["bullet"], "sources": b["source"]}
+                            for b in role_bullets
+                        ],
+                    })
 
         return {"role_aggregations": role_aggregations}

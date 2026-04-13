@@ -1,7 +1,8 @@
+import re
 import sys
 import os
 import concurrent.futures
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 
@@ -15,34 +16,56 @@ from utils import get_logger, llm_invoke_with_retry
 logger = get_logger("hakim.node_4b")
 
 
-# --- Internal LLM Schema ---
+# ---------------------------------------------------------------------------
+# Internal LLM Schemas
+# Fix 2: Replace free-form summary str with structured sentence list.
+# Each sentence must cite at least one input item ID.
+# ---------------------------------------------------------------------------
+
+class SentenceLLM(BaseModel):
+    """One synthesis sentence, anchored to ≥1 input item ID."""
+    text: str = Field(description="الجملة القانونية — جملة واحدة فقط")
+    source_items: List[str] = Field(
+        description="معرّفات العناصر المُدخلة (A###، D###، P###) التي تستند إليها هذه الجملة — يجب ذكر معرّف واحد على الأقل"
+    )
+
 
 class SynthesisResultLLM(BaseModel):
-    """LLM output: synthesis for one theme."""
-    summary: str = Field(description="ملخص الموضوع في 2-3 فقرات")
-    key_disputes: List[str] = Field(description="عناوين مختصرة لنقاط الخلاف الجوهرية")
+    """LLM output: citation-anchored sentences + dispute labels."""
+    sentences: List[SentenceLLM] = Field(
+        description="قائمة الجمل — جملة واحدة لكل فكرة مع معرّفات مصادرها"
+    )
+    key_disputes: List[str] = Field(
+        description="عناوين مختصرة لنقاط الخلاف الجوهرية"
+    )
 
 
-# --- Static system prompt template (no user content) ---
+# ---------------------------------------------------------------------------
+# System prompt template
+# Fix 2: Open "2-3 فقرات" canvas replaced with citation-required schema.
+# {party_absence_clause} is filled from party_manifest (Fix 1).
+# ---------------------------------------------------------------------------
 
 _SYSTEM_TEMPLATE = """أنت مساعد قضائي متخصص في تلخيص المعلومات القانونية للقاضي.
 
-مهمتك: كتابة ملخص موجز ومتناسب مع حجم المحتوى (فقرة واحدة للمواضيع البسيطة، 2-3 فقرات للمواضيع المعقدة) لموضوع "{theme}" ضمن "{role}".
+مهمتك: كتابة ملخص لموضوع "{theme}" ضمن "{role}" استناداً حصرياً إلى العناصر المُدخلة ذات المعرّفات.
 
-الملخص يجب أن يشمل:
-1. النقاط المتفق عليها أو غير المتنازع عليها (إن وجدت)
-2. نقاط الخلاف الجوهرية مع ذكر موقف كل خصم
-3. النقاط الخاصة بكل طرف
+قاعدة الاستشهاد الإلزامية:
+- اكتب جملة واحدة لكل عنصر أو فكرة موجودة في المدخلات — لا تزيد ولا تنقص
+- كل جملة تكتبها يجب أن تستند إلى معرّف عنصر واحد على الأقل (A###، D###، أو P###)
+- لا تكتب جملاً ربط انتقالية أو استهلالية لا تحمل معلومة مرتبطة بمعرّف محدد
+- إذا لم تستطع الإشارة إلى معرّف يدعم الجملة، احذف الجملة تماماً
 
-شروط صارمة:
+محظورات مطلقة:
+- يُمنع منعاً باتاً ذكر: رقم أي تقرير أو قضية أو حكم، تاريخ جلسة أو قرار، نسبة مئوية، مبلغ مالي، وصف تقني (مساحة، تلف، خلل)، ما لم تكن هذه المعلومات موجودة حرفياً في أحد العناصر المُدخلة
+- لا تملأ الفراغات بمعلومات "مُتوقعة قانونياً" — المعلومة غير الموجودة في المدخلات معدومة
+{party_absence_clause}
+شروط الأسلوب:
 - استخدم اللغة العربية القانونية الرسمية
-- استخدم صيغ المقارنة عند وجود خلاف: "يتمسك... بينما يدفع..."، "ينازع... ويستند إلى..."
+- استخدم صيغ المقارنة عند وجود خلاف: "يتمسك... بينما يدفع..."
 - لا تضف أي رأي أو استنتاج أو توصية
-- حافظ على المصطلحات القانونية كما هي
-- لا تختلق وقائع غير موجودة في النقاط المقدمة
-- اذكر عناوين مختصرة لنقاط الخلاف الجوهرية في حقل key_disputes
-- عند ذكر مواقف الأطراف، اذكر كل طرف باسمه المحدد (المدعي، المدعى عليه الأول، المدعى عليها الثانية) ولا تدمج مواقف أطراف مختلفة في جملة واحدة
-- انقل المبالغ المالية والنسب المئوية والتواريخ بدقة كما وردت في النقاط الأصلية"""
+- اذكر كل طرف باسمه المحدد ولا تدمج مواقف أطراف مختلفة في جملة واحدة
+- انقل المبالغ والنسب والتواريخ بدقة كما وردت في العناصر المُدخلة — لا تحوّل أي رقم"""
 
 
 class Node4B_ThemeSynthesis:
@@ -51,41 +74,68 @@ class Node4B_ThemeSynthesis:
         self.llm = llm
         self.parser = llm.with_structured_output(SynthesisResultLLM)
 
-    # --- Formatting helpers ---
+    # -----------------------------------------------------------------------
+    # Fix 2: Item ID assignment
+    # -----------------------------------------------------------------------
 
-    def format_agreed(self, agreed: list) -> str:
-        if not agreed:
-            return "لا يوجد"
-        lines = []
-        for item in agreed:
+    def _assign_item_ids(
+        self, theme_cluster: dict
+    ) -> Tuple[Dict[str, str], str, str, str]:
+        """Assign sequential IDs (A###/D###/P###) to all cluster items.
+
+        Returns:
+            id_map:               {item_id: representative text}
+            agreed_text:          formatted agreed block for the prompt
+            disputed_text:        formatted disputed block
+            party_specific_text:  formatted party-specific block
+        """
+        id_map: Dict[str, str] = {}
+
+        agreed_lines = []
+        for i, item in enumerate(theme_cluster.get("agreed", []), 1):
+            iid = f"A{i:03d}"
             sources_str = ", ".join(item.get("sources", []))
-            lines.append(f"- {item.get('text', '')} [المصادر: {sources_str}]")
-        return "\n".join(lines)
+            text = item.get("text", "")
+            id_map[iid] = text
+            agreed_lines.append(f"[{iid}] {text} [المصادر: {sources_str}]")
 
-    def format_disputed(self, disputed: list) -> str:
-        if not disputed:
-            return "لا يوجد"
-        lines = []
-        for item in disputed:
-            lines.append(f"- موضوع النزاع: {item.get('subject', '')}")
+        disputed_lines = []
+        for i, item in enumerate(theme_cluster.get("disputed", []), 1):
+            iid = f"D{i:03d}"
+            subject = item.get("subject", "")
+            positions_parts = []
             for pos in item.get("positions", []):
+                party = pos.get("party", "")
                 bullets_text = "; ".join(pos.get("bullets", []))
                 sources_str = ", ".join(pos.get("sources", []))
-                lines.append(
-                    f"  * {pos.get('party', '')}: {bullets_text} [المصادر: {sources_str}]"
+                positions_parts.append(
+                    f"{party}: {bullets_text} [المصادر: {sources_str}]"
                 )
-        return "\n".join(lines)
+            full_text = f"[محل نزاع: {subject}] " + " | ".join(positions_parts)
+            id_map[iid] = subject
+            disputed_lines.append(f"[{iid}] {full_text}")
 
-    def format_party_specific(self, party_specific: list) -> str:
-        if not party_specific:
-            return "لا يوجد"
-        lines = []
-        for item in party_specific:
+        party_specific_lines = []
+        for i, item in enumerate(theme_cluster.get("party_specific", []), 1):
+            iid = f"P{i:03d}"
+            party = item.get("party", "")
+            text = item.get("text", "")
             sources_str = ", ".join(item.get("sources", []))
-            lines.append(
-                f"- [{item.get('party', '')}] {item.get('text', '')} [المصادر: {sources_str}]"
+            id_map[iid] = text
+            party_specific_lines.append(
+                f"[{iid}] [{party}] {text} [المصادر: {sources_str}]"
             )
-        return "\n".join(lines)
+
+        agreed_text = "\n".join(agreed_lines) if agreed_lines else "لا يوجد"
+        disputed_text = "\n".join(disputed_lines) if disputed_lines else "لا يوجد"
+        party_specific_text = (
+            "\n".join(party_specific_lines) if party_specific_lines else "لا يوجد"
+        )
+        return id_map, agreed_text, disputed_text, party_specific_text
+
+    # -----------------------------------------------------------------------
+    # Source collection
+    # -----------------------------------------------------------------------
 
     def collect_sources(self, theme_cluster: dict) -> List[str]:
         """Gather all unique citations from a theme cluster."""
@@ -113,6 +163,10 @@ class Node4B_ThemeSynthesis:
 
         return sources
 
+    # -----------------------------------------------------------------------
+    # Message construction (Fix 2 + Fix 1)
+    # -----------------------------------------------------------------------
+
     def _build_messages(
         self,
         theme: str,
@@ -120,23 +174,55 @@ class Node4B_ThemeSynthesis:
         agreed_text: str,
         disputed_text: str,
         party_specific_text: str,
+        all_item_ids: List[str],
+        party_manifest: Optional[Dict] = None,
     ) -> list:
-        """Build system + human messages directly (S2-4: no ChatPromptTemplate)."""
-        system_content = _SYSTEM_TEMPLATE.format(theme=theme, role=role)
+        """Build system + human messages with item IDs and party absence clause."""
+
+        # Fix 1: party absence clause from manifest
+        party_absence_clause = ""
+        if party_manifest:
+            parties_without_defense = [
+                p for p, doc_types in party_manifest.items()
+                if "مذكرة دفاع" not in doc_types
+                and "مذكرة رد" not in doc_types
+                and p not in ("المحكمة", "غير محدد", "خبير")
+            ]
+            if parties_without_defense:
+                names = "، ".join(parties_without_defense)
+                party_absence_clause = (
+                    f"- الأطراف الذين لم يقدموا مذكرات دفاع في الملف: {names}. "
+                    f"إذا طُلب وصف موقف أي من هؤلاء، اكتب حرفياً: "
+                    f"'لم ترد وثائق دفاعية لهذا الطرف'.\n"
+                )
+
+        system_content = _SYSTEM_TEMPLATE.format(
+            theme=theme,
+            role=role,
+            party_absence_clause=party_absence_clause,
+        )
+
+        all_ids_str = "، ".join(all_item_ids) if all_item_ids else "لا يوجد"
+
         human_content = (
             f'الموضوع: "{theme}" ضمن "{role}"\n\n'
+            f"معرّفات العناصر المتاحة: {all_ids_str}\n\n"
             f"النقاط المتفق عليها:\n{agreed_text}\n\n"
             f"النقاط المتنازع عليها:\n{disputed_text}\n\n"
             f"النقاط الخاصة بكل طرف:\n{party_specific_text}\n\n"
-            "اكتب ملخصاً موجزاً متناسباً مع حجم المحتوى."
+            "اكتب الجمل مع الإشارة إلى معرّفات العناصر المصدرية لكل جملة."
         )
         return [
             SystemMessage(content=system_content),
             HumanMessage(content=human_content),
         ]
 
+    # -----------------------------------------------------------------------
+    # Fallback
+    # -----------------------------------------------------------------------
+
     def build_fallback_summary(self, theme_cluster: dict) -> str:
-        """Build a raw-text fallback summary when LLM fails."""
+        """Concatenate original bullet texts — always grounded, never synthesized."""
         parts = []
 
         agreed = theme_cluster.get("agreed", [])
@@ -163,40 +249,58 @@ class Node4B_ThemeSynthesis:
         return "[ملخص خام - يحتاج مراجعة]\n" + "\n".join(parts)
 
     def extract_dispute_subjects(self, disputed: list) -> List[str]:
-        """Extract dispute subjects directly from DisputedPoint data."""
         return [item.get("subject", "") for item in disputed if item.get("subject")]
 
-    def synthesize_theme(self, theme_cluster: dict, role: str) -> dict:
-        """Process one theme cluster into a ThemeSummary dict."""
-        theme_name = theme_cluster.get("theme_name", "")
-        agreed = theme_cluster.get("agreed", [])
-        disputed = theme_cluster.get("disputed", [])
-        party_specific = theme_cluster.get("party_specific", [])
+    # -----------------------------------------------------------------------
+    # Fix 2: Core synthesis
+    # -----------------------------------------------------------------------
 
-        # Collect sources before LLM call so they survive fallback paths too
+    def synthesize_theme(
+        self,
+        theme_cluster: dict,
+        role: str,
+        party_manifest: Optional[Dict] = None,
+    ) -> dict:
+        """Process one theme cluster — sentences must cite item IDs.
+
+        Fix 2: Any sentence without source_items is stripped before assembly.
+        Fallback concatenates raw bullets (grounded) when LLM output is unusable.
+        """
+        theme_name = theme_cluster.get("theme_name", "")
+        disputed = theme_cluster.get("disputed", [])
         sources = self.collect_sources(theme_cluster)
 
-        agreed_text = self.format_agreed(agreed)
-        disputed_text = self.format_disputed(disputed)
-        party_specific_text = self.format_party_specific(party_specific)
+        id_map, agreed_text, disputed_text, party_specific_text = (
+            self._assign_item_ids(theme_cluster)
+        )
+        all_item_ids = list(id_map.keys())
 
         try:
             messages = self._build_messages(
-                theme_name, role, agreed_text, disputed_text, party_specific_text
+                theme_name, role, agreed_text, disputed_text, party_specific_text,
+                all_item_ids, party_manifest,
             )
             llm_result = llm_invoke_with_retry(self.parser, messages, logger=logger)
 
-            summary = llm_result.summary
-            key_disputes = llm_result.key_disputes
+            # Fix 2: strip sentences the LLM wrote without a source anchor
+            valid_sentences = [s for s in llm_result.sentences if s.source_items]
+            orphan_count = len(llm_result.sentences) - len(valid_sentences)
+            if orphan_count:
+                logger.warning(
+                    "Stripped %d unsourced sentence(s) from theme '%s'.",
+                    orphan_count, theme_name,
+                )
 
-            if not summary or not summary.strip():
-                logger.warning("Empty summary for theme '%s', using fallback.", theme_name)
+            if valid_sentences:
+                summary = " ".join(s.text for s in valid_sentences)
+            else:
+                logger.warning(
+                    "No valid sentences for theme '%s', using fallback.", theme_name
+                )
                 summary = self.build_fallback_summary(theme_cluster)
 
+            key_disputes = llm_result.key_disputes
             if disputed and not key_disputes:
-                logger.warning(
-                    "No key disputes for theme '%s', extracting from data.", theme_name
-                )
                 key_disputes = self.extract_dispute_subjects(disputed)
 
             return {
@@ -215,12 +319,14 @@ class Node4B_ThemeSynthesis:
                 "sources": sources,
             }
 
-    def process_role(self, themed_role: dict) -> dict:
-        """Process all themes for one role.
+    # -----------------------------------------------------------------------
+    # Fix 6: Role-level processing — now parallel across roles
+    # -----------------------------------------------------------------------
 
-        S1-2: Themes are synthesized concurrently using a thread pool, since
-        each call is independent and LangChain clients are thread-safe.
-        """
+    def process_role(
+        self, themed_role: dict, party_manifest: Optional[Dict] = None
+    ) -> dict:
+        """Process all themes for one role (themes synthesized concurrently)."""
         role = themed_role.get("role", "غير محدد")
         themes = themed_role.get("themes", [])
 
@@ -229,15 +335,15 @@ class Node4B_ThemeSynthesis:
         if not themes:
             return {"role": role, "theme_summaries": []}
 
-        # Dispatch all theme synthesis tasks concurrently
         results: List[Any] = [None] * len(themes)
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future_to_idx = {
-                executor.submit(self.synthesize_theme, theme_cluster, role): i
+                executor.submit(
+                    self.synthesize_theme, theme_cluster, role, party_manifest
+                ): i
                 for i, theme_cluster in enumerate(themes)
             }
-
             for future in concurrent.futures.as_completed(future_to_idx):
                 idx = future_to_idx[future]
                 theme_cluster = themes[idx]
@@ -249,7 +355,9 @@ class Node4B_ThemeSynthesis:
                         theme_name, theme_cluster.get("bullet_count", 0),
                     )
                 except Exception as e:
-                    logger.error("Unexpected error for theme '%s': %s", theme_name, e)
+                    logger.error(
+                        "Unexpected error for theme '%s': %s", theme_name, e
+                    )
                     results[idx] = {
                         "theme": theme_name,
                         "summary": self.build_fallback_summary(theme_cluster),
@@ -259,25 +367,86 @@ class Node4B_ThemeSynthesis:
                         "sources": self.collect_sources(theme_cluster),
                     }
 
-        # Filter None (shouldn't happen) and preserve original order
-        theme_summaries = [r for r in results if r is not None]
+        return {"role": role, "theme_summaries": [r for r in results if r is not None]}
 
-        return {"role": role, "theme_summaries": theme_summaries}
+    # -----------------------------------------------------------------------
+    # Fix 8: Numeric fabrication guard
+    # -----------------------------------------------------------------------
+
+    def _collect_input_numbers(self, themed_roles: list) -> set:
+        """Extract all numeric strings present in the raw input clusters."""
+        _pat = re.compile(r'\b\d[\d,./٠-٩]*\b')
+        numbers: set = set()
+        for tr in themed_roles:
+            for theme in tr.get("themes", []):
+                for item in theme.get("agreed", []):
+                    numbers.update(_pat.findall(item.get("text", "")))
+                for item in theme.get("disputed", []):
+                    for pos in item.get("positions", []):
+                        for b in pos.get("bullets", []):
+                            numbers.update(_pat.findall(b))
+                for item in theme.get("party_specific", []):
+                    numbers.update(_pat.findall(item.get("text", "")))
+        return numbers
+
+    def _check_numeric_fabrication(
+        self, summaries: list, themed_roles: list
+    ) -> None:
+        """Log warnings for multi-digit numbers in summaries absent from inputs.
+
+        Non-destructive diagnostic: does not mutate summaries.
+        Single-digit numbers are excluded to avoid trivial noise.
+        """
+        source_numbers = self._collect_input_numbers(themed_roles)
+        _pat = re.compile(r'\b\d[\d,./٠-٩]*\b')
+
+        for role_summary in summaries:
+            for ts in role_summary.get("theme_summaries", []):
+                summary_text = ts.get("summary", "")
+                summary_numbers = set(_pat.findall(summary_text))
+                fabricated = {
+                    n for n in (summary_numbers - source_numbers)
+                    if len(n) > 1
+                }
+                if fabricated:
+                    logger.warning(
+                        "⚠️ Potential fabricated numbers in theme '%s': %s",
+                        ts.get("theme", ""), sorted(fabricated),
+                    )
+
+    # -----------------------------------------------------------------------
+    # Entry point
+    # -----------------------------------------------------------------------
 
     def process(self, inputs: dict) -> dict:
         """
-        Input:  {"themed_roles": [ThemedRole dicts]}
-        Output: {"role_theme_summaries": [RoleThemeSummaries dicts]}
+        Input:  {"themed_roles": [...], "party_manifest": {...}}
+        Output: {"role_theme_summaries": [...]}
+
+        Fix 6: roles processed in parallel (max_workers = min(n_roles, 6)).
+        Fix 8: numeric fabrication guard runs after synthesis (logging only).
         """
         themed_roles = inputs.get("themed_roles", [])
+        party_manifest = inputs.get("party_manifest", {})
+
         if not themed_roles:
             return {"role_theme_summaries": []}
 
-        logger.info("--- Node 4B: Theme-Level Synthesis ---")
+        logger.info(
+            "--- Node 4B: Theme-Level Synthesis (%d role(s)) ---", len(themed_roles)
+        )
 
-        role_theme_summaries = []
-        for themed_role in themed_roles:
-            role_summary = self.process_role(themed_role)
-            role_theme_summaries.append(role_summary)
+        # Fix 6: roles now run in parallel
+        def _process_one_role(themed_role: dict) -> dict:
+            return self.process_role(themed_role, party_manifest)
+
+        max_workers = min(len(themed_roles), 6)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            role_theme_summaries = list(
+                executor.map(_process_one_role, themed_roles)
+            )
+
+        # Fix 8: numeric fabrication guard (diagnostic, non-destructive)
+        self._check_numeric_fabrication(role_theme_summaries, themed_roles)
 
         return {"role_theme_summaries": role_theme_summaries}

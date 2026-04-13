@@ -1,6 +1,7 @@
 import sys
 import os
-from typing import List, Dict, Any
+import re
+from typing import List, Dict, Any, Optional
 from langchain_core.messages import SystemMessage, HumanMessage
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -14,22 +15,33 @@ logger = get_logger("hakim.node_5")
 
 _SYSTEM_PROMPT = """أنت مساعد قضائي متخصص في إعداد ملخصات القضايا للقاضي قبل الجلسة.
 
+⚠️ القاعدة الأهم — الأمانة المطلقة:
+كل جملة في المذكرة يجب أن يكون لها أصل مباشر في المدخلات.
+إذا لم تجد معلومة في المدخلات، لا تكتبها — حتى لو بدت منطقية أو متوقعة قانونياً.
+يُمنع منعاً باتاً: اختلاق أرقام، مساحات، نسب، تكاليف، أوصاف تلف، مواقف دفاعية، أو أي تفصيل غير موجود حرفياً في المدخلات.
+
 مهمتك: كتابة مذكرة ملخص قضية من 7 أقسام بناءً على ملخصات الأدوار القانونية المقدمة.
 
 الأقسام المطلوبة:
 1. ملخص النزاع: فقرة واحدة موجزة تصف جوهر النزاع وأطرافه وموضوعه
-2. الوقائع غير المتنازع عليها: الوقائع الجوهرية المتعلقة بموضوع النزاع التي لم ينازع فيها أي طرف
-   - اذكر الوقائع الموضوعية فقط (ملكية، عقد، ضرر، مبالغ، تواريخ جوهرية)
-   - أدرج النتائج الفنية المحددة (نسب التشابه والحدود الفاصلة، نتائج التحليل الكيميائي للحبر) لأنها وقائع موضوعية مثبتة وليست إجراءات
-   - استبعد: أسماء القضاة وأمناء السر، أرقام الجلسات والتأجيلات، أرقام البطاقات الشخصية والعناوين، إجراءات الخبرة الشكلية (تواريخ الانتقال، أسماء المختبرات)
+2. الوقائع غير المتنازع عليها:
+   - اذكر فقط: أسماء الأطراف، تواريخ العقود، وجود عقد أو ملكية، منطوق الأحكام (حرفياً بأرقامه)
+   - استبعد: التفاصيل الهندسية والوصفية (مساحات، أوصاف تلف، تكاليف إصلاح)، نتائج تقارير الخبراء الفنية (نسب تشابه، تحليل حبر)، أسماء القضاة وأمناء السر، أرقام الجلسات، أرقام البطاقات
    - الحد الأقصى: فقرة واحدة متماسكة لا تتجاوز 100 كلمة
    - إذا صدر حكم في القضية، اذكره كواقعة ثابتة ضمن هذا القسم
 3. نقاط الخلاف الجوهرية: كل نقطة خلاف مع بيان موقف كل طرف باختصار
 4. طلبات الخصوم: ما يطلبه كل طرف من المحكمة، مفصولاً بحسب الطرف — انسب كل طلب للطرف الذي قدّمه فعلاً — تأكد من ذكر طلبات جميع الأطراف بما في ذلك المدعى عليهم المتعددين إن وجدوا
-5. دفوع الخصوم: الدفوع الشكلية والموضوعية لكل طرف — انسب كل دفع للطرف الذي أبداه فعلاً
-   - صنّف الدفوع بدقة وفقاً للتصنيف القانوني المصري: "دفوع شكلية" (بطلان الإجراءات)، "دفوع بعدم القبول" (انتفاء الصفة أو المصلحة)، "دفوع موضوعية" (تفنيد الادعاء). لا تخلط بين الاختصاص القضائي وانتفاء الصفة القانونية
+5. دفوع الخصوم:
+   - انسب كل دفع للطرف الذي أبداه فعلاً بحسب المدخلات فقط
+   - إذا لم تتضمن المدخلات دفوعاً لطرف معين، اكتب "لم ترد دفوع لهذا الطرف في المدخلات" — لا تختلق دفوعاً
+   - صنّف الدفوع بدقة: "دفوع شكلية" (بطلان الإجراءات)، "دفوع بعدم القبول" (انتفاء الصفة أو المصلحة)، "دفوع موضوعية" (تفنيد الادعاء). لا تخلط بين الاختصاص القضائي وانتفاء الصفة القانونية
 6. المستندات المقدمة: قائمة المستندات مع نسبتها للطرف المقدم
 7. الأسئلة القانونية المطروحة: المسائل القانونية التي يثيرها النزاع وتحتاج فصلاً من المحكمة
+
+قواعد النسبة والإسناد:
+8. تقارير الخبراء المنتدبين من المحكمة لا تُنسب لأي طرف خصم — اذكرها دائماً كـ "تقرير الخبير المنتدب من المحكمة" (party=خبير)
+9. لا تُضف دفوعاً غير موجودة في المدخلات — الفرق بين "دفع انعدام الصفة" و"دفع عدم الاختصاص" جوهري، لا تخلط بينهما
+10. إذا ذُكر طرف في المدخلات دون أن تُذكر له دفوع محددة، لا تستنتج دفوعه من السياق
 
 شروط صارمة:
 - كل قسم: فقرة واحدة أو قائمة موجزة — تجنب التكرار والحشو
@@ -122,14 +134,38 @@ class Node5_BriefGenerator:
     # --- LLM call ---
 
     def _build_messages(
-        self, role_summaries_text: str, compiled_key_disputes: str
+        self,
+        role_summaries_text: str,
+        compiled_key_disputes: str,
+        party_manifest: Optional[Dict] = None,
     ) -> list:
-        """Build system + human messages directly (S2-4: no ChatPromptTemplate)."""
+        """Build system + human messages (Fix 3: absent-party clause from manifest)."""
+
+        # Fix 3: build an explicit absent-party block so the LLM cannot fabricate defenses
+        absent_clause = ""
+        if party_manifest:
+            parties_without_defense = [
+                p for p, doc_types in party_manifest.items()
+                if "مذكرة دفاع" not in doc_types
+                and "مذكرة رد" not in doc_types
+                and p not in ("المحكمة", "غير محدد", "النيابة", "خبير")
+            ]
+            if parties_without_defense:
+                names = "، ".join(parties_without_defense)
+                absent_clause = (
+                    f"\n\nتنبيه حاسم — أطراف بلا مذكرات دفاع:\n"
+                    f"الأطراف التالية لم يقدموا مذكرات دفاع وفقاً لوثائق الملف: {names}.\n"
+                    f"في قسم 'دفوع الخصوم' (القسم 5)، اكتب لكل طرف من هؤلاء حرفياً: "
+                    f"'لم ترد مذكرة دفاع لهذا الطرف في الملف المقدم' — "
+                    f"يُمنع منعاً باتاً اختلاق أي دفع أو موقف لهم."
+                )
+
         human_content = (
             "فيما يلي ملخصات الأدوار القانونية للقضية:\n\n"
             f"{role_summaries_text}\n\n"
             "نقاط الخلاف المستخلصة من جميع الأدوار:\n"
-            f"{compiled_key_disputes}\n\n"
+            f"{compiled_key_disputes}"
+            f"{absent_clause}\n\n"
             "اكتب مذكرة ملخص القضية بالأقسام السبعة المطلوبة."
         )
         return [
@@ -138,10 +174,15 @@ class Node5_BriefGenerator:
         ]
 
     def generate_brief(
-        self, role_summaries_text: str, compiled_key_disputes: str
+        self,
+        role_summaries_text: str,
+        compiled_key_disputes: str,
+        party_manifest: Optional[Dict] = None,
     ) -> CaseBrief:
         """Single LLM call with structured output to generate the 7-section brief."""
-        messages = self._build_messages(role_summaries_text, compiled_key_disputes)
+        messages = self._build_messages(
+            role_summaries_text, compiled_key_disputes, party_manifest
+        )
         return llm_invoke_with_retry(self.parser, messages, logger=logger)
 
     # --- Validation ---
@@ -269,6 +310,54 @@ class Node5_BriefGenerator:
             legal_questions=legal_questions,
         )
 
+    # --- Fix 3: Post-LLM absent-party defense safety net ---
+
+    def _enforce_absent_party_defenses(
+        self, brief: CaseBrief, party_manifest: Optional[Dict]
+    ) -> CaseBrief:
+        """String-match safety net: append disclaimer for absent parties that
+        still appear in party_defenses without the required disclaimer text.
+
+        This does not attempt deep NLP — it is a last-resort catch for cases
+        where the LLM ignored the absent-party instruction in the prompt.
+        """
+        if not party_manifest:
+            return brief
+
+        parties_without_defense = [
+            p for p, doc_types in party_manifest.items()
+            if "مذكرة دفاع" not in doc_types
+            and "مذكرة رد" not in doc_types
+            and p not in ("المحكمة", "غير محدد", "النيابة", "خبير")
+        ]
+
+        if not parties_without_defense:
+            return brief
+
+        disclaimer = "لم ترد مذكرة دفاع لهذا الطرف في الملف المقدم"
+        defenses_text = brief.party_defenses
+        corrections = []
+
+        for party in parties_without_defense:
+            if party not in defenses_text:
+                continue
+            # Check whether a 50+ char block follows the party name without the disclaimer
+            pattern = re.compile(
+                re.escape(party) + r'.{50,}',
+                re.DOTALL,
+            )
+            if pattern.search(defenses_text) and disclaimer not in defenses_text:
+                logger.warning(
+                    "Fix 3: '%s' appears in party_defenses without disclaimer — injecting correction.",
+                    party,
+                )
+                corrections.append(f"\n[تصحيح] {party}: {disclaimer}")
+
+        if corrections:
+            brief.party_defenses = defenses_text + "\n" + "\n".join(corrections)
+
+        return brief
+
     # --- Rendering ---
 
     def render_brief(self, brief: CaseBrief, all_sources: List[str]) -> str:
@@ -328,10 +417,13 @@ class Node5_BriefGenerator:
         role_map = self.organize_by_role(inputs)
         key_disputes = self.compile_key_disputes(inputs)
         all_sources = self.collect_all_sources(inputs)
+        party_manifest: Dict = inputs.get("party_manifest", {})
 
         logger.info("  Roles present: %s", list(role_map.keys()))
         logger.info("  Key disputes compiled: %d", len(key_disputes))
         logger.info("  Total unique sources: %d", len(all_sources))
+        if party_manifest:
+            logger.info("  Party manifest: %s", list(party_manifest.keys()))
 
         if not all_sources:
             logger.warning("No source citations found in input.")
@@ -341,7 +433,11 @@ class Node5_BriefGenerator:
         )
 
         try:
-            brief = self.generate_brief(role_summaries_text, compiled_key_disputes)
+            brief = self.generate_brief(
+                role_summaries_text, compiled_key_disputes, party_manifest
+            )
+            # Fix 3: enforce absent-party disclaimers as a safety net
+            brief = self._enforce_absent_party_defenses(brief, party_manifest)
 
             if not self.validate_brief(brief):
                 logger.warning("Validation failed, using fallback assembly.")

@@ -115,8 +115,10 @@ def llm_invoke_with_retry(
         "rate limit", "ratelimit", "rate_limit",
         "too many requests",
         "timeout", "timed out",
+        "deadline",           # gRPC DeadlineExceeded — Gemini 504
+        "deadlineexceeded",
         "connection", "connect",
-        "503", "429", "502",
+        "503", "429", "502", "504",
     )
 
     last_exc: Optional[Exception] = None

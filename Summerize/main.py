@@ -90,6 +90,7 @@ def main():
         "case_brief": {},
         "all_sources": [],
         "rendered_brief": "",
+        "party_manifest": {},  # Fix 7: populated by node_0_intake
     }
 
     try:

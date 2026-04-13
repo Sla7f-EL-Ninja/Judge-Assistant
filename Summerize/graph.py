@@ -57,6 +57,7 @@ class SummarizationState(TypedDict):
     case_brief: dict                 # CaseBrief dict
     all_sources: List[str]           # Unique citations
     rendered_brief: str              # Arabic markdown
+    party_manifest: dict             # Fix 1/7: {party: [doc_types]} built in node_0_intake
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +152,20 @@ def create_pipeline(llm_or_config):
             logger.warning("Node 0 validation: 'chunks' is not a list — resetting.")
             all_chunks = []
 
-        return {"chunks": all_chunks}
+        # Fix 1/7: Build party manifest — {party: [doc_types]} — from all chunks.
+        # This becomes the ground truth for which parties submitted which doc types,
+        # used downstream by nodes 4B and 5 to prevent absent-party fabrication.
+        _manifest_sets: dict = {}
+        for chunk in all_chunks:
+            party = chunk.get("party", "غير محدد")
+            doc_type = chunk.get("doc_type", "غير محدد")
+            if party not in _manifest_sets:
+                _manifest_sets[party] = set()
+            _manifest_sets[party].add(doc_type)
+        party_manifest = {p: list(dt) for p, dt in _manifest_sets.items()}
+        logger.info("  Party manifest: %s", {p: list(dt) for p, dt in _manifest_sets.items()})
+
+        return {"chunks": all_chunks, "party_manifest": party_manifest}
 
     def node_1_classify(state: SummarizationState) -> dict:
         """Node 1: Classify each chunk by legal role."""
@@ -222,13 +236,16 @@ def create_pipeline(llm_or_config):
         return {"themed_roles": themed_roles}
 
     def node_4b_synthesize(state: SummarizationState) -> dict:
-        """Node 4B: Synthesize 2-3 paragraph summaries per theme."""
+        """Node 4B: Synthesize structured, citation-anchored summaries per theme."""
         themed_roles = state.get("themed_roles", [])
         if not themed_roles:
             return {"role_theme_summaries": []}
 
         logger.info("NODE 4B: Theme Synthesis (%d role(s))", len(themed_roles))
-        result = _node_4b.process({"themed_roles": themed_roles})
+        result = _node_4b.process({
+            "themed_roles": themed_roles,
+            "party_manifest": state.get("party_manifest", {}),  # Fix 7
+        })
         summaries = result.get("role_theme_summaries", [])
         logger.info("  -> %d role summary group(s)", len(summaries))
 
@@ -249,7 +266,10 @@ def create_pipeline(llm_or_config):
             }
 
         logger.info("NODE 5: Case Brief Generation (%d role(s))", len(role_theme_summaries))
-        result = _node_5.process({"role_theme_summaries": role_theme_summaries})
+        result = _node_5.process({
+            "role_theme_summaries": role_theme_summaries,
+            "party_manifest": state.get("party_manifest", {}),  # Fix 7
+        })
         return {
             "case_brief": result.get("case_brief", {}),
             "all_sources": result.get("all_sources", []),
