@@ -90,7 +90,9 @@ class AgreedBullet(BaseModel):
 
 class DisputePosition(BaseModel):
     """One party's position within a disputed point."""
-    party: PartyEnum = Field(description="The party taking this position")
+    # str (not PartyEnum) — populated from chunk lookup after disambiguation;
+    # may carry dynamic ordinal values like 'المدعى عليه الرابع'.
+    party: str = Field(description="The party taking this position")
     bullets: List[str] = Field(description="Exact original bullet texts from this party")
     sources: List[str] = Field(description="Citations for these bullets")
 
@@ -103,7 +105,9 @@ class DisputedPoint(BaseModel):
 
 class PartyBullet(BaseModel):
     """A point unique to one party, not contested or matched."""
-    party: PartyEnum = Field(description="The party this point belongs to")
+    # str (not PartyEnum) — populated from chunk lookup after disambiguation;
+    # may carry dynamic ordinal values like 'المدعى عليه الرابع'.
+    party: str = Field(description="The party this point belongs to")
     text: str = Field(description="The bullet text")
     sources: List[str] = Field(description="Citations")
 

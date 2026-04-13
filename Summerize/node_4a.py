@@ -1,30 +1,33 @@
 import sys
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any, Tuple
 from collections import defaultdict
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 import uuid
 
-# Add parent directory to path for shared schema imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from schemas import (
     LegalRoleEnum,
     AgreedBullet, DisputedPoint, PartyBullet,
     ThemeCluster, ThemedRole, Node4AOutput,
 )
+from utils import get_logger, llm_invoke_with_retry
+
+logger = get_logger("hakim.node_4a")
 
 
 # --- Internal LLM Schemas ---
 
 class ThemeAssignmentLLM(BaseModel):
-    """LLM output: theme assignments for a batch of items."""
+    """LLM output: theme assignment for one thematic group."""
     theme_name: str = Field(description="اسم الموضوع الفرعي")
     item_ids: List[str] = Field(description="معرفات العناصر المنتمية لهذا الموضوع")
 
 
 class ClusteringResultLLM(BaseModel):
-    """LLM output: all theme assignments for one role."""
+    """LLM output: all theme assignments for one role (or one batch)."""
     themes: List[ThemeAssignmentLLM] = Field(
         description="قائمة المواضيع الفرعية مع معرفات العناصر"
     )
@@ -69,10 +72,9 @@ ROLE_THEME_SUGGESTIONS: Dict[str, List[str]] = {
     ],
 }
 
+# --- Static prompt fragments ---
 
-# --- Prompt Templates ---
-
-SYSTEM_PROMPT_4A = """أنت مساعد قضائي متخصص في تنظيم المعلومات القانونية.
+_SYSTEM_TEMPLATE = """أنت مساعد قضائي متخصص في تنظيم المعلومات القانونية.
 
 مهمتك: تجميع العناصر القانونية التالية المصنفة تحت دور "{role}" إلى مواضيع فرعية منطقية.
 
@@ -85,13 +87,8 @@ SYSTEM_PROMPT_4A = """أنت مساعد قضائي متخصص في تنظيم ا
 3. اختر أسماء مواضيع وصفية وواضحة بالعربية
 4. لا تغير النصوص الأصلية - فقط صنف المعرفات
 5. إذا كان عنصر لا يناسب أي موضوع مقترح، أنشئ موضوعاً جديداً مناسباً
-6. لا تترك أي معرف بدون تصنيف"""
-
-HUMAN_TEMPLATE_4A = """العناصر التالية مصنفة تحت دور "{role}":
-
-{formatted_items}
-
-جمّع هذه العناصر في مواضيع فرعية منطقية."""
+6. لا تترك أي معرف بدون تصنيف
+7. يجب أن يكون كل موضوع مختلفاً جوهرياً عن بقية المواضيع — لا تنشئ موضوعين يتداخلان في المحتوى"""
 
 
 class Node4A_ThematicClustering:
@@ -102,17 +99,20 @@ class Node4A_ThematicClustering:
         self.llm = llm
         self.parser = llm.with_structured_output(ClusteringResultLLM)
 
-    def assign_item_ids(self, role_agg: dict) -> Tuple[Dict[str, dict], List[Tuple[str, str]]]:
+    # --- Item ID assignment ---
+
+    def assign_item_ids(
+        self, role_agg: dict
+    ) -> Tuple[Dict[str, dict], List[Tuple[str, str]]]:
         """Assign temp IDs to all items in a RoleAggregation.
 
         Returns:
-            id_lookup: {temp_id: original_item_dict}
+            id_lookup:      {temp_id: {"type": ..., "data": ...}}
             items_with_ids: [(temp_id, formatted_text)]
         """
         id_lookup: Dict[str, dict] = {}
         items_with_ids: List[Tuple[str, str]] = []
 
-        # Agreed items
         for i, item in enumerate(role_agg.get("agreed", []), 1):
             temp_id = f"agreed-{i:03d}-{uuid.uuid4().hex[:8]}"
             id_lookup[temp_id] = {"type": "agreed", "data": item}
@@ -120,11 +120,9 @@ class Node4A_ThematicClustering:
             text = f"[{temp_id}] [متفق عليه] {item.get('text', '')} [المصادر: {sources_str}]"
             items_with_ids.append((temp_id, text))
 
-        # Disputed items
         for i, item in enumerate(role_agg.get("disputed", []), 1):
             temp_id = f"disputed-{i:03d}-{uuid.uuid4().hex[:8]}"
             id_lookup[temp_id] = {"type": "disputed", "data": item}
-            # Format disputed item with subject and position summaries
             positions_text = []
             for pos in item.get("positions", []):
                 party = pos.get("party", "")
@@ -135,12 +133,14 @@ class Node4A_ThematicClustering:
             text = f"[{temp_id}] [محل نزاع: {item.get('subject', '')}] {pos_summary}"
             items_with_ids.append((temp_id, text))
 
-        # Party-specific items
         for i, item in enumerate(role_agg.get("party_specific", []), 1):
             temp_id = f"party-{i:03d}-{uuid.uuid4().hex[:8]}"
             id_lookup[temp_id] = {"type": "party_specific", "data": item}
             sources_str = ", ".join(item.get("sources", []))
-            text = f"[{temp_id}] [{item.get('party', '')}] {item.get('text', '')} [المصادر: {sources_str}]"
+            text = (
+                f"[{temp_id}] [{item.get('party', '')}] "
+                f"{item.get('text', '')} [المصادر: {sources_str}]"
+            )
             items_with_ids.append((temp_id, text))
 
         return id_lookup, items_with_ids
@@ -149,39 +149,89 @@ class Node4A_ThematicClustering:
         """Format items as text lines with IDs for the LLM."""
         return "\n".join(text for _, text in items_with_ids)
 
-    def create_prompt_messages(self, formatted_items: str, role: str) -> list:
-        """Build system + human messages."""
-        suggested = ROLE_THEME_SUGGESTIONS.get(role, ["موضوع عام"])
-        suggested_text = "\n".join(f"- {t}" for t in suggested)
+    # --- Message construction (S2-4: direct messages, not ChatPromptTemplate) ---
 
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT_4A),
-            ("human", HUMAN_TEMPLATE_4A),
-        ])
-        return prompt.format_messages(
-            role=role,
-            suggested_themes=suggested_text,
-            formatted_items=formatted_items,
+    def _build_messages(
+        self,
+        formatted_items: str,
+        role: str,
+        existing_theme_names: List[str] = None,
+    ) -> list:
+        """Build system + human messages directly.
+
+        Args:
+            formatted_items:     Pre-formatted item text block.
+            role:                Legal role name.
+            existing_theme_names: S2-8 — theme names discovered in previous
+                                  batches; included in suggested themes so
+                                  the LLM reuses them instead of inventing
+                                  divergent names.
+        """
+        suggested = list(ROLE_THEME_SUGGESTIONS.get(role, ["موضوع عام"]))
+
+        # S2-8: Prepend already-discovered theme names so the LLM prefers them
+        if existing_theme_names:
+            # Put existing names first so they appear most prominent
+            combined = existing_theme_names + [s for s in suggested if s not in existing_theme_names]
+            suggested_text = "\n".join(f"- {t}" for t in combined)
+            continuity_note = (
+                "\nملاحظة: المواضيع المُبدوءة بـ ★ مُستخدمة مسبقاً — "
+                "استخدمها إن أمكن للحفاظ على التوحيد عبر المجموعات."
+            )
+            suggested_text = (
+                "\n".join(
+                    f"- ★ {t}" if t in existing_theme_names else f"- {t}"
+                    for t in combined
+                )
+                + continuity_note
+            )
+        else:
+            suggested_text = "\n".join(f"- {t}" for t in suggested)
+
+        system_content = _SYSTEM_TEMPLATE.format(
+            role=role, suggested_themes=suggested_text
         )
+        human_content = (
+            f'العناصر التالية مصنفة تحت دور "{role}":\n\n'
+            f"{formatted_items}\n\n"
+            "جمّع هذه العناصر في مواضيع فرعية منطقية."
+        )
+        return [
+            SystemMessage(content=system_content),
+            HumanMessage(content=human_content),
+        ]
 
-    def cluster_batch(self, formatted_items: str, role: str) -> ClusteringResultLLM:
+    # --- LLM clustering ---
+
+    def cluster_batch(
+        self,
+        formatted_items: str,
+        role: str,
+        existing_theme_names: List[str] = None,
+    ) -> ClusteringResultLLM:
         """Single LLM call for one batch."""
-        messages = self.create_prompt_messages(formatted_items, role)
-        return self.parser.invoke(messages)
+        messages = self._build_messages(formatted_items, role, existing_theme_names)
+        return llm_invoke_with_retry(self.parser, messages, logger=logger)
 
-    def merge_batch_results(self, batch_results: List[ClusteringResultLLM]) -> Dict[str, List[str]]:
-        """Merge theme assignments across batches by theme name."""
+    def merge_batch_results(
+        self, batch_results: List[ClusteringResultLLM]
+    ) -> Dict[str, List[str]]:
+        """Merge theme assignments across batches by theme name (exact match)."""
         merged: Dict[str, List[str]] = defaultdict(list)
         for result in batch_results:
             for theme in result.themes:
                 merged[theme.theme_name].extend(theme.item_ids)
         return dict(merged)
 
-    def validate_coverage(self, merged: Dict[str, List[str]], all_ids: set) -> Dict[str, List[str]]:
+    # --- Coverage validation ---
+
+    def validate_coverage(
+        self, merged: Dict[str, List[str]], all_ids: set
+    ) -> Dict[str, List[str]]:
         """Ensure every ID is assigned to exactly one theme.
 
-        - Missing IDs get assigned to fallback theme 'أخرى'
-        - Duplicate IDs keep first occurrence only
+        Missing IDs → 'أخرى' fallback theme.
+        Duplicate IDs → keep first occurrence.
         """
         seen: set = set()
         cleaned: Dict[str, List[str]] = {}
@@ -190,31 +240,34 @@ class Node4A_ThematicClustering:
             unique_ids = []
             for item_id in item_ids:
                 if item_id in seen:
-                    print(f"Warning: item '{item_id}' duplicated across themes, keeping first occurrence.")
+                    logger.warning("Item '%s' duplicated across themes, keeping first.", item_id)
                     continue
                 if item_id not in all_ids:
-                    print(f"Warning: LLM returned unknown item_id '{item_id}', dropping.")
+                    logger.warning("Unknown item_id '%s' from LLM, dropping.", item_id)
                     continue
                 seen.add(item_id)
                 unique_ids.append(item_id)
             if unique_ids:
                 cleaned[theme_name] = unique_ids
 
-        # Check for missing IDs
         missing = all_ids - seen
         if missing:
-            print(f"Warning: {len(missing)} item(s) missing from LLM output, adding to 'أخرى' theme.")
+            logger.warning("%d item(s) missing from LLM output, adding to 'أخرى'.", len(missing))
             cleaned.setdefault("أخرى", []).extend(sorted(missing))
 
-        # Theme count warning
         theme_count = len(cleaned)
         if theme_count < 2 or theme_count > 10:
-            print(f"Warning: unusual theme count ({theme_count}), proceeding anyway.")
+            logger.warning("Unusual theme count (%d), proceeding anyway.", theme_count)
 
         return cleaned
 
+    # --- Reconstruction ---
+
     def reconstruct_themed_role(
-        self, role: str, merged: Dict[str, List[str]], id_lookup: Dict[str, dict]
+        self,
+        role: str,
+        merged: Dict[str, List[str]],
+        id_lookup: Dict[str, dict],
     ) -> dict:
         """Rebuild ThemeCluster objects from merged assignments + lookup."""
         themes = []
@@ -227,29 +280,24 @@ class Node4A_ThematicClustering:
                 if item_id not in id_lookup:
                     continue
                 entry = id_lookup[item_id]
-                item_type = entry["type"]
-                data = entry["data"]
+                if entry["type"] == "agreed":
+                    agreed.append(entry["data"])
+                elif entry["type"] == "disputed":
+                    disputed.append(entry["data"])
+                elif entry["type"] == "party_specific":
+                    party_specific.append(entry["data"])
 
-                if item_type == "agreed":
-                    agreed.append(data)
-                elif item_type == "disputed":
-                    disputed.append(data)
-                elif item_type == "party_specific":
-                    party_specific.append(data)
-
-            bullet_count = len(agreed) + len(disputed) + len(party_specific)
             themes.append({
                 "theme_name": theme_name,
                 "agreed": agreed,
                 "disputed": disputed,
                 "party_specific": party_specific,
-                "bullet_count": bullet_count,
+                "bullet_count": len(agreed) + len(disputed) + len(party_specific),
             })
 
-        return {
-            "role": role,
-            "themes": themes,
-        }
+        return {"role": role, "themes": themes}
+
+    # --- Main processing ---
 
     def process_role(self, role_agg: dict) -> dict:
         """Process one RoleAggregation into a ThemedRole."""
@@ -258,56 +306,67 @@ class Node4A_ThematicClustering:
         all_ids = set(id_lookup.keys())
         total_items = len(all_ids)
 
-        print(f"  Role '{role}': {total_items} total items")
+        logger.info("  Role '%s': %d total items", role, total_items)
 
-        # Small-role optimization: skip clustering if too few items
+        # Small-role optimization: skip clustering
         if total_items < self.MIN_ITEMS_FOR_CLUSTERING:
-            print(f"  Skipping clustering (< {self.MIN_ITEMS_FOR_CLUSTERING} items), single theme.")
-            single_theme = {role: list(all_ids)}
-            return self.reconstruct_themed_role(role, single_theme, id_lookup)
+            logger.info(
+                "  Skipping clustering (< %d items), single theme.", self.MIN_ITEMS_FOR_CLUSTERING
+            )
+            return self.reconstruct_themed_role(role, {role: list(all_ids)}, id_lookup)
 
         try:
-            # Decide single call vs batching
             if total_items <= self.MAX_ITEMS_PER_CALL:
+                # Single call
                 formatted = self.format_items_for_prompt(items_with_ids)
                 result = self.cluster_batch(formatted, role)
                 merged = self.merge_batch_results([result])
             else:
-                # Split into batches
-                batch_results = []
+                # S2-8: Multi-batch — pass prior theme names to subsequent batches
+                batch_results: List[ClusteringResultLLM] = []
+                discovered_themes: List[str] = []
+
                 for start in range(0, total_items, self.MAX_ITEMS_PER_CALL):
-                    batch = items_with_ids[start:start + self.MAX_ITEMS_PER_CALL]
+                    batch = items_with_ids[start : start + self.MAX_ITEMS_PER_CALL]
                     formatted = self.format_items_for_prompt(batch)
-                    print(f"  Processing batch {start // self.MAX_ITEMS_PER_CALL + 1} "
-                          f"({len(batch)} items)...")
-                    result = self.cluster_batch(formatted, role)
+                    batch_num = start // self.MAX_ITEMS_PER_CALL + 1
+                    logger.info(
+                        "  Processing batch %d (%d items)...", batch_num, len(batch)
+                    )
+
+                    # Pass discovered theme names to keep naming consistent
+                    result = self.cluster_batch(
+                        formatted, role,
+                        existing_theme_names=discovered_themes if discovered_themes else None,
+                    )
                     batch_results.append(result)
+
+                    # Update discovered themes for the next batch
+                    for theme in result.themes:
+                        if theme.theme_name not in discovered_themes:
+                            discovered_themes.append(theme.theme_name)
+
                 merged = self.merge_batch_results(batch_results)
 
-            # Validate coverage
             merged = self.validate_coverage(merged, all_ids)
-
             return self.reconstruct_themed_role(role, merged, id_lookup)
 
         except Exception as e:
-            print(f"  Error in LLM call for role '{role}': {e}")
-            # Fallback: single theme = role name
+            logger.error("Error in LLM call for role '%s': %s", role, e)
             fallback = {role: list(all_ids)}
             return self.reconstruct_themed_role(role, fallback, id_lookup)
 
     def process(self, inputs: dict) -> dict:
-        """Entry point.
-        Input: Node3Output dict with {"role_aggregations": [...]}
-        Output: Node4AOutput dict with {"themed_roles": [...]}
+        """
+        Input:  {"role_aggregations": [RoleAggregation dicts]}
+        Output: {"themed_roles": [ThemedRole dicts]}
         """
         role_aggregations = inputs.get("role_aggregations", [])
         if not role_aggregations:
             return {"themed_roles": []}
 
-        print("\n--- Node 4A: Thematic Clustering ---")
-        themed_roles = []
-        for role_agg in role_aggregations:
-            themed_role = self.process_role(role_agg)
-            themed_roles.append(themed_role)
-
+        logger.info("--- Node 4A: Thematic Clustering ---")
+        max_workers = min(len(role_aggregations), 6)
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            themed_roles = list(ex.map(self.process_role, role_aggregations))
         return {"themed_roles": themed_roles}

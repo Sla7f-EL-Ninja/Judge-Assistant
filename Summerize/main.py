@@ -39,14 +39,7 @@ load_dotenv()
 
 def main():
     """Run the full summarization pipeline."""
-    # Check for API key
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        print("\nWARNING: GROQ_API_KEY not found in environment variables.")
-        print("Ensure you have a .env file or set the variable.")
-        print("The pipeline requires an LLM API key to function.\n")
 
-    # Initialize LLM
     try:
         llm = get_llm("high")
     except Exception as e:
@@ -78,7 +71,8 @@ def main():
             print("No valid documents loaded. Exiting.")
             return
     else:
-        print(f"No document paths provided.")
+        print("No document paths provided.")
+        return
 
     # Run the pipeline
     print("\n" + "=" * 60)
@@ -96,6 +90,7 @@ def main():
         "case_brief": {},
         "all_sources": [],
         "rendered_brief": "",
+        "party_manifest": {},  # Fix 7: populated by node_0_intake
     }
 
     try:
