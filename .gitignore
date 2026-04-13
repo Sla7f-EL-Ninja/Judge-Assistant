@@ -3,3 +3,6 @@ DataBases/
 __pycache__/
 .claude/
 /.claude/
+CLAUDE.md
+.pytest_cache/
+evaluation_results/
