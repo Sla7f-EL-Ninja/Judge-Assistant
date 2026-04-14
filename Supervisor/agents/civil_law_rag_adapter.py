@@ -26,11 +26,18 @@ only once, and we no longer delete modules that are already cached.
 """
 
 import logging
-import os
-import sys
+
 from typing import Any, Dict
 
 from Supervisor.agents.base import AgentAdapter, AgentResult
+import sys, os
+
+RAG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "RAG", "Civil Law RAG")
+PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+for p in (PROJECT_ROOT, RAG_DIR):
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 logger = logging.getLogger(__name__)
 

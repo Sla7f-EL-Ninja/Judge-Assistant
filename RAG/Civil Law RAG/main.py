@@ -22,17 +22,24 @@ Design Principle:
 Explicit execution.
 Critical operations like indexing should not occur implicitly.
 """
+import sys
+import os
+
+# Bootstrap: add project root to sys.path so `config` package is resolvable
+# when this file is run directly (e.g. python main.py).
+sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+import io
 from indexer import index_civil_law
 from graph import app, default_state_template
 from nodes import State
-import sys
-import io
 
 # Force stdout/stderr to use UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
 def ask_question(query: str, db) -> str:
     """
     Processes a user query through the LangGraph workflow.
