@@ -1,150 +1,121 @@
 """
-main.py
-
-Entry point for the Summarization pipeline.
+Summerize/main.py
+-----------------
+Thin CLI wrapper around :func:`Summerize.pipeline.run_summarization`.
 
 Usage:
-    # With document files:
     python main.py doc1.txt doc2.txt
+    python main.py doc1.txt doc2.txt --case-id <case_id>
 
-    # With no arguments: runs sample data
-    python main.py
+For programmatic use, import the pipeline directly instead:
 
-The pipeline processes legal case documents through Nodes 0-5 using LangGraph
-and produces a judge-facing case brief in formal legal Arabic.
+    from Summerize.pipeline import run_summarization
+    result = run_summarization(documents=[...], case_id="abc123")
 """
 
+import argparse
 import json
 import os
 import sys
+
 from dotenv import load_dotenv
-from langchain_groq import ChatGroq
 
-from config import get_llm
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Ensure Summerize directory is on the path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from Summerize.pipeline import run_summarization
 
-from graph import create_pipeline
-
-
-# Load environment variables
 load_dotenv()
 
 
-# ---------------------------------------------------------------------------
-# Sample documents for testing
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run the Hakim summarization pipeline on one or more legal documents."
+    )
+    parser.add_argument("files", nargs="*", metavar="FILE")
+    parser.add_argument(
+        "--case-id",
+        default=None,
+        help="Case ID to link the summary to in MongoDB (settings.yaml handles connection).",
+    )
+    return parser.parse_args()
 
 
+def main() -> None:
+    args = _parse_args()
 
-def main():
-    """Run the full summarization pipeline."""
-
-    try:
-        llm = get_llm("high")
-    except Exception as e:
-        print(f"Failed to initialize LLM: {e}")
-        return
-
-    # Build the pipeline
-    app = create_pipeline(llm)
-
-    # Prepare input documents
-    if len(sys.argv) > 1:
-        # Load documents from file paths
-        documents = []
-        for file_path in sys.argv[1:]:
-            if not os.path.exists(file_path):
-                print(f"Warning: File not found: {file_path}, skipping.")
-                continue
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    raw_text = f.read()
-                doc_id = os.path.basename(file_path)
-                documents.append({"doc_id": doc_id, "raw_text": raw_text})
-                print(f"Loaded: {file_path} ({len(raw_text)} chars)")
-            except Exception as e:
-                print(f"Error reading {file_path}: {e}")
-                continue
-
-        if not documents:
-            print("No valid documents loaded. Exiting.")
-            return
-    else:
+    if not args.files:
         print("No document paths provided.")
         return
 
-    # Run the pipeline
+    documents = []
+    for file_path in args.files:
+        if not os.path.exists(file_path):
+            print(f"Warning: File not found: {file_path}, skipping.")
+            continue
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                raw_text = f.read()
+            documents.append({"doc_id": os.path.basename(file_path), "raw_text": raw_text})
+            print(f"Loaded: {file_path} ({len(raw_text)} chars)")
+        except Exception as e:
+            print(f"Error reading {file_path}: {e}")
+
+    if not documents:
+        print("No valid documents loaded. Exiting.")
+        return
+
     print("\n" + "=" * 60)
     print("STARTING SUMMARIZATION PIPELINE")
     print("=" * 60)
 
-    initial_state = {
-        "documents": documents,
-        "chunks": [],
-        "classified_chunks": [],
-        "bullets": [],
-        "role_aggregations": [],
-        "themed_roles": [],
-        "role_theme_summaries": [],
-        "case_brief": {},
-        "all_sources": [],
-        "rendered_brief": "",
-        "party_manifest": {},  # Fix 7: populated by node_0_intake
-    }
-
     try:
-        final_state = app.invoke(initial_state)
+        result = run_summarization(documents=documents, case_id=args.case_id)
     except Exception as e:
         print(f"\nPipeline failed: {e}")
         import traceback
         traceback.print_exc()
         return
 
-    # Output results
-    rendered_brief = final_state.get("rendered_brief", "")
-    all_sources = final_state.get("all_sources", [])
-    case_brief = final_state.get("case_brief", {})
-
-    if rendered_brief:
+    if result.rendered_brief:
         print("\n" + "=" * 60)
         print("FINAL CASE BRIEF")
         print("=" * 60)
-        print(rendered_brief)
+        print(result.rendered_brief)
     else:
         print("\nNo brief was generated.")
 
-    print(f"\nTotal unique sources: {len(all_sources)}")
+    print(f"\nTotal unique sources: {len(result.all_sources)}")
 
-    # Save outputs
+    if args.case_id:
+        status = "saved" if result.saved_to_db else "FAILED to save"
+        print(f"MongoDB: {status}  (case_id='{args.case_id}')")
+
+    # Local output files
     output_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Save full pipeline state as JSON
-    output_json_path = os.path.join(output_dir, "pipeline_output.json")
+    json_path = os.path.join(output_dir, "pipeline_output.json")
     try:
-        serializable_state = {
-            "case_brief": case_brief,
-            "all_sources": all_sources,
-            "rendered_brief": rendered_brief,
-            "role_theme_summaries": final_state.get("role_theme_summaries", []),
-            "themed_roles": final_state.get("themed_roles", []),
-            "role_aggregations": final_state.get("role_aggregations", []),
-            "bullets_count": len(final_state.get("bullets", [])),
-            "chunks_count": len(final_state.get("chunks", [])),
-            "documents_count": len(documents),
-        }
-        with open(output_json_path, "w", encoding="utf-8") as f:
-            json.dump(serializable_state, f, ensure_ascii=False, indent=2)
-        print(f"\nPipeline output saved to: {output_json_path}")
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "case_brief":           result.case_brief,
+                "all_sources":          result.all_sources,
+                "rendered_brief":       result.rendered_brief,
+                "role_theme_summaries": result.role_theme_summaries,
+                "themed_roles":         result.themed_roles,
+                "role_aggregations":    result.role_aggregations,
+                "bullets_count":        result.bullets_count,
+                "chunks_count":         result.chunks_count,
+                "documents_count":      result.documents_count,
+            }, f, ensure_ascii=False, indent=2)
+        print(f"Pipeline output saved to: {json_path}")
     except Exception as e:
         print(f"Warning: Could not save pipeline output: {e}")
 
-    # Save rendered brief as markdown
-    brief_md_path = os.path.join(output_dir, "case_brief.md")
+    md_path = os.path.join(output_dir, "case_brief.md")
     try:
-        with open(brief_md_path, "w", encoding="utf-8") as f:
-            f.write(rendered_brief)
-        print(f"Case brief saved to: {brief_md_path}")
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(result.rendered_brief)
+        print(f"Case brief saved to: {md_path}")
     except Exception as e:
         print(f"Warning: Could not save case brief: {e}")
 

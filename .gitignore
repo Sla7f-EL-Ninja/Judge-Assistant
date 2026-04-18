@@ -6,3 +6,6 @@ __pycache__/
 CLAUDE.md
 .pytest_cache/
 evaluation_results/
+graphify-out/
+graph.png
+.obsidian/
