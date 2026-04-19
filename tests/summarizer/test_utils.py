@@ -16,11 +16,8 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
-_SUMMARIZE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "Summerize"
-if str(_SUMMARIZE_DIR) not in sys.path:
-    sys.path.insert(0, str(_SUMMARIZE_DIR))
 
-from utils import escape_braces, llm_invoke_with_retry, normalize_arabic_for_matching
+from summarize.utils import escape_braces, llm_invoke_with_retry, normalize_arabic_for_matching
 
 
 @pytest.mark.unit

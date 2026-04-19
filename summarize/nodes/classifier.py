@@ -4,12 +4,10 @@ from typing import List, Dict, Any, Tuple
 
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
-import sys
-import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from schemas import LegalRoleEnum
-from utils import get_logger, llm_invoke_with_retry
+from summarize.schemas import LegalRoleEnum
+from summarize.utils import get_logger, llm_invoke_with_retry
+from summarize.prompts.classifier import SYSTEM_PROMPT
 
 logger = get_logger("hakim.node_1")
 
@@ -27,22 +25,6 @@ class BatchClassificationResult(BaseModel):
     )
 
 
-# --- System prompt (static, no user content) ---
-_SYSTEM_PROMPT = """أنت مساعد قضائي ذكي. مهمتك تصنيف الفقرات القانونية إلى واحدة من الفئات التالية بدقة:
-[الوقائع, الطلبات, الدفوع, المستندات, الأساس القانوني, الإجراءات, غير محدد]
-
-تعليمات:
-1. "الوقائع": السرد القصصي وتاريخ النزاع.
-2. "الطلبات": ما يطلبه الخصم من المحكمة في الختام.
-3. "الدفوع": الردود القانونية، الدفع بعدم الاختصاص، التقادم، إلخ.
-4. "المستندات": الإشارة للمرفقات والأدلة الكتابية.
-5. "الأساس القانوني": نصوص المواد وأحكام النقض.
-6. "الإجراءات": سير الدعوى والجلسات السابقة.
-7. "غير محدد": فقرات إدارية بحتة أو لا تنتمي لأي فئة أعلاه.
-
-صنف كل فقرة بناءً على محتواها وسياق المستند."""
-
-
 class Node1_RoleClassifier:
     BATCH_SIZE = 10
 
@@ -51,11 +33,6 @@ class Node1_RoleClassifier:
         self.parser = self.llm.with_structured_output(BatchClassificationResult)
 
     def _build_messages(self, chunks: List[dict], doc_meta: Dict[str, Any]) -> list:
-        """Build system + human messages without ChatPromptTemplate.
-
-        Constructing messages directly avoids any risk of curly braces in
-        chunk text being misinterpreted as template variables (S2-4).
-        """
         doc_type = doc_meta.get("doc_type", "غير محدد")
         party = doc_meta.get("party", "غير محدد")
 
@@ -68,7 +45,7 @@ class Node1_RoleClassifier:
 
         system_content = (
             f"معلومات المستند:\n- النوع: {doc_type}\n- مقدم من: {party}\n\n"
-            + _SYSTEM_PROMPT
+            + SYSTEM_PROMPT
         )
         human_content = formatted_text
 
@@ -80,11 +57,6 @@ class Node1_RoleClassifier:
     def process_batch(
         self, chunks: List[dict], doc_meta: Dict[str, Any]
     ) -> List[dict]:
-        """Classify one batch. Returns NEW dicts (does not mutate inputs).
-
-        S2-9: Create new dicts with {**chunk, role, confidence} instead of
-        mutating the input chunk dicts in-place.
-        """
         try:
             messages = self._build_messages(chunks, doc_meta)
             result = llm_invoke_with_retry(self.parser, messages, logger=logger)
@@ -98,7 +70,6 @@ class Node1_RoleClassifier:
 
         except Exception as e:
             logger.error("Error in batch classification: %s", e)
-            # Fallback: mark all chunks in this batch as unclassified
             return [{**chunk, "role": "غير محدد", "confidence": 0.0} for chunk in chunks]
 
     def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
@@ -110,9 +81,6 @@ class Node1_RoleClassifier:
         if not all_chunks:
             return {"classified_chunks": []}
 
-        # S2-2: Group chunks by (doc_type, party) so each group is processed
-        # with its own correct metadata in the system prompt, rather than
-        # using the first chunk's metadata for the entire input.
         doc_groups: Dict[Tuple[str, str], List[dict]] = defaultdict(list)
         for chunk in all_chunks:
             key = (

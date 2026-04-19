@@ -1,5 +1,3 @@
-import sys
-import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import List, Dict, Any
@@ -7,20 +5,16 @@ from collections import defaultdict
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 
-# Cap concurrent LLM calls across all Node 3 worker threads.
-# Groq / most LLM APIs throttle at ~5-10 concurrent connections;
-# exceeding this causes silent hangs rather than clean rate-limit errors.
 _LLM_SEMAPHORE = threading.Semaphore(4)
-# Per-call timeout (seconds) — prevents a single hung call from blocking forever.
 _LLM_CALL_TIMEOUT = 120
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from schemas import (
+from summarize.schemas import (
     LegalRoleEnum,
     AgreedBullet, DisputePosition, DisputedPoint,
     PartyBullet, RoleAggregation, Node3Output,
 )
-from utils import get_logger, llm_invoke_with_retry
+from summarize.utils import get_logger, llm_invoke_with_retry
+from summarize.prompts.aggregator import SYSTEM_PROMPT_TEMPLATE
 
 logger = get_logger("hakim.node_3")
 
@@ -28,99 +22,58 @@ logger = get_logger("hakim.node_3")
 # --- LLM Response Schemas (internal to Node 3) ---
 
 class AgreedItemLLM(BaseModel):
-    """An agreed-upon or uncontested point (LLM output)."""
     text: str = Field(description="النص الموحد للنقطة المتفق عليها")
     bullet_ids: List[str] = Field(description="معرفات النقاط الأصلية التي تدعم هذه النقطة")
 
 
 class DisputeSideLLM(BaseModel):
-    """One party's side in a dispute (LLM output)."""
-    # str (not PartyEnum) — node 3 overrides this via source anchoring from
-    # bullet lookup; disambiguated ordinals like 'المدعى عليه الرابع' are valid.
     party: str = Field(description="اسم الطرف")
     bullet_ids: List[str] = Field(description="معرفات نقاط هذا الطرف")
 
 
 class DisputedItemLLM(BaseModel):
-    """A point of contention between parties (LLM output)."""
     subject: str = Field(description="موضوع النزاع باختصار")
     sides: List[DisputeSideLLM] = Field(description="موقف كل طرف")
 
 
 class PartySpecificItemLLM(BaseModel):
-    """A point unique to one party, not contested or matched (LLM output)."""
-    # str (not PartyEnum) — node 3 overrides this via source anchoring from
-    # bullet lookup; disambiguated ordinals like 'المدعى عليه الرابع' are valid.
     party: str = Field(description="الطرف صاحب النقطة")
     bullet_ids: List[str] = Field(description="معرفات النقاط - قد تكون مدمجة من تكرارات")
     text: str = Field(description="النص الموحد بعد دمج التكرارات")
 
 
 class RoleAggregationLLM(BaseModel):
-    """Complete LLM output for one role."""
     agreed: List[AgreedItemLLM] = Field(description="نقاط متفق عليها أو غير متنازع عليها")
     disputed: List[DisputedItemLLM] = Field(description="نقاط محل نزاع بين الأطراف")
     party_specific: List[PartySpecificItemLLM] = Field(description="نقاط خاصة بطرف واحد")
 
 
-# --- Static prompt content (no user content) ---
-
-_SYSTEM_PROMPT_TEMPLATE = """أنت مساعد قضائي متخصص في تحليل النزاعات القانونية المصرية.
-
-مهمتك: تحليل مجموعة من النقاط القانونية المصنفة تحت دور "{role}" وتوزيعها على ثلاث فئات:
-
-1. المتفق عليه: وقائع أو معلومات يقرها الطرفان صراحة، أو يذكرها أحدهما دون أن ينازع فيها الآخر.
-2. محل النزاع: نقاط يتناقض فيها الأطراف مباشرة حول نفس الموضوع.
-3. خاص بطرف: ادعاءات أو حجج أو طلبات تخص طرفاً واحداً ولا تقابلها نقطة من الطرف الآخر.
-
-القواعد:
-- كل نقطة (bullet_id) يجب أن تظهر في فئة واحدة فقط
-- عند دمج نقاط مكررة من نفس الطرف، اذكر جميع معرفاتها
-- في "محل النزاع"، حدد موضوع النزاع باختصار واذكر معرفات نقاط كل طرف
-- في "المتفق عليه"، اكتب نصاً موحداً يعبر عن النقطة المتفق عليها
-- الوقائع المادية الموضوعية (تواريخ، مبالغ محددة، أسماء عقود) التي يذكرها طرف واحد دون نزاع من الطرف الآخر تعتبر "متفق عليه". أما الادعاءات التقييمية (مثل "تزوير"، "إهمال"، "سوء نية") فتصنف "خاص بطرف" حتى لو لم ينازع فيها الآخر
-- الادعاءات والحجج القانونية الخاصة بطرف واحد تصنف "خاص بطرف"
-- مثال: إذا ذكر المدعي "تم إبرام عقد بيع" وذكر المدعى عليه "تم إبرام عقد بيع" → متفق عليه. لكن إذا قال المدعي "العقد صحيح" وقال المدعى عليه "العقد مزور" → محل نزاع
-- عند كتابة النص الموحد للنقاط المتفق عليها، انقل الأرقام والمبالغ والتواريخ كما وردت تماماً
-- استخدم اللغة العربية القانونية الرسمية
-- لا تضف معلومات غير موجودة في النقاط الأصلية
-- تنبيه: نتائج تقارير الخبراء (نسب تشابه، تحليل حبر، أوصاف فنية) تصنف "خاص بطرف" مع party=خبير ما لم يقبلها الطرفان صراحة. لا تصنّفها "متفق عليه" تلقائياً
-- عند الشك: صنّف النقطة "خاص بطرف" وليس "متفق عليه" — الخطأ في توسيع "المتفق عليه" أخطر من تضييقه"""
-
-
 class Node3_Aggregator:
-    MAX_BULLETS_PER_CALL = 12  # Gemini structured output times out on >~15 Arabic legal bullets
+    MAX_BULLETS_PER_CALL = 12
 
     def __init__(self, llm):
         self.llm = llm
         self.parser = llm.with_structured_output(RoleAggregationLLM)
 
-    # --- Helpers ---
-
     def build_bullet_lookup(self, bullets: List[dict]) -> dict:
-        """Returns {bullet_id: bullet_dict} for source resolution."""
         return {b["bullet_id"]: b for b in bullets}
 
     def group_by_role(self, bullets: List[dict]) -> dict:
-        """Returns {role: [bullet_dicts]}."""
         groups: Dict[str, List[dict]] = defaultdict(list)
         for b in bullets:
             groups[b["role"]].append(b)
         return groups
 
     def has_multiple_parties(self, bullets: List[dict]) -> bool:
-        """Check if bullets come from more than one party."""
         return len({b["party"] for b in bullets}) > 1
 
     def format_bullets_for_prompt(self, bullets: List[dict]) -> str:
-        """Format as: [bullet_id | party] bullet_text"""
         return "\n".join(
             f"[{b['bullet_id']} | {b['party']}] {b['bullet']}" for b in bullets
         )
 
     def _build_messages(self, formatted_bullets: str, role: str) -> list:
-        """Build system + human messages directly (S2-4: avoids template escaping issues)."""
-        system_content = _SYSTEM_PROMPT_TEMPLATE.format(role=role)
+        system_content = SYSTEM_PROMPT_TEMPLATE.format(role=role)
         human_content = (
             f'النقاط التالية مصنفة تحت دور "{role}":\n\n'
             f"{formatted_bullets}\n\n"
@@ -132,7 +85,6 @@ class Node3_Aggregator:
         ]
 
     def resolve_sources(self, bullet_ids: List[str], lookup: dict) -> List[str]:
-        """Merge source lists from all referenced bullet_ids, deduped."""
         sources: List[str] = []
         seen: set = set()
         for bid in bullet_ids:
@@ -145,10 +97,7 @@ class Node3_Aggregator:
         return sources
 
     def resolve_bullet_texts(self, bullet_ids: List[str], lookup: dict) -> List[str]:
-        """Get exact original bullet texts for given IDs."""
         return [lookup[bid]["bullet"] for bid in bullet_ids if bid in lookup]
-
-    # --- Coverage validation ---
 
     def validate_coverage(
         self,
@@ -156,11 +105,6 @@ class Node3_Aggregator:
         input_bullet_ids: set,
         bullets: List[dict],
     ) -> RoleAggregationLLM:
-        """Ensure every input bullet_id appears in exactly one bucket.
-
-        Missing IDs → added to party_specific.
-        Duplicate IDs → keep first occurrence only.
-        """
         seen_ids: Dict[str, str] = {}
 
         for item in llm_result.agreed:
@@ -203,7 +147,6 @@ class Node3_Aggregator:
                 clean.append(bid)
             item.bullet_ids = clean
 
-        # Add missing IDs to party_specific
         missing_ids = input_bullet_ids - set(seen_ids.keys())
         if missing_ids:
             bullet_map = {b["bullet_id"]: b for b in bullets}
@@ -222,13 +165,9 @@ class Node3_Aggregator:
 
         return llm_result
 
-    # --- Output construction ---
-
     def build_role_aggregation(
         self, role: str, llm_result: RoleAggregationLLM, lookup: dict
     ) -> dict:
-        """Convert LLM result + lookup into final RoleAggregation dict."""
-
         agreed = [
             {
                 "text": item.text,
@@ -244,10 +183,6 @@ class Node3_Aggregator:
             for side in item.sides:
                 if not side.bullet_ids:
                     continue
-                # Anchor party label to source-document ground truth rather
-                # than trusting the LLM's inference (which can reverse parties).
-                # If all bullets for this side share the same original party,
-                # use that; otherwise fall back to the LLM's label.
                 source_parties = {
                     lookup[bid]["party"]
                     for bid in side.bullet_ids
@@ -270,8 +205,6 @@ class Node3_Aggregator:
         for item in llm_result.party_specific:
             if not item.bullet_ids:
                 continue
-            # Anchor party label to source-document ground truth (same logic as
-            # disputed sides above) to prevent LLM hallucination of party labels.
             source_parties = {
                 lookup[bid]["party"]
                 for bid in item.bullet_ids
@@ -294,11 +227,6 @@ class Node3_Aggregator:
         }
 
     def _call_llm_for_batch(self, bullets: List[dict], role: str) -> RoleAggregationLLM:
-        """Single LLM call for a subset of bullets.
-
-        Protected by _LLM_SEMAPHORE to cap concurrent API calls (prevents
-        silent hangs when thread pool saturates the upstream rate limiter).
-        """
         formatted = self.format_bullets_for_prompt(bullets)
         messages = self._build_messages(formatted, role)
 
@@ -306,7 +234,6 @@ class Node3_Aggregator:
             return llm_invoke_with_retry(self.parser, messages, max_retries=1, logger=logger)
 
     def _fallback_aggregation(self, bullets: List[dict]) -> RoleAggregationLLM:
-        """Fallback: put every bullet into party_specific."""
         return RoleAggregationLLM(
             agreed=[],
             disputed=[],
@@ -321,10 +248,6 @@ class Node3_Aggregator:
         )
 
     def process_role(self, role: str, bullets: List[dict], lookup: dict) -> dict:
-        """Process all bullets for one role. Returns RoleAggregation dict."""
-
-        # غير محدد shortcut: expert/forensic/unclassified content — no aggregation value,
-        # skip LLM entirely to avoid large payload timeouts on Gemini.
         if role == "غير محدد":
             logger.info("  Skipping LLM for 'غير محدد' role — dumping directly to party_specific.")
             return {
@@ -341,7 +264,6 @@ class Node3_Aggregator:
                 ],
             }
 
-        # Single-party shortcut: no comparison possible
         if not self.has_multiple_parties(bullets):
             return {
                 "role": role,
@@ -359,16 +281,13 @@ class Node3_Aggregator:
 
         input_bullet_ids = {b["bullet_id"] for b in bullets}
 
-        # S2-3 / S1-4: Enforce MAX_BULLETS_PER_CALL — batch large roles
         if len(bullets) <= self.MAX_BULLETS_PER_CALL:
-            # Single LLM call (common path)
             try:
                 llm_result = self._call_llm_for_batch(bullets, role)
             except Exception as e:
                 logger.error("LLM call failed for role '%s': %s", role, e)
                 llm_result = self._fallback_aggregation(bullets)
         else:
-            # Multiple batches — merge results afterwards
             logger.info(
                 "  Role '%s': %d bullets exceeds MAX_BULLETS_PER_CALL=%d, batching.",
                 role, len(bullets), self.MAX_BULLETS_PER_CALL,
@@ -387,14 +306,12 @@ class Node3_Aggregator:
                     batch_result = self._fallback_aggregation(batch)
                 batch_results.append(batch_result)
 
-            # Merge by simple concatenation; validate_coverage handles dedup & missing
             llm_result = RoleAggregationLLM(
                 agreed=[a for r in batch_results for a in r.agreed],
                 disputed=[d for r in batch_results for d in r.disputed],
                 party_specific=[p for r in batch_results for p in r.party_specific],
             )
 
-        # Validate and build final output
         llm_result = self.validate_coverage(llm_result, input_bullet_ids, bullets)
         return self.build_role_aggregation(role, llm_result, lookup)
 
@@ -416,14 +333,12 @@ class Node3_Aggregator:
             return self.process_role(role, role_bullets, lookup)
 
         role_items = list(role_groups.items())
-        max_workers = min(len(role_items), 4)  # match semaphore limit — no point having more workers than permits
+        max_workers = min(len(role_items), 4)
         role_aggregations = []
 
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
             future_map = {ex.submit(_process_role_item, item): item for item in role_items}
-            # Per-role timeout: each role gets at most (batches * _LLM_CALL_TIMEOUT) seconds.
-            # We use a generous fixed ceiling per role to avoid hanging indefinitely.
-            per_role_timeout = _LLM_CALL_TIMEOUT * 3  # allows up to 3 batches per role
+            per_role_timeout = _LLM_CALL_TIMEOUT * 3
             for future, (role, _) in future_map.items():
                 try:
                     result = future.result(timeout=per_role_timeout)

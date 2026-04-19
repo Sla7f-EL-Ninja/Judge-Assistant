@@ -1,15 +1,13 @@
 import uuid
-import sys
-import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any
 from collections import defaultdict
 from langchain_core.messages import SystemMessage, HumanMessage
 from pydantic import BaseModel, Field
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from schemas import LegalRoleEnum, PartyEnum, LegalBullet, Node2Output
-from utils import get_logger, llm_invoke_with_retry
+from summarize.schemas import LegalRoleEnum, PartyEnum, LegalBullet, Node2Output
+from summarize.utils import get_logger, llm_invoke_with_retry
+from summarize.prompts.extractor import SYSTEM_PROMPT_TEMPLATE, ROLE_HINTS
 
 logger = get_logger("hakim.node_2")
 
@@ -29,56 +27,20 @@ class BatchBulletResult(BaseModel):
     extractions: List[ChunkBullets]
 
 
-# --- Role-Specific Extraction Hints ---
-
-ROLE_HINTS = {
-    "الوقائع": "ركز على: الأحداث، التواريخ، الأفعال، العلاقات بين الأطراف، تسلسل الوقائع.",
-    "الطلبات": "ركز على: ما يطلبه الخصم من المحكمة تحديداً، كل طلب منفصل في نقطة.",
-    "الدفوع": "ركز على: كل دفع قانوني أو إجرائي منفصل، أسباب الدفع، النتيجة المطلوبة.",
-    "المستندات": "ركز على: وصف كل مستند، ما يثبته، الطرف الذي قدّمه.",
-    "الأساس القانوني": "ركز على: رقم المادة، اسم القانون، مبدأ النقض، وجه الانطباق.",
-    "الإجراءات": "ركز على: تاريخ كل إجراء، نوعه، قرار المحكمة فيه.",
-    "غير محدد": "حاول استخراج أي محتوى قانوني مفيد. إذا كان النص إدارياً بحتاً، أرجع قائمة فارغة.",
-}
-
-# --- Static system prompt template (no user content) ---
-_SYSTEM_PROMPT_TEMPLATE = """أنت مساعد قضائي متخصص في استخراج النقاط القانونية من المستندات القضائية المصرية.
-
-مهمتك: تحويل كل فقرة إلى نقاط قانونية ذرية (فكرة واحدة لكل نقطة).
-
-التصنيف الحالي لهذه الفقرات: {role}
-{role_hint}
-
-القواعد الصارمة:
-1. كل نقطة تحتوي على فكرة قانونية واحدة فقط
-2. استخدم اللغة العربية القانونية الرسمية
-3. لا تضف أي معلومات غير موجودة في النص الأصلي — يُمنع منعاً باتاً استنتاج أو تخمين أي تفاصيل لم تُذكر صراحة (مثل: مساحات، نسب مئوية، تكاليف إصلاح، تواريخ تحليل، أوصاف تلف). إذا لم يذكر النص رقماً أو تفصيلاً، لا تولّده
-4. لا تحذف أي فكرة جوهرية من النص
-5. إذا كانت الفقرة قصيرة جداً أو لا تحتوي على محتوى قانوني، أرجع قائمة فارغة
-6. حافظ على المصطلحات القانونية كما هي دون تبسيط
-7. لا تغير المبالغ المالية أو الأرقام أو التواريخ — انقلها كما هي بالنص
-8. كل نقطة مستخرجة يجب أن يكون لها أصل حرفي في النص المُدخل — إذا لم تستطع الإشارة إلى الجملة المصدرية، احذف النقطة
-9. إذا أشار النص إلى "تقرير خبير" أو "الخبير" دون ذكر رقم مرجعي محدد، اكتب "تقرير الخبير" دون أي رقم — يُمنع منعاً باتاً إضافة أرقام مرجعية أو أرقام قضايا لم تُذكر حرفياً في النص
-
-لكل فقرة (محددة بمعرف chunk_id)، أرجع قائمة النقاط المستخرجة."""
-
-
 class Node2_BulletExtractor:
-    BATCH_SIZE = 3  # Fix 5: reduced from 5 — smaller batches cut cross-chunk contamination
+    BATCH_SIZE = 3
 
     def __init__(self, llm):
         self.llm = llm
         self.parser = llm.with_structured_output(BatchBulletResult)
 
     def build_citation(self, chunk: dict) -> str:
-        """Build a human-readable source reference from chunk metadata."""
         return f"{chunk['doc_id']} ص{chunk['page_number']} ف{chunk['paragraph_number']}"
 
     def _build_messages(self, chunks: List[dict], role: str) -> list:
-        """Build messages directly without ChatPromptTemplate (S2-4 safety)."""
         role_hint = ROLE_HINTS.get(role, ROLE_HINTS["غير محدد"])
 
-        system_content = _SYSTEM_PROMPT_TEMPLATE.format(role=role, role_hint=role_hint)
+        system_content = SYSTEM_PROMPT_TEMPLATE.format(role=role, role_hint=role_hint)
 
         formatted_chunks = ""
         for chunk in chunks:
@@ -98,7 +60,6 @@ class Node2_BulletExtractor:
         ]
 
     def process_batch(self, chunks: List[dict], role: str) -> List[dict]:
-        """Process a single batch: call LLM and return extracted bullet dicts."""
         chunk_map = {c["chunk_id"]: c for c in chunks}
         results = []
 
@@ -132,7 +93,6 @@ class Node2_BulletExtractor:
                         "chunk_id": cid,
                     })
 
-            # Fallback for chunk_ids the LLM missed
             for cid, chunk in chunk_map.items():
                 if cid not in seen_ids:
                     clean_text = chunk.get("clean_text", "").strip()
@@ -150,7 +110,6 @@ class Node2_BulletExtractor:
 
         except Exception as e:
             logger.error("Error in batch bullet extraction: %s", e)
-            # Fallback: wrap each chunk's clean_text as a single bullet
             for chunk in chunks:
                 clean_text = chunk.get("clean_text", "").strip()
                 if not clean_text:
@@ -168,7 +127,6 @@ class Node2_BulletExtractor:
 
     def process(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Entry point for Node 2.
         Input:  {"classified_chunks": [ClassifiedChunk dicts]}
         Output: {"bullets": [LegalBullet dicts]}
         """
@@ -176,14 +134,12 @@ class Node2_BulletExtractor:
         if not classified_chunks:
             return {"bullets": []}
 
-        # Filter out chunks with empty clean_text
         classified_chunks = [
             c for c in classified_chunks if c.get("clean_text", "").strip()
         ]
         if not classified_chunks:
             return {"bullets": []}
 
-        # Group chunks by role
         role_groups: Dict[str, List[dict]] = defaultdict(list)
         for chunk in classified_chunks:
             role_groups[chunk.get("role", "غير محدد")].append(chunk)

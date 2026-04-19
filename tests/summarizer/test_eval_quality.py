@@ -27,7 +27,6 @@ from typing import Any, Dict, List
 import pytest
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-_SUMMARIZE_DIR = _REPO_ROOT / "Summerize"
 
 
 # ---------------------------------------------------------------------------
@@ -57,9 +56,6 @@ def _extract_json(response_content: str) -> dict:
     # strict=False allows control characters (e.g. literal newlines) inside
     # JSON string values, which Gemini occasionally emits.
     return json.loads(content, strict=False)
-for _p in [str(_REPO_ROOT), str(_SUMMARIZE_DIR)]:
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
 
 from .eval_config import (
     EVAL_DIMENSIONS,
@@ -95,7 +91,7 @@ def real_llm_high():
 @pytest.fixture(scope="session")
 def eval_pipeline_result(real_llm_high):
     """Run pipeline on all fixtures; cache for all eval tests."""
-    from graph import create_pipeline
+    from summarize.graph import create_pipeline
 
     pipeline = create_pipeline(real_llm_high)
     fixtures = []
@@ -525,7 +521,7 @@ class TestFactualFaithfulness:
             # The rendered brief is capped at 3000 chars (enough for all 7 sections).
             human_content = (
                 f"الوثائق الأصلية:\n\n{fixture_excerpts}"
-                f"\n\n---\n\nالمذكرة:\n\n{rendered[:3000]}"
+                f"\n\n---\n\nالمذكرة:\n\n{rendered}"
                 f"\n\nقيّم أمانة المذكرة للوثائق الأصلية."
             )
             messages = [

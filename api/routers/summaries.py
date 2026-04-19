@@ -18,7 +18,7 @@ from api.schemas.common import ErrorEnvelope
 from api.schemas.summaries import GenerateSummaryResponse, SummaryResponse
 from api.services import case_service, summary_service
 from api.db.collections import DOCUMENTS
-from Summerize.pipeline import run_summarization, SummarizationResult
+from summarize.pipeline import run_summarization, SummarizationResult
 
 logger = logging.getLogger("hakim.api.summaries")
 

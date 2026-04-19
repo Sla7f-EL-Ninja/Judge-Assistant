@@ -1,23 +1,12 @@
 """
-Summerize/pipeline.py
----------------------
 Public programmatic interface for the summarization pipeline.
 
-Any module in the project can do:
-
-    from Summerize.pipeline import run_summarization
+    from summarize import run_summarization
 
     result = run_summarization(
         documents=[{"doc_id": "file.txt", "raw_text": "..."}],
-        case_id="abc123",           # optional — saves to MongoDB when given
-        save_to_db=True,            # default True when case_id is provided
+        case_id="abc123",
     )
-
-    print(result.rendered_brief)
-    print(result.all_sources)
-
-The CLI (main.py) and the FastAPI endpoint are both thin wrappers
-around this single entry point.
 """
 
 from __future__ import annotations
@@ -25,32 +14,21 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-import os
-import sys
 from typing import List, Optional
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    
+
 from config import cfg, get_llm
-from Summerize.graph import create_pipeline
+from summarize.graph import create_pipeline
 
 logger = logging.getLogger("hakim.pipeline")
 
-# ---------------------------------------------------------------------------
-# Return type
-# ---------------------------------------------------------------------------
 
 @dataclass
 class SummarizationResult:
-    """Structured result returned by :func:`run_summarization`."""
+    """Structured result returned by run_summarization."""
 
     rendered_brief: str
-    """Full brief as Arabic markdown — the primary human-readable output."""
-
     case_brief: dict
-    """Structured 7-section dict (CaseBrief model fields)."""
-
     all_sources: List[str]
-    """Unique citation strings collected across the brief."""
 
     role_theme_summaries: List[dict] = field(default_factory=list)
     themed_roles: List[dict]         = field(default_factory=list)
@@ -59,24 +37,15 @@ class SummarizationResult:
     chunks_count: int                = 0
     documents_count: int             = 0
 
-    # Set by the pipeline after a successful MongoDB upsert
     saved_to_db: bool   = False
     case_id: Optional[str] = None
 
 
-# ---------------------------------------------------------------------------
-# MongoDB helper (sync — safe from CLI and thread-pool contexts)
-# ---------------------------------------------------------------------------
- 
 def _upsert_summary(
     case_id: str,
     result: SummarizationResult,
 ) -> bool:
-    """Upsert *result* into MongoDB under *case_id*.
-
-    All connection settings come from ``cfg`` (settings.yaml / env vars).
-    Returns True on success, False on failure so callers can react.
-    """
+    """Upsert result into MongoDB under case_id."""
     try:
         from pymongo import MongoClient
     except ImportError:
@@ -117,10 +86,6 @@ def _upsert_summary(
         client.close()
 
 
-# ---------------------------------------------------------------------------
-# Core entry point
-# ---------------------------------------------------------------------------
-
 def run_summarization(
     documents: List[dict],
     *,
@@ -128,37 +93,7 @@ def run_summarization(
     save_to_db: bool = True,
     llm=None,
 ) -> SummarizationResult:
-    """Run the full Nodes 0-5 summarization pipeline and return a result object.
-
-    Parameters
-    ----------
-    documents:
-        List of dicts with keys ``"doc_id"`` (str) and ``"raw_text"`` (str).
-        At least one non-empty document is required.
-    case_id:
-        When provided, the result is upserted into MongoDB under this key.
-        Pass ``save_to_db=False`` to skip saving even when case_id is set.
-    save_to_db:
-        Controls the MongoDB upsert.  Defaults to True; only relevant when
-        ``case_id`` is also provided.
-    llm:
-        Optional pre-built LangChain chat model.  When omitted the pipeline
-        creates one via ``get_llm("high")`` from the central config.
-
-    Returns
-    -------
-    SummarizationResult
-        Always returned — even when the pipeline produces an empty brief —
-        so callers never have to handle None.
-
-    Raises
-    ------
-    ValueError
-        If *documents* is empty or contains no non-empty raw_text entries.
-    RuntimeError
-        If the pipeline itself raises an unrecoverable error.
-    """
-    # ---- Validate input ----------------------------------------------------
+    """Run the full Nodes 0-5 summarization pipeline and return a result object."""
     if not documents:
         raise ValueError("run_summarization: 'documents' must not be empty.")
 
@@ -166,7 +101,6 @@ def run_summarization(
     if not valid_docs:
         raise ValueError("run_summarization: all documents have empty 'raw_text'.")
 
-    # ---- Build pipeline ----------------------------------------------------
     if llm is None:
         llm = get_llm("high")
 
@@ -186,7 +120,6 @@ def run_summarization(
         "party_manifest":       {},
     }
 
-    # ---- Run ---------------------------------------------------------------
     logger.info(
         "run_summarization: starting  docs=%d  case_id=%s",
         len(valid_docs), case_id,
@@ -196,7 +129,6 @@ def run_summarization(
     except Exception as exc:
         raise RuntimeError(f"Summarization pipeline failed: {exc}") from exc
 
-    # ---- Build result ------------------------------------------------------
     result = SummarizationResult(
         rendered_brief       = final_state.get("rendered_brief", ""),
         case_brief           = final_state.get("case_brief", {}),
@@ -215,7 +147,6 @@ def run_summarization(
         len(result.all_sources), len(result.rendered_brief),
     )
 
-    # ---- Persist -----------------------------------------------------------
     if case_id and save_to_db:
         result.saved_to_db = _upsert_summary(case_id, result)
 

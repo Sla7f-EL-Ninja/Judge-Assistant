@@ -1,28 +1,18 @@
 """
-Summerize/main.py
------------------
-Thin CLI wrapper around :func:`Summerize.pipeline.run_summarization`.
+CLI wrapper around summarize.pipeline.run_summarization.
 
 Usage:
-    python main.py doc1.txt doc2.txt
-    python main.py doc1.txt doc2.txt --case-id <case_id>
-
-For programmatic use, import the pipeline directly instead:
-
-    from Summerize.pipeline import run_summarization
-    result = run_summarization(documents=[...], case_id="abc123")
+    python -m summarize doc1.txt doc2.txt
+    python -m summarize doc1.txt doc2.txt --case-id <case_id>
 """
 
 import argparse
 import json
 import os
-import sys
 
 from dotenv import load_dotenv
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from Summerize.pipeline import run_summarization
+from summarize.pipeline import run_summarization
 
 load_dotenv()
 
@@ -90,7 +80,6 @@ def main() -> None:
         status = "saved" if result.saved_to_db else "FAILED to save"
         print(f"MongoDB: {status}  (case_id='{args.case_id}')")
 
-    # Local output files
     output_dir = os.path.dirname(os.path.abspath(__file__))
 
     json_path = os.path.join(output_dir, "pipeline_output.json")

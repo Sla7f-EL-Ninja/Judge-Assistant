@@ -1,33 +1,25 @@
 """
 summarize_adapter.py
 
-Adapter for the Summarization pipeline (Summerize/graph.py).
+Adapter for the Summarization pipeline (summarize/graph.py).
 
 Wraps ``create_pipeline(llm)`` and returns an AgentResult with the
 rendered Arabic case brief.
-
-Performance fix
----------------
-The original implementation added the Summerize directory to sys.path and
-re-imported ``get_llm`` / ``create_pipeline`` on every call.  The path
-guard (``if summerize_dir not in sys.path``) prevented duplicate path
-entries, but the import statements still ran every time.  The imported
-callables are now cached at the class level so the module-loading overhead
-happens only once per process.
 """
 
 import logging
 import os
-import sys
 from typing import Any, Dict, List, Optional
 
 from Supervisor.agents.base import AgentAdapter, AgentResult
+from config import get_llm
+from summarize.graph import create_pipeline
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# MongoDB helper (unchanged from original)
+# MongoDB helper
 # ---------------------------------------------------------------------------
 
 def _fetch_documents_from_mongo(case_id: str) -> List[Dict[str, str]]:
@@ -66,46 +58,11 @@ def _fetch_documents_from_mongo(case_id: str) -> List[Dict[str, str]]:
 
 
 # ---------------------------------------------------------------------------
-# One-time import loader
-# ---------------------------------------------------------------------------
-
-def _load_summarize_callables():
-    """Import and return (get_llm, create_pipeline) from the Summerize package.
-
-    Called once; result cached on the class.
-    """
-    summerize_dir = os.path.normpath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "..", "Summerize"
-    ))
-    if summerize_dir not in sys.path:
-        sys.path.insert(0, summerize_dir)
-
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    from config import get_llm          # noqa: E402  resolved from summerize_dir
-    from graph import create_pipeline   # noqa: E402  resolved from summerize_dir
-
-    return get_llm, create_pipeline
-
-
-# ---------------------------------------------------------------------------
 # Adapter
 # ---------------------------------------------------------------------------
 
 class SummarizeAdapter(AgentAdapter):
     """Thin wrapper around the Summarization LangGraph pipeline."""
-
-    _get_llm = None
-    _create_pipeline = None
-
-    @classmethod
-    def _get_callables(cls):
-        if cls._get_llm is None:
-            logger.info("Loading Summarize pipeline (first call)...")
-            cls._get_llm, cls._create_pipeline = _load_summarize_callables()
-            logger.info("Summarize pipeline loaded and cached.")
-        return cls._get_llm, cls._create_pipeline
 
     def invoke(self, query: str, context: Dict[str, Any]) -> AgentResult:
         """Run the summarisation pipeline on the provided documents.
@@ -117,8 +74,6 @@ class SummarizeAdapter(AgentAdapter):
         4. MongoDB                             -- fetch by context["case_id"].
         """
         try:
-            get_llm, create_pipeline = self._get_callables()
-
             # --- 1. Explicit documents list ---
             documents = context.get("documents")
 
@@ -180,7 +135,7 @@ class SummarizeAdapter(AgentAdapter):
 
             logger.info("Summarising %d document(s).", len(documents))
             llm = get_llm("high")
-            pipeline = create_pipeline(llm)
+            pipeline = create_pipeline(llm)  # from summarize.graph
             result = pipeline.invoke({"documents": documents})
 
             rendered_brief = result.get("rendered_brief", "")
@@ -198,7 +153,4 @@ class SummarizeAdapter(AgentAdapter):
         except Exception as exc:
             error_msg = f"Summarize adapter error: {exc}"
             logger.exception(error_msg)
-            # Reset so the next call retries the import
-            SummarizeAdapter._get_llm = None
-            SummarizeAdapter._create_pipeline = None
             return AgentResult(response="", error=error_msg)

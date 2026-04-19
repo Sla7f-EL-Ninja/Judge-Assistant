@@ -98,7 +98,7 @@ class TestNormalizedChunk:
     """Validate NormalizedChunk schema from Summerize/schemas.py."""
 
     def test_required_fields_present(self):
-        from Summerize.schemas import NormalizedChunk
+        from summarize.schemas import NormalizedChunk
 
         required = NormalizedChunk.model_json_schema().get("required", [])
         for field in (
@@ -115,7 +115,7 @@ class TestNormalizedChunk:
             )
 
     def test_missing_required_field_raises(self):
-        from Summerize.schemas import NormalizedChunk
+        from summarize.schemas import NormalizedChunk
 
         with pytest.raises(ValidationError):
             NormalizedChunk(

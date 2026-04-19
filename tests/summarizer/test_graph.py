@@ -12,11 +12,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-_SUMMARIZE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "Summerize"
-if str(_SUMMARIZE_DIR) not in sys.path:
-    sys.path.insert(0, str(_SUMMARIZE_DIR))
-
-from graph import SummarizationState, create_pipeline
+from summarize.state import SummarizationState
+from summarize.graph import create_pipeline
 
 
 @pytest.mark.unit
@@ -34,6 +31,7 @@ class TestSummarizationState:
         "case_brief",
         "all_sources",
         "rendered_brief",
+        "party_manifest"
     }
 
     def test_has_all_expected_keys(self):

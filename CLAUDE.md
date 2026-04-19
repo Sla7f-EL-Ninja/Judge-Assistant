@@ -46,7 +46,7 @@ Retry loop: validation fail → re-dispatch with `validation_feedback` appended,
 | Agent | Module | Trigger |
 |---|---|---|
 | OCR | `OCR/ocr_pipeline.py` | `ocr` |
-| Summarizer | `Summerize/main.py` | `summarize` |
+| Summarizer | `summarize/main.py` | `summarize` |
 | Civil Law RAG | `RAG/Civil Law RAG/graph.py` | `civil_law_rag` |
 | Case Doc RAG | `RAG/case_doc_rag/graph.py` | `case_doc_rag` |
 | Case Reasoner | `Case Reasoner/case_reasoner.py` | `reason` |
