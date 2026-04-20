@@ -11,7 +11,12 @@
       "Bash(python3 -m scripts \"D:\\\\FUCK!!\\\\Grad\\\\Code\\\\CLAUDE.md\")",
       "Bash(python -m scripts \"D:\\\\FUCK!!\\\\Grad\\\\Code\\\\CLAUDE.md\")",
       "Bash(rm -f .graphify_detect.json .graphify_extract.json .graphify_ast.json .graphify_semantic.json .graphify_analysis.json .graphify_labels.json .graphify_cached.json .graphify_uncached.txt .graphify_semantic_new.json)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import graphify\")",
+      "Bash(pip install *)",
+      "Bash(graphify claude *)",
+      "PowerShell(python -c \"import sys; open\\('.graphify_python', 'w'\\).write\\(sys.executable\\)\")",
+      "Bash(python *)"
     ],
     "deny": [
       "Read(**/*.log)",

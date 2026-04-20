@@ -9,3 +9,4 @@ evaluation_results/
 graphify-out/
 graph.png
 .obsidian/
+.graphify*
