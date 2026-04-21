@@ -164,8 +164,6 @@ class FileIngestor:
         mongo_db: str = "Rag",
         mongo_collection: str = "Document Storage",
         embedding_model: str = "BAAI/bge-m3",
-        chroma_collection: str = "judicial_docs",
-        chroma_persist_dir: Optional[str] = None,
         qdrant_host: str = "localhost",
         qdrant_port: int = 6333,
         qdrant_grpc_port: int = 6334,
@@ -189,7 +187,7 @@ class FileIngestor:
         self._qdrant_port = qdrant_port
         self._qdrant_grpc_port = qdrant_grpc_port
         self._qdrant_prefer_grpc = qdrant_prefer_grpc
-        self._qdrant_collection_name = qdrant_collection or chroma_collection
+        self._qdrant_collection_name = qdrant_collection 
 
         # MinIO config
         self._minio_endpoint = minio_endpoint or os.getenv("MINIO_ENDPOINT", "localhost:9000")

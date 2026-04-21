@@ -40,13 +40,21 @@ def _format_history(conversation_history: list, n: int = _MAX_HISTORY_TURNS) -> 
         lines.append(f"**{role}:** {t.get('content', '')}")
     return "\n".join(lines)
 
+def _ensure_dict(r):
+    if isinstance(r, str):
+        try:
+            import json
+            return json.loads(r)
+        except Exception:
+            return {}
+    return r
 
 def _format_step_results(step_results: List[dict]) -> str:
     if not step_results:
         return "لا توجد نتائج."
     blocks = []
     seen_ids = set()
-    for r in step_results:
+    for r in [_ensure_dict(x) for x in step_results]:
         sid = r.get("step_id", "?")
         if sid in seen_ids:
             continue

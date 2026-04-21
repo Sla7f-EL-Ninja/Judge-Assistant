@@ -23,12 +23,20 @@ from chat_reasoner.prompts import (
     REPLANNER_CONTEXT_TEMPLATE,
     REPLANNER_SYSTEM,
 )
-from chat_reasoner.state import ChatReasonerState, Plan
+from chat_reasoner.state import ChatReasonerState, Plan, _STEP_RESULTS_RESET
 
 logger = logging.getLogger(__name__)
 
 _MAX_REPLANS = 2
 _MAX_HISTORY_TURNS = 8
+
+def _ensure_dict(r):
+    if isinstance(r, str):
+        try:
+            return __import__('json').loads(r)
+        except Exception:
+            return {}
+    return r
 
 
 def _format_history(conversation_history: list, n: int = _MAX_HISTORY_TURNS) -> str:
@@ -109,11 +117,10 @@ def replanner_node(state: ChatReasonerState) -> Dict[str, Any]:
     new_step_ids = {s["step_id"] for s in new_plan_steps}
 
     # Prune step_failures and step_results for orphaned step_ids
-    current_failures = dict(state.get("step_failures", {}))
-    pruned_failures = {k: v for k, v in current_failures.items() if k in new_step_ids}
-
-    current_results: List[dict] = state.get("step_results", [])
-    pruned_results = [r for r in current_results if r.get("step_id") in new_step_ids]
+    pruned_failures = {
+        k: v for k, v in state.get("step_failures", {}).items() if k in new_step_ids
+    }
+    pruned_results: List[dict] = [_STEP_RESULTS_RESET]
 
     replan_event = {
         "replan_index": replan_count + 1,

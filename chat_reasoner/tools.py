@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_PROJECT_ROOT = os.path.normpath(os.path.join(_THIS_DIR, "..", "..", ".."))
-_CIVIL_LAW_RAG_DIR = os.path.normpath(os.path.join(_PROJECT_ROOT, "RAG", "Civil Law RAG"))
+_PROJECT_ROOT = os.path.normpath(os.path.join(_THIS_DIR, ".."))
+_CIVIL_LAW_RAG_DIR = os.path.normpath(os.path.join(_PROJECT_ROOT, "RAG", "civil_law_rag"))
 _CASE_DOC_RAG_DIR = os.path.normpath(os.path.join(_PROJECT_ROOT, "RAG", "Case Doc RAG"))
 
 # ---------------------------------------------------------------------------
@@ -66,10 +66,10 @@ def _load_civil_law_rag():
     from dotenv import load_dotenv
     load_dotenv()
 
-    from graph import app  # noqa: E402 — resolved from rag_dir
+    from graph import build_graph  # noqa: E402 — resolved from rag_dir
     from config.rag import default_state_template  # noqa: E402
 
-    return app, default_state_template
+    return build_graph(), default_state_template
 
 
 def _get_civil_law_app():
@@ -102,15 +102,8 @@ def _get_case_doc_rag_app():
     if _case_doc_app is not None:
         return _case_doc_app
 
-    rag_dir = _CASE_DOC_RAG_DIR
-    if rag_dir not in sys.path:
-        sys.path.insert(0, rag_dir)
-
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    import rag_docs  # noqa: E402
-    _case_doc_app = rag_docs.app
+    from RAG.case_doc_rag.graph import build_graph
+    _case_doc_app = build_graph()
     logger.info("Case Doc RAG graph loaded and cached.")
     return _case_doc_app
 
@@ -155,36 +148,33 @@ def _run_case_doc_rag(
     try:
         app = _get_case_doc_rag_app()
 
-        messages = [
-            HumanMessage(content=t.get("content", ""))
-            for t in (conversation_history or [])
-            if t.get("role") == "user"
-        ]
-        human_msg = HumanMessage(content=step["query"])
-        messages.append(human_msg)
-
+        import uuid
         initial_state = {
-            "query": human_msg,
-            "messages": messages,
+            "query": step["query"],
             "case_id": case_id,
-            "doc_type": None,
-            "retrieved_docs": [],
-            "context": "",
-            "refined_query": "",
-            "safety_notes": [],
-            "answer": "",
-            "onTopic": True,
-            "proceedToGenerate": False,
-            "rephraseCount": 0,
-            "doc_selection_mode": "",
+            "conversation_history": [
+                {"role": t.get("role", "user"), "content": t.get("content", "")}
+                for t in (conversation_history or [])
+            ],
+            "request_id": str(uuid.uuid4()),
+            # required reducer fields
+            "sub_questions": [],
+            "on_topic": True,
+            "doc_selection_mode": "no_doc_specified",
             "selected_doc_id": None,
+            "doc_titles": [],
+            "sub_answers": [],
+            "final_answer": "",
+            "error": None,
         }
 
         result = app.invoke(initial_state)
-        answer = result.get("answer") or _extract_last_ai_message(
-            result.get("messages", [])
-        )
-        sources = _extract_doc_sources(result.get("retrieved_docs", []))
+        answer = result.get("final_answer", "")
+        sources = list({
+            src
+            for sa in result.get("sub_answers", [])
+            for src in sa.get("sources", [])
+        })
 
         if not answer:
             return StepResult(
@@ -206,8 +196,7 @@ def _run_case_doc_rag(
             response=answer,
             sources=sources,
             raw_output={
-                "doc_selection_mode": result.get("doc_selection_mode"),
-                "selected_doc_id": result.get("selected_doc_id"),
+                "sub_answers_count": len(result.get("sub_answers", [])),
             },
         )
 
@@ -267,10 +256,6 @@ def _run_civil_law_rag(
 
     except Exception as exc:
         logger.exception("civil_law_rag tool error (step %s): %s", step.get("step_id"), exc)
-        # Reset cache so next call retries the import
-        global _civil_law_app, _civil_law_state_template
-        _civil_law_app = None
-        _civil_law_state_template = None
         return StepResult(
             step_id=step["step_id"],
             tool="civil_law_rag",
@@ -347,6 +332,19 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     "civil_law_rag": _run_civil_law_rag,
     "fetch_summary_report": _run_fetch_summary_report,
 }
+
+# ---------------------------------------------------------------------------
+# Pre-warm Civil Law RAG at import time so the SentenceTransformer model
+# is loaded before any request arrives, preventing gRPC DEADLINE_EXCEEDED
+# on the first call.
+# ---------------------------------------------------------------------------
+try:
+    _get_civil_law_app()
+    logger.info("Civil Law RAG pre-warmed successfully.")
+except Exception as _prewarm_exc:
+    logger.warning(
+        "Civil Law RAG pre-warm failed (will retry on first call): %s", _prewarm_exc
+    )
 
 
 def dispatch_tool(

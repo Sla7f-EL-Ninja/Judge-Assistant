@@ -20,6 +20,20 @@ ALLOWED_TOOLS = frozenset({"case_doc_rag", "civil_law_rag", "fetch_summary_repor
 # ---------------------------------------------------------------------------
 
 
+_STEP_RESULTS_RESET = {"__reset__": True}
+
+
+def _add_or_reset_step_results(a: List[dict], b: List[dict]) -> List[dict]:
+    """Append reducer with reset support.
+
+    If b starts with _STEP_RESULTS_RESET, discard a entirely and use b[1:].
+    Used by replanner to wipe old results before a new execution wave.
+    """
+    if b and b[0] == _STEP_RESULTS_RESET:
+        return list(b[1:])
+    return a + b
+
+
 def _merge_step_failures(
     a: Dict[str, int], b: Dict[str, int]
 ) -> Dict[str, int]:
@@ -30,7 +44,7 @@ def _merge_step_failures(
     """
     out = dict(a)
     for k, v in b.items():
-        out[k] = max(out.get(k, 0), v)
+        out[k] = out.get(k, 0) + v
     return out
 
 
@@ -53,7 +67,7 @@ class ChatReasonerState(TypedDict):
     validator_retry_count: int             # cap = 3
 
     # --- Execution (parallel Send reducers) ---
-    step_results: Annotated[List[dict], add]
+    step_results: Annotated[List[dict], _add_or_reset_step_results]
     step_failures: Annotated[Dict[str, int], _merge_step_failures]
 
     # --- Replan ---

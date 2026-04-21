@@ -178,6 +178,10 @@ class AppConfig:
     def ocr(self) -> Dict[str, Any]:
         return self._data.get("ocr", {})
 
+    @property
+    def tei(self) -> Dict[str, Any]:
+        return self._data.get("tei", {})
+
     def raw(self) -> Dict[str, Any]:
         """Return the full raw config dict."""
         return copy.deepcopy(self._data)

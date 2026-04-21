@@ -91,6 +91,7 @@ class ChatReasonerAdapter(AgentAdapter):
                     "replan_count": result.get("replan_count", 0),
                     "run_count": result.get("run_count", 0),
                     "session_id": result.get("session_id", ""),
+                    "synth_sufficient": result.get("synth_sufficient", True),
                 },
             )
 
