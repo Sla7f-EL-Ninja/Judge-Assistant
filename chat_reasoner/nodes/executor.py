@@ -125,6 +125,11 @@ def executor_dispatch_router(state: ChatReasonerState):
         return "collector"
 
     logger.info("executor_dispatch: fanning out %d steps", len(ready))
+    completed_results = {
+        r["step_id"]: r
+        for r in state.get("step_results", [])
+        if r.get("status") in ("success", "skipped")
+    }
     return [
         Send(
             "step_worker",
@@ -132,6 +137,11 @@ def executor_dispatch_router(state: ChatReasonerState):
                 "step": step,
                 "case_id": state.get("case_id", ""),
                 "conversation_history": state.get("conversation_history", []),
+                "prior_results": [
+                    completed_results[dep]
+                    for dep in step.get("depends_on", [])
+                    if dep in completed_results
+                ],
             },
         )
         for step in ready
@@ -149,11 +159,12 @@ def step_worker_node(payload: StepWorkerPayload) -> Dict[str, Any]:
     step = payload["step"]
     case_id = payload["case_id"]
     conversation_history = payload["conversation_history"]
+    prior_results = payload.get("prior_results", [])
     step_id = step.get("step_id", "?")
 
     logger.info("step_worker: executing step=%s tool=%s", step_id, step.get("tool"))
 
-    result: StepResult = dispatch_tool(step, case_id, conversation_history)
+    result: StepResult = dispatch_tool(step, case_id, conversation_history, prior_results)
 
     log_entry = {
         "step_id": step_id,

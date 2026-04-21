@@ -120,7 +120,7 @@ def replanner_node(state: ChatReasonerState) -> Dict[str, Any]:
     pruned_failures = {
         k: v for k, v in state.get("step_failures", {}).items() if k in new_step_ids
     }
-    pruned_results: List[dict] = [_STEP_RESULTS_RESET]
+    pruned_results: List[dict] = []  # empty → reducer resets step_results
 
     replan_event = {
         "replan_index": replan_count + 1,

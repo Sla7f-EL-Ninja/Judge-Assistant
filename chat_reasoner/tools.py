@@ -143,7 +143,8 @@ def _ref_from_metadata(doc) -> str:
 
 
 def _run_case_doc_rag(
-    step: dict, case_id: str, conversation_history: List[dict]
+    step: dict, case_id: str, conversation_history: List[dict],
+    prior_results: Optional[List[dict]] = None,
 ) -> StepResult:
     try:
         app = _get_case_doc_rag_app()
@@ -212,13 +213,52 @@ def _run_case_doc_rag(
         )
 
 
+def _rewrite_civil_query_with_context(original_query: str, prior_results: List[dict]) -> str:
+    """Rewrite original_query to embed concrete case facts from prior step results.
+
+    Uses medium-tier LLM to produce a focused civil law retrieval query.
+    Falls back to original_query on any error.
+    """
+    try:
+        from config import get_llm
+        context_block = "\n\n".join(
+            r["response"][:1500] for r in prior_results if r.get("response")
+        )
+        if not context_block.strip():
+            return original_query
+
+        prompt = (
+            "أعد صياغة السؤال التالي ليستهدف مواد القانون المدني المصري المنطبقة على الوقائع المذكورة. "
+            "ادمج الوقائع الجوهرية فقط (أسماء الأطراف والتواريخ غير ضرورية). "
+            "اجعل السؤال ≤ 400 حرف. لا تضف مقدمات.\n\n"
+            f"السؤال الأصلي:\n{original_query}\n\n"
+            f"وقائع القضية من الخطوات السابقة:\n{context_block}"
+        )
+        response = get_llm("medium").invoke([HumanMessage(content=prompt)])
+        rewritten = response.content.strip()
+        if rewritten:
+            logger.info(
+                "civil_law_rag query rewritten: [%s] → [%s]",
+                original_query[:80],
+                rewritten[:80],
+            )
+            return rewritten
+    except Exception as exc:
+        logger.warning("civil_law_rag query rewrite failed, using original: %s", exc)
+    return original_query
+
+
 def _run_civil_law_rag(
-    step: dict, case_id: str, conversation_history: List[dict]
+    step: dict, case_id: str, conversation_history: List[dict],
+    prior_results: Optional[List[dict]] = None,
 ) -> StepResult:
     try:
         app, template = _get_civil_law_app()
         state = dict(template)
-        state["last_query"] = step["query"]
+        query = step["query"]
+        if prior_results:
+            query = _rewrite_civil_query_with_context(query, prior_results)
+        state["last_query"] = query
         result = app.invoke(state)
 
         final = result.get("final_answer", "")
@@ -267,7 +307,8 @@ def _run_civil_law_rag(
 
 
 def _run_fetch_summary_report(
-    step: dict, case_id: str, conversation_history: List[dict]
+    step: dict, case_id: str, conversation_history: List[dict],
+    prior_results: Optional[List[dict]] = None,
 ) -> StepResult:
     """Sync pymongo read from the summaries collection.
 
@@ -347,10 +388,14 @@ except Exception as _prewarm_exc:
     )
 
 
+import inspect as _inspect
+
+
 def dispatch_tool(
     step: dict,
     case_id: str,
     conversation_history: List[dict],
+    prior_results: Optional[List[dict]] = None,
 ) -> StepResult:
     """Route a step to its tool function. Returns a failure StepResult if the
     tool name is not in TOOL_REGISTRY (should never happen after validation)."""
@@ -364,4 +409,24 @@ def dispatch_tool(
             response="",
             error=f"unknown tool: {step.get('tool')}",
         )
+    # Call with prior_results only if the registered function accepts a 4th argument
+    # (test mocks may only declare 3 params)
+    try:
+        sig = _inspect.signature(fn)
+        nparams = sum(
+            1 for p in sig.parameters.values()
+            if p.kind not in (
+                _inspect.Parameter.VAR_POSITIONAL,
+                _inspect.Parameter.VAR_KEYWORD,
+            )
+        )
+        accepts_prior = nparams >= 4 or any(
+            p.kind in (_inspect.Parameter.VAR_POSITIONAL, _inspect.Parameter.VAR_KEYWORD)
+            for p in sig.parameters.values()
+        )
+    except (ValueError, TypeError):
+        accepts_prior = True
+
+    if accepts_prior:
+        return fn(step, case_id, conversation_history, prior_results or [])
     return fn(step, case_id, conversation_history)

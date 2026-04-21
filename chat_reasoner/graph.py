@@ -32,7 +32,7 @@ from chat_reasoner.nodes.plan_validator import (
     plan_validator_node,
     validator_router,
 )
-from chat_reasoner.nodes.planner import planner_node
+from chat_reasoner.nodes import planner as _planner_mod
 from chat_reasoner.nodes.replanner import replanner_node
 from chat_reasoner.nodes.synthesizer import (
     synth_router,
@@ -53,7 +53,7 @@ def build_chat_reasoner_graph() -> StateGraph:
     workflow = StateGraph(ChatReasonerState)
 
     # -- Nodes --
-    workflow.add_node("planner", planner_node)
+    workflow.add_node("planner", lambda state: _planner_mod.planner_node(state))
     workflow.add_node("plan_validator", plan_validator_node)
     workflow.add_node("executor_fanout", executor_fanout_node)
     workflow.add_node("step_worker", step_worker_node)

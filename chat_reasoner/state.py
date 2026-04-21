@@ -26,10 +26,13 @@ _STEP_RESULTS_RESET = {"__reset__": True}
 def _add_or_reset_step_results(a: List[dict], b: List[dict]) -> List[dict]:
     """Append reducer with reset support.
 
-    If b starts with _STEP_RESULTS_RESET, discard a entirely and use b[1:].
-    Used by replanner to wipe old results before a new execution wave.
+    An empty b list signals a full reset (used by replanner to wipe old results
+    before a new execution wave). A non-empty b is appended to a as usual.
+    Legacy sentinel check retained for backwards compatibility.
     """
-    if b and b[0] == _STEP_RESULTS_RESET:
+    if not b:
+        return []
+    if b[0] == _STEP_RESULTS_RESET:
         return list(b[1:])
     return a + b
 
@@ -44,7 +47,7 @@ def _merge_step_failures(
     """
     out = dict(a)
     for k, v in b.items():
-        out[k] = out.get(k, 0) + v
+        out[k] = max(out.get(k, 0), v)
     return out
 
 
@@ -144,3 +147,4 @@ class StepWorkerPayload(TypedDict):
     step: dict
     case_id: str
     conversation_history: List[dict]
+    prior_results: List[dict]
