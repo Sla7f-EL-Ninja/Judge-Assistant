@@ -27,7 +27,7 @@ class SupervisorState(TypedDict):
     turn_count: int                           # Current conversation turn
 
     # -- Intent Classification --
-    intent: str                               # ocr / summarize / civil_law_rag / case_doc_rag / reason / multi / off_topic
+    intent: str                               # civil_law_rag / case_doc_rag / reason / multi / off_topic
     target_agents: List[str]                  # Which agents to invoke
     classified_query: str                     # Rewritten/clarified query
 
@@ -36,7 +36,7 @@ class SupervisorState(TypedDict):
     agent_errors: Dict[str, str]              # agent_name -> error message
 
     # -- Validation --
-    validation_status: str                    # pass / fail_hallucination / fail_relevance / fail_completeness
+    validation_status: str                    # pass / fail_hallucination / fail_relevance / fail_completeness / fallback
     validation_feedback: str                  # Explanation of what failed
     retry_count: int                          # Current retry attempt
     max_retries: int                          # Default 2
@@ -59,7 +59,7 @@ class IntentClassification(BaseModel):
 
     intent: str = Field(
         description=(
-            "One of: ocr, summarize, civil_law_rag, case_doc_rag, "
+            "One of: civil_law_rag, case_doc_rag, "
             "reason, multi, off_topic"
         )
     )

@@ -57,20 +57,20 @@ def update_memory_node(state: SupervisorState) -> Dict[str, Any]:
     judge_query = state.get("judge_query", "")
     final_response = state.get("final_response", "")
 
-    # Append the user turn
+    # Append the turn -- only write both sides together to preserve role alternation.
+    # An assistant turn without a preceding user turn breaks HumanMessage/AIMessage ordering.
     if judge_query:
         conversation_history.append({
             "role": "user",
             "content": judge_query,
         })
-
-    # Append the assistant turn -- store only the final response string,
-    # never agent_results or other large intermediate objects.
-    if final_response:
-        conversation_history.append({
-            "role": "assistant",
-            "content": final_response,
-        })
+        if final_response:
+            conversation_history.append({
+                "role": "assistant",
+                "content": final_response,
+            })
+    elif final_response:
+        logger.warning("Skipping assistant turn: no judge_query present (would break role alternation)")
 
     turn_count += 1
 

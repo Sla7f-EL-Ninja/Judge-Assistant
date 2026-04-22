@@ -20,6 +20,7 @@ dynamically without a restart.
 """
 
 import logging
+import threading
 from typing import Any, Dict, List
 
 from config.supervisor import (
@@ -40,23 +41,26 @@ logger = logging.getLogger(__name__)
 
 # Module-level ingestor instance (reused across calls)
 _ingestor = None
+_ingestor_lock = threading.Lock()
 
 
 def _get_ingestor() -> FileIngestor:
-    """Return the shared FileIngestor singleton."""
+    """Return the shared FileIngestor singleton (double-checked locking)."""
     global _ingestor
     if _ingestor is None:
-        _ingestor = FileIngestor(
-            mongo_uri=MONGO_URI,
-            mongo_db=MONGO_DB,
-            mongo_collection=MONGO_COLLECTION,
-            embedding_model=EMBEDDING_MODEL,
-            qdrant_host=QDRANT_HOST,
-            qdrant_port=QDRANT_PORT,
-            qdrant_grpc_port=QDRANT_GRPC_PORT,
-            qdrant_prefer_grpc=QDRANT_PREFER_GRPC,
-            qdrant_collection=QDRANT_COLLECTION_CASE,
-        )
+        with _ingestor_lock:
+            if _ingestor is None:
+                _ingestor = FileIngestor(
+                    mongo_uri=MONGO_URI,
+                    mongo_db=MONGO_DB,
+                    mongo_collection=MONGO_COLLECTION,
+                    embedding_model=EMBEDDING_MODEL,
+                    qdrant_host=QDRANT_HOST,
+                    qdrant_port=QDRANT_PORT,
+                    qdrant_grpc_port=QDRANT_GRPC_PORT,
+                    qdrant_prefer_grpc=QDRANT_PREFER_GRPC,
+                    qdrant_collection=QDRANT_COLLECTION_CASE,
+                )
     return _ingestor
 
 

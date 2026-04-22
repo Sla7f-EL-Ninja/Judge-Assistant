@@ -8,6 +8,7 @@ one of the supported intents and determine which agents to invoke.
 """
 
 import logging
+import os
 from typing import Any, Dict
 
 from config import get_llm
@@ -30,6 +31,23 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
     conversation_history = state.get("conversation_history", [])
     uploaded_files = state.get("uploaded_files", [])
 
+    # Guard against empty query (B20)
+    if not judge_query or not judge_query.strip():
+        logger.warning("Empty judge_query received; routing to off_topic")
+        return {
+            "intent": "off_topic",
+            "target_agents": [],
+            "classified_query": "",
+        }
+
+    # Guard against oversized input (B35)
+    MAX_QUERY_CHARS = 4000
+    if len(judge_query) > MAX_QUERY_CHARS:
+        logger.warning(
+            "judge_query too long (%d chars > %d); truncating", len(judge_query), MAX_QUERY_CHARS
+        )
+        judge_query = judge_query[:MAX_QUERY_CHARS]
+
     # Format conversation history for the prompt
     history_text = ""
     if conversation_history:
@@ -42,7 +60,9 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
     else:
         history_text = "(لا يوجد سجل محادثة سابق)"
 
-    uploaded_files_text = ", ".join(uploaded_files) if uploaded_files else "لا يوجد"
+    # Only expose basenames — full paths may contain traversal components (G5.4.4)
+    safe_filenames = [os.path.basename(f) for f in uploaded_files]
+    uploaded_files_text = ", ".join(safe_filenames) if safe_filenames else "لا يوجد"
 
     user_prompt = INTENT_CLASSIFICATION_USER_TEMPLATE.format(
         conversation_history=history_text,
@@ -53,7 +73,7 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
     # Remind the LLM to populate every required field in IntentClassification
     user_prompt += (
         "\n\nيجب أن يحتوي ردك على الحقول التالية بالضبط:\n"
-        "- intent: أحد القيم (ocr, summarize, civil_law_rag, case_doc_rag, reason, multi, off_topic)\n"
+        "- intent: أحد القيم (civil_law_rag, case_doc_rag, reason, multi, off_topic)\n"
         "- target_agents: قائمة بأسماء العملاء المطلوب استدعاؤهم\n"
         "- rewritten_query: إعادة صياغة السؤال بشكل مستقل\n"
         "- reasoning: شرح موجز لقرار التصنيف\n"
@@ -83,16 +103,26 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
             )
             intent = "off_topic"
 
-        # Normalise target_agents
-        target_agents = [
-            a.strip().lower()
-            for a in result.target_agents
-            if a.strip().lower() in AGENT_NAMES
-        ]
+        # Normalise and deduplicate target_agents (G5.2.1)
+        _seen: set = set()
+        target_agents = []
+        for a in result.target_agents:
+            name = a.strip().lower()
+            if name in AGENT_NAMES and name not in _seen:
+                _seen.add(name)
+                target_agents.append(name)
 
-        # If single intent maps to a known agent, ensure it is in the list
-        if intent in AGENT_NAMES and intent not in target_agents:
-            target_agents = [intent]
+        # Enforce consistency between intent and target_agents (G5.2.2)
+        if intent in AGENT_NAMES:
+            if intent not in target_agents:
+                # Declared intent missing from agents list — override
+                target_agents = [intent]
+            elif len(target_agents) > 1:
+                # Single intent but LLM stuffed extra agents — cap to declared intent
+                logger.warning(
+                    "Single intent '%s' had extra agents %s; capping", intent, target_agents
+                )
+                target_agents = [intent]
 
         # If multi but no valid agents, fall back to off_topic
         if intent == "multi" and not target_agents:
@@ -101,6 +131,14 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
 
         if intent == "off_topic":
             target_agents = []
+
+        # Enforce topological order so downstream agents see prior results (G5.2.3)
+        # civil_law_rag → case_doc_rag → reason
+        _AGENT_ORDER = {"civil_law_rag": 0, "case_doc_rag": 1, "reason": 2}
+        if len(target_agents) > 1:
+            target_agents = sorted(
+                target_agents, key=lambda a: _AGENT_ORDER.get(a, 99)
+            )
 
         logger.info(
             "Intent classified: %s -> agents=%s | reasoning: %s",

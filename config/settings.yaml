@@ -92,8 +92,8 @@ api:
   app_name: Judge Assistant API
   app_version: 0.1.0
   debug: false
-  cors_origins: "*"
-  jwt_secret: 123456
+  cors_origins: "http://localhost:3000"   # restrict to actual frontend origin in production
+  jwt_secret: CHANGE_ME_IN_PRODUCTION     # override via JA_API_JWT_SECRET env var — never commit real value
   jwt_algorithm: HS256
   max_upload_bytes: 20971520
   allowed_mime_types: application/pdf,image/png,image/jpeg,image/tiff,image/bmp,image/webp
@@ -107,7 +107,6 @@ supervisor:
   max_retries: 3
   max_conversation_turns: 20
   agent_names:
-    - ocr
     - summarize
     - civil_law_rag
     - case_doc_rag
@@ -139,7 +138,7 @@ rag:
 # -------------------------------------------------------
 ocr:
   language: ar
-  use_gpu: true
+  use_gpu: false
   preprocessing:
     enable_resolution_check: true
     min_dpi: 150

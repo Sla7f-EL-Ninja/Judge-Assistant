@@ -23,7 +23,9 @@ This service can be called:
 import io
 import logging
 import os
+import re
 import sys
+import threading
 from typing import Any, Dict, List, Optional
 
 from pymongo import MongoClient
@@ -93,8 +95,16 @@ def detect_file_type(file_path: str) -> str:
 # ---------------------------------------------------------------------------
 
 def extract_text_from_file(file_path: str) -> str:
-    """Read a plain text file and return its contents."""
-    with open(file_path, "r", encoding="utf-8") as f:
+    """Read a plain text file; tries UTF-8 then CP1256 for Arabic docs."""
+    for encoding in ("utf-8", "cp1256", "windows-1252"):
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                return f.read()
+        except UnicodeDecodeError:
+            continue
+    # Last resort: replace errors
+    with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+        logger.warning("File '%s' decoded with replacement chars — check encoding", file_path)
         return f.read()
 
 
@@ -119,10 +129,13 @@ def extract_text_from_pdf(file_path: str) -> str:
             text = page.extract_text()
             if text:
                 pages_text.append(text.strip())
-        return "\n\n".join(pages_text)
+        result = "\n\n".join(pages_text)
+        if not result:
+            logger.warning("PDF '%s' extracted to empty text (scanned/image PDF?)", file_path)
+        return result
     except Exception as exc:
         logger.exception("Failed to extract text from PDF '%s': %s", file_path, exc)
-        return ""
+        raise RuntimeError(f"PDF extraction failed: {exc}") from exc
 
 
 def extract_text_via_ocr(file_path: str, doc_id: Optional[str] = None) -> str:
@@ -196,10 +209,13 @@ class FileIngestor:
         self._minio_bucket = minio_bucket or os.getenv("MINIO_BUCKET", "hakim-files")
         self._minio_secure = minio_secure
 
-        # Lazily initialised
+        # Lazily initialised (locks prevent first-call races under concurrency)
         self._mongo_client: Optional[MongoClient] = None
         self._vectorstore = None
         self._classifier = None
+        self._mongo_lock = threading.Lock()
+        self._vectorstore_lock = threading.Lock()
+        self._classifier_lock = threading.Lock()
 
     # -- Lazy accessors ---------------------------------------------------
 
@@ -207,7 +223,9 @@ class FileIngestor:
     def mongo_collection(self):
         """Return the MongoDB collection, connecting if needed."""
         if self._mongo_client is None:
-            self._mongo_client = MongoClient(self._mongo_uri)
+            with self._mongo_lock:
+                if self._mongo_client is None:
+                    self._mongo_client = MongoClient(self._mongo_uri)
         db = self._mongo_client[self._mongo_db_name]
         return db[self._mongo_col_name]
 
@@ -215,46 +233,55 @@ class FileIngestor:
     def vectorstore(self):
         """Return the Qdrant vector store, creating collection if needed."""
         if self._vectorstore is None:
-            from langchain_huggingface import HuggingFaceEmbeddings
-            from langchain_qdrant import QdrantVectorStore
-            from qdrant_client import QdrantClient
-            from qdrant_client.models import Distance, VectorParams
+            with self._vectorstore_lock:
+                if self._vectorstore is None:
+                    from langchain_huggingface import HuggingFaceEmbeddings
+                    from langchain_qdrant import QdrantVectorStore
+                    from qdrant_client import QdrantClient
+                    from qdrant_client.models import Distance, VectorParams
 
-            embeddings = HuggingFaceEmbeddings(
-                model_name=self._embedding_model_name,
-            )
+                    embeddings = HuggingFaceEmbeddings(
+                        model_name=self._embedding_model_name,
+                    )
 
-            client = QdrantClient(
-                host=self._qdrant_host,
-                port=self._qdrant_port,
-                grpc_port=self._qdrant_grpc_port,
-                prefer_grpc=self._qdrant_prefer_grpc,
-            )
+                    client = QdrantClient(
+                        host=self._qdrant_host,
+                        port=self._qdrant_port,
+                        grpc_port=self._qdrant_grpc_port,
+                        prefer_grpc=self._qdrant_prefer_grpc,
+                    )
 
-            # Create collection if it doesn't exist
-            existing = [c.name for c in client.get_collections().collections]
-            if self._qdrant_collection_name not in existing:
-                client.create_collection(
-                    collection_name=self._qdrant_collection_name,
-                    vectors_config=VectorParams(
-                        size=1024,  # BAAI/bge-m3 output dimension
-                        distance=Distance.COSINE,
-                    ),
-                )
-                logger.info("Created Qdrant collection '%s'", self._qdrant_collection_name)
+                    # Create collection if it doesn't exist; tolerate race with
+                    # another worker that created it between our check and create.
+                    existing = [c.name for c in client.get_collections().collections]
+                    if self._qdrant_collection_name not in existing:
+                        try:
+                            client.create_collection(
+                                collection_name=self._qdrant_collection_name,
+                                vectors_config=VectorParams(
+                                    size=1024,  # BAAI/bge-m3 output dimension
+                                    distance=Distance.COSINE,
+                                ),
+                            )
+                            logger.info("Created Qdrant collection '%s'", self._qdrant_collection_name)
+                        except Exception as exc:
+                            # Another worker created it concurrently — safe to continue
+                            logger.info("Collection '%s' already exists (concurrent create): %s", self._qdrant_collection_name, exc)
 
-            self._vectorstore = QdrantVectorStore(
-                client=client,
-                collection_name=self._qdrant_collection_name,
-                embedding=embeddings,
-            )
+                    self._vectorstore = QdrantVectorStore(
+                        client=client,
+                        collection_name=self._qdrant_collection_name,
+                        embedding=embeddings,
+                    )
         return self._vectorstore
 
     @property
     def classifier(self):
         """Return the document classifier function."""
         if self._classifier is None:
-            self._classifier = _get_classifier()
+            with self._classifier_lock:
+                if self._classifier is None:
+                    self._classifier = _get_classifier()
         return self._classifier
 
     # -- Core ingestion ---------------------------------------------------
@@ -492,6 +519,8 @@ class FileIngestor:
         file_type: str,
     ) -> Optional[str]:
         """Insert a document record into MongoDB. Returns the inserted ID."""
+        # Normalize to POSIX separators for cross-OS consistency (B36)
+        source_file = source_file.replace("\\", "/")
         doc_record = {
             "title": title,
             "doc_type": doc_type,
@@ -505,6 +534,18 @@ class FileIngestor:
             "minio_object": None,
         }
         try:
+            # Dedup: skip re-ingest of same file for same case (B12)
+            existing = self.mongo_collection.find_one(
+                {"source_file": source_file, "case_id": case_id},
+                {"_id": 1},
+            )
+            if existing:
+                logger.info(
+                    "Skipping duplicate ingest for source_file='%s' case_id='%s'; existing id=%s",
+                    source_file, case_id, existing["_id"],
+                )
+                return existing["_id"]
+
             result = self.mongo_collection.insert_one(doc_record)
             logger.info(
                 "Stored in MongoDB: title='%s', id=%s", title, result.inserted_id
@@ -544,17 +585,19 @@ class FileIngestor:
                 logger.info("Created MinIO bucket '%s'", self._minio_bucket)
 
             filename = os.path.basename(file_path)
-            object_name = f"{case_id or 'no-case'}/{mongo_id}/{filename}"
+            # Sanitize case_id to prevent path traversal (B8)
+            safe_case_id = re.sub(r"[^a-zA-Z0-9_\-]", "_", case_id) if case_id else "no-case"
+            object_name = f"{safe_case_id}/{mongo_id}/{filename}"
 
+            # Stream directly to avoid doubling peak RAM (B9)
+            file_size = os.path.getsize(file_path)
             with open(file_path, "rb") as f:
-                data = f.read()
-
-            client.put_object(
-                bucket_name=self._minio_bucket,
-                object_name=object_name,
-                data=io.BytesIO(data),
-                length=len(data),
-            )
+                client.put_object(
+                    bucket_name=self._minio_bucket,
+                    object_name=object_name,
+                    data=f,
+                    length=file_size,
+                )
 
             logger.info("Uploaded to MinIO: %s/%s", self._minio_bucket, object_name)
             return object_name

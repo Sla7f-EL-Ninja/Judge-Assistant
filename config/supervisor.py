@@ -30,8 +30,6 @@ MAX_CONVERSATION_TURNS: int = cfg.supervisor.get("max_conversation_turns", 20)
 # Agent registry -- canonical names used in target_agents lists
 # ---------------------------------------------------------------------------
 AGENT_NAMES = cfg.supervisor.get("agent_names", [
-    "ocr",
-    "summarize",
     "civil_law_rag",
     "case_doc_rag",
     "reason",

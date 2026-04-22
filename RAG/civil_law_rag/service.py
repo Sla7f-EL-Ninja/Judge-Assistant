@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import traceback
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -40,6 +41,20 @@ logger = get_logger(__name__)
 # Module-level singleton cache
 from RAG.civil_law_rag.cache import SemanticCache
 _cache = SemanticCache()
+
+# Module-level singleton graph (avoid rebuilding per call)
+_app = None
+_app_lock = threading.Lock()
+
+
+def _get_app():
+    global _app
+    if _app is None:
+        with _app_lock:
+            if _app is None:
+                from RAG.civil_law_rag.graph import build_graph
+                _app = build_graph()
+    return _app
 
 
 # ---------------------------------------------------------------------------
@@ -134,8 +149,7 @@ def ask_question(query: str) -> CivilLawResult:
 
     # 3. Graph invocation
     try:
-        from RAG.civil_law_rag.graph import build_graph
-        app = build_graph()
+        app = _get_app()
 
         state = make_initial_state()
         state["last_query"] = query

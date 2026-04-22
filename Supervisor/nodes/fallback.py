@@ -8,10 +8,13 @@ Returns a response explaining the limitation and includes the validation
 feedback so the judge can adjust the query.
 """
 
+import logging
 from typing import Any, Dict
 
 from Supervisor.prompts import FALLBACK_RESPONSE_TEMPLATE
 from Supervisor.state import SupervisorState
+
+logger = logging.getLogger(__name__)
 
 
 def fallback_response_node(state: SupervisorState) -> Dict[str, Any]:
@@ -20,6 +23,7 @@ def fallback_response_node(state: SupervisorState) -> Dict[str, Any]:
     Sets ``final_response`` so the memory node can record it.
     """
     feedback = state.get("validation_feedback", "")
+    logger.info("Fallback triggered after %d retries. feedback=%r", state.get("retry_count", 0), feedback[:200])
     fallback_text = FALLBACK_RESPONSE_TEMPLATE.format(feedback=feedback)
 
     return {

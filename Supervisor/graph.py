@@ -10,9 +10,14 @@ Conditional edges handle off-topic routing, validation retries, and
 fallback after max retries.
 """
 
+import logging
+import threading
+
 from langgraph.graph import END, START, StateGraph
 
 from config.supervisor import MAX_RETRIES
+
+logger = logging.getLogger(__name__)
 from Supervisor.nodes.classify_intent import classify_intent_node
 from Supervisor.nodes.classify_and_store_document import classify_and_store_document_node
 from Supervisor.nodes.dispatch_agents import dispatch_agents_node
@@ -43,19 +48,15 @@ def intent_router(state: SupervisorState) -> str:
 def post_dispatch_router(state: SupervisorState) -> str:
     """Route after agent dispatch.
 
-    Returns ``"classify_document"`` when OCR was run or files were
-    uploaded (so documents need classification before storage),
-    or ``"merge"`` to skip straight to response merging.
+    Returns ``"classify_document"`` only when case documents should be
+    indexed (case_doc_rag intent with uploaded files), or ``"merge"``
+    otherwise.  Previously this routed on any uploaded file regardless
+    of intent, causing unintended indexing on civil_law_rag queries.
     """
     target_agents = state.get("target_agents", [])
     uploaded_files = state.get("uploaded_files", [])
 
-    # If OCR was one of the dispatched agents, classify the output
-    if "ocr" in target_agents:
-        return "classify_document"
-
-    # If files were uploaded but no OCR (e.g. text files), still classify
-    if uploaded_files:
+    if uploaded_files and "case_doc_rag" in target_agents:
         return "classify_document"
 
     return "merge"
@@ -66,10 +67,17 @@ def validation_router(state: SupervisorState) -> str:
 
     Returns ``"pass"`` if the response passed validation, ``"retry"``
     if retries remain, or ``"fallback"`` otherwise.
+
+    Defaults to ``"fallback"`` (not "pass") when validation_status is
+    absent, so a validator crash cannot silently deliver unreviewed content.
     """
-    status = state.get("validation_status", "pass")
+    status = state.get("validation_status") or ""
     if status == "pass":
         return "pass"
+
+    if not status:
+        logger.warning("validation_status not written by validator; routing to fallback")
+        return "fallback"
 
     retry_count = state.get("retry_count", 0)
     max_retries = state.get("max_retries", MAX_RETRIES)
@@ -142,5 +150,19 @@ def build_supervisor_graph() -> StateGraph:
     return workflow.compile()
 
 
-# Compiled graph -- import this to use the supervisor
-app = build_supervisor_graph()
+_app = None
+_app_lock = threading.Lock()
+
+
+def get_app():
+    """Return the compiled supervisor graph, building it once on first call."""
+    global _app
+    if _app is None:
+        with _app_lock:
+            if _app is None:
+                _app = build_supervisor_graph()
+    return _app
+
+
+# Backwards-compatible alias — use get_app() in new code
+app = None  # populated lazily; import get_app() instead of app directly

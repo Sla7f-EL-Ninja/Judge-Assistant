@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 # Allowed tool names (validated by plan_validator)
 # ---------------------------------------------------------------------------
 
-ALLOWED_TOOLS = frozenset({"case_doc_rag", "civil_law_rag", "fetch_summary_report"})
+ALLOWED_TOOLS = frozenset({"case_doc_rag", "civil_law_rag"})
 
 # ---------------------------------------------------------------------------
 # Reducer helpers

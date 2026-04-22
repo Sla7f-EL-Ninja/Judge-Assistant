@@ -16,6 +16,13 @@ from Supervisor.agents.base import AgentAdapter, AgentResult
 
 logger = logging.getLogger(__name__)
 
+# Add Case Reasoner directory to path once at import time
+_reasoner_dir = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Case Reasoner")
+)
+if _reasoner_dir not in sys.path:
+    sys.path.insert(0, _reasoner_dir)
+
 
 class CaseReasonerAdapter(AgentAdapter):
     """Thin wrapper around the Case Reasoner LangGraph workflow."""
@@ -28,36 +35,13 @@ class CaseReasonerAdapter(AgentAdapter):
         query:
             The judge query or directive.
         context:
-            Should contain ``case_summary`` (str).  May also contain
-            ``agent_results.summarize`` if summarisation ran earlier in
-            the same turn.
+            Should contain ``case_summary`` (str).
         """
         try:
-            # Add Case Reasoner directory to path
-            reasoner_dir = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "..", "..", "Case Reasoner",
-            )
-            reasoner_dir = os.path.normpath(reasoner_dir)
-            if reasoner_dir not in sys.path:
-                sys.path.insert(0, reasoner_dir)
-
-            from dotenv import load_dotenv
-            load_dotenv()
-
             from case_reasoner import app
 
             # Try to obtain a case summary from context
             case_summary = context.get("case_summary", "")
-            if not case_summary:
-                # Fall back to summarisation output from an earlier agent
-                summarize_result = (
-                    context.get("agent_results") or {}
-                ).get("summarize")
-                if summarize_result and isinstance(summarize_result, dict):
-                    case_summary = summarize_result.get(
-                        "rendered_brief", ""
-                    )
 
             initial_state = {
                 "judge_query": query,
@@ -91,14 +75,18 @@ class CaseReasonerAdapter(AgentAdapter):
 
             response = "\n".join(parts) if parts else ""
 
+            error_log = result.get("error_log", [])
+            error_summary = "; ".join(str(e) for e in error_log) if error_log else None
+
             return AgentResult(
                 response=response,
                 sources=[],
+                error=error_summary,
                 raw_output={
                     "identified_issues": identified_issues,
                     "conclusion": conclusion,
                     "intermediate_steps": result.get("intermediate_steps", []),
-                    "error_log": result.get("error_log", []),
+                    "error_log": error_log,
                 },
             )
 

@@ -7,6 +7,7 @@ Runs three quality checks (hallucination, relevance, completeness) on
 the merged response before it reaches the judge.
 """
 
+import json
 import logging
 from typing import Any, Dict
 
@@ -35,12 +36,23 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
             "retry_count": retry_count + 1,
         }
 
-    # Build a summary of raw agent outputs for the validator
+    # Build a summary of raw agent outputs for the validator.
+    # Include raw_output (retrieved content) so hallucination check has
+    # access to the actual source material, not just the formatted response.
     raw_parts = []
     for agent_name, result in agent_results.items():
-        raw_output = result.get("raw_output", {})
         response = result.get("response", "")
-        raw_parts.append(f"--- {agent_name} ---\n{response}")
+        raw_output = result.get("raw_output", {})
+        section = [f"--- {agent_name} ---", response]
+        if raw_output:
+            try:
+                raw_str = json.dumps(raw_output, ensure_ascii=False, default=str)
+                if len(raw_str) > 3000:
+                    raw_str = raw_str[:3000] + "...[truncated]"
+                section.append(f"[raw: {raw_str}]")
+            except Exception:
+                pass
+        raw_parts.append("\n".join(section))
     raw_outputs_text = "\n\n".join(raw_parts) if raw_parts else "(no raw outputs)"
 
     user_prompt = VALIDATION_USER_TEMPLATE.format(
@@ -88,9 +100,8 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
 
     except Exception as exc:
         logger.exception("Validation failed: %s", exc)
-        # If validation itself fails, let the response through with a warning
         return {
-            "validation_status": "pass",
-            "validation_feedback": f"Validation skipped due to error: {exc}",
-            "final_response": merged_response,
+            "validation_status": "fail_completeness",
+            "validation_feedback": f"Validator unavailable — retry: {exc}",
+            "retry_count": retry_count + 1,
         }

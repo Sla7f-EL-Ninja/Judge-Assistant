@@ -175,6 +175,10 @@ class AppConfig:
         return self._data.get("supervisor", {})
 
     @property
+    def rag(self) -> Dict[str, Any]:
+        return self._data.get("rag", {})
+
+    @property
     def ocr(self) -> Dict[str, Any]:
         return self._data.get("ocr", {})
 
@@ -258,13 +262,17 @@ def get_llm(tier: str, **overrides: Any):
         )
 
     tier_cfg = cfg.llm.get(tier, {})
-    provider = tier_cfg.get("provider", "groq")
-    model = tier_cfg.get("model", "llama-3.3-70b-versatile")
+    provider = tier_cfg.get("provider", "google")
+    model = tier_cfg.get("model", "gemini-2.5-flash")
     temperature = tier_cfg.get("temperature", 0.0)
 
     # Allow caller overrides
     model = overrides.pop("model", model)
     temperature = overrides.pop("temperature", temperature)
+    # Default 120 s per call; callers may override via request_timeout=N
+    timeout = overrides.pop("request_timeout", tier_cfg.get("timeout_seconds", 120))
+
+    llm_retries = overrides.pop("max_retries", tier_cfg.get("max_retries", 3))
 
     if provider == "groq":
         from langchain_groq import ChatGroq
@@ -272,6 +280,8 @@ def get_llm(tier: str, **overrides: Any):
         return ChatGroq(
             model_name=model,
             temperature=temperature,
+            request_timeout=timeout,
+            max_retries=llm_retries,
             **overrides,
         )
 
@@ -281,6 +291,8 @@ def get_llm(tier: str, **overrides: Any):
         return ChatGoogleGenerativeAI(
             model=model,
             temperature=temperature,
+            request_timeout=timeout,
+            max_retries=llm_retries,
             **overrides,
         )
 

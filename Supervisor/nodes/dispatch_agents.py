@@ -14,16 +14,12 @@ from Supervisor.agents.base import AgentAdapter, AgentResult
 from Supervisor.agents.case_doc_rag_adapter import CaseDocRAGAdapter
 from Supervisor.agents.case_reasoner_adapter import CaseReasonerAdapter
 from Supervisor.agents.civil_law_rag_adapter import CivilLawRAGAdapter
-from Supervisor.agents.ocr_adapter import OCRAdapter
-from Supervisor.agents.summarize_adapter import SummarizeAdapter
 from Supervisor.state import SupervisorState
 
 logger = logging.getLogger(__name__)
 
 # Registry mapping canonical agent names to their adapter classes.
 ADAPTER_REGISTRY: Dict[str, type] = {
-    "ocr": OCRAdapter,
-    "summarize": SummarizeAdapter,
     "civil_law_rag": CivilLawRAGAdapter,
     "case_doc_rag": CaseDocRAGAdapter,
     "reason": CaseReasonerAdapter,
@@ -46,7 +42,15 @@ def dispatch_agents_node(state: SupervisorState) -> Dict[str, Any]:
 
     Updates state keys: ``agent_results``, ``agent_errors``.
     """
-    target_agents = state.get("target_agents", [])
+    raw_agents = state.get("target_agents", [])
+    # Deduplicate while preserving LLM-returned order (G5.2.1)
+    seen: set = set()
+    target_agents = []
+    for a in raw_agents:
+        if a not in seen:
+            seen.add(a)
+            target_agents.append(a)
+
     query = state.get("classified_query", state.get("judge_query", ""))
 
     # Append validation feedback to the query on retries

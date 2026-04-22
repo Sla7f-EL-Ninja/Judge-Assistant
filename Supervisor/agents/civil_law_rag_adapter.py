@@ -27,7 +27,6 @@ class CivilLawRAGAdapter(AgentAdapter):
     def invoke(self, query: str, context: Dict[str, Any]) -> AgentResult:
         try:
             from RAG.civil_law_rag.service import ask_question, CivilLawResult
-            from RAG.civil_law_rag.errors import QueryValidationError
 
             result: CivilLawResult = ask_question(query)
 

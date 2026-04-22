@@ -67,9 +67,9 @@ def _load_civil_law_rag():
     load_dotenv()
 
     from graph import build_graph  # noqa: E402 — resolved from rag_dir
-    from config.rag import default_state_template  # noqa: E402
+    from config.rag import get_default_state  # noqa: E402
 
-    return build_graph(), default_state_template
+    return build_graph(), get_default_state()
 
 
 def _get_civil_law_app():

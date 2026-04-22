@@ -32,19 +32,19 @@ def _fetch_documents_from_mongo(case_id: str) -> List[Dict[str, str]]:
         from config.supervisor import MONGO_URI, MONGO_DB, MONGO_COLLECTION
 
         client = MongoClient(MONGO_URI)
-        collection = client[MONGO_DB][MONGO_COLLECTION]
-
-        cursor = collection.find({"case_id": case_id})
-        documents = []
-        for doc in cursor:
-            raw_text = doc.get("text", "")
-            doc_id = str(
-                doc.get("title") or doc.get("source_file") or doc.get("_id", "unknown")
-            )
-            if raw_text:
-                documents.append({"raw_text": raw_text, "doc_id": doc_id})
-
-        client.close()
+        try:
+            collection = client[MONGO_DB][MONGO_COLLECTION]
+            cursor = collection.find({"case_id": case_id})
+            documents = []
+            for doc in cursor:
+                raw_text = doc.get("text", "")
+                doc_id = str(
+                    doc.get("title") or doc.get("source_file") or doc.get("_id", "unknown")
+                )
+                if raw_text:
+                    documents.append({"raw_text": raw_text, "doc_id": doc_id})
+        finally:
+            client.close()
         logger.info(
             "Fetched %d document(s) from MongoDB for case_id='%s'",
             len(documents),
@@ -81,7 +81,7 @@ class SummarizeAdapter(AgentAdapter):
             if not documents:
                 ocr_result = (context.get("agent_results") or {}).get("ocr")
                 if ocr_result and isinstance(ocr_result, dict):
-                    raw_texts = ocr_result.get("raw_texts", [])
+                    raw_texts = ocr_result.get("raw_output", {}).get("raw_texts", [])
                     documents = [
                         {"raw_text": t, "doc_id": f"doc_{i}"}
                         for i, t in enumerate(raw_texts)

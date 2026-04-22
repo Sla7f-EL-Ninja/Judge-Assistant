@@ -58,6 +58,13 @@ default_state_template = {
     "final_answer": None
 }
 
+
+def get_default_state() -> dict:
+    """Return a deep copy of the state template — never mutate the module-level dict."""
+    import copy
+    return copy.deepcopy(default_state_template)
+
+
 # -----------------------------
 # Graph Constants
 # -----------------------------

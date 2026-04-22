@@ -8,6 +8,10 @@ pydantic>=2.7
 pydantic-settings>=2.3
 
 # -- Auth --------------------------------------------------------------------
+# PyJWT is the production auth library (api/services/auth.py)
+PyJWT>=2.8
+# python-jose retained for test helpers only; has known CVEs (CVE-2024-33663/33664)
+# TODO: migrate all test imports from jose to PyJWT then remove this line
 python-jose[cryptography]>=3.3
 
 # -- Async MongoDB -----------------------------------------------------------
@@ -60,3 +64,15 @@ PyYAML>=6.0
 
 # -- Environment variables ---------------------------------------------------
 python-dotenv>=1.0
+
+# -- Production server -------------------------------------------------------
+gunicorn>=22.0
+
+# -- Rate limiting -----------------------------------------------------------
+slowapi>=0.1.9
+
+# -- Observability -----------------------------------------------------------
+prometheus-client>=0.20
+prometheus-fastapi-instrumentator>=7.0
+sentry-sdk[fastapi]>=2.0
+structlog>=24.0

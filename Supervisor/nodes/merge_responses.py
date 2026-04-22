@@ -30,14 +30,14 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
     agent_errors = state.get("agent_errors", {})
 
     if not agent_results:
-        # All agents failed -- nothing to merge
+        # All agents failed -- nothing to merge; validate_output will set validation_status
         error_summary = "; ".join(
             f"{k}: {v}" for k, v in agent_errors.items()
         )
+        logger.warning("All agents failed: %s", error_summary)
         return {
             "merged_response": "",
             "sources": [],
-            "validation_status": "fail_completeness",
             "validation_feedback": f"All agents failed: {error_summary}",
         }
 
@@ -82,6 +82,8 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
             {"role": "user", "content": user_prompt},
         ]
         response = llm.invoke(messages)
+        if response is None:
+            raise ValueError("LLM returned None for merge_responses")
         merged = response.content if hasattr(response, "content") else str(response)
 
         return {
