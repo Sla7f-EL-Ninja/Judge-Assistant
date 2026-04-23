@@ -28,12 +28,18 @@ ADAPTER_REGISTRY: Dict[str, type] = {
 
 def _build_context(state: SupervisorState, agent_results: Dict[str, Any]) -> Dict[str, Any]:
     """Build the context dict passed to each adapter."""
+    intent = state.get("intent", "")
     return {
         "uploaded_files": state.get("uploaded_files", []),
         "case_id": state.get("case_id", ""),
         "conversation_history": state.get("conversation_history", []),
         "agent_results": agent_results,
         "validation_feedback": state.get("validation_feedback", ""),
+        # chat_reasoner needs to know why it was escalated (Part 3 gap)
+        "escalation_reason": f"Supervisor routed to chat_reasoner with intent={intent}",
+        # Pre-fetched by enrich_context_node (A6.5.4)
+        "case_summary": state.get("case_summary", ""),
+        "case_doc_titles": state.get("case_doc_titles", []),
     }
 
 
@@ -59,10 +65,25 @@ def dispatch_agents_node(state: SupervisorState) -> Dict[str, Any]:
     if retry_count > 0 and validation_feedback:
         query = f"{query}\n\n[ملاحظات التحقق السابقة: {validation_feedback}]"
 
-    agent_results: Dict[str, Any] = {}
-    agent_errors: Dict[str, str] = {}
+    # Seed from prior state so retry preserves partial successes (P1.3.3)
+    agent_results: Dict[str, Any] = dict(state.get("agent_results") or {})
+    agent_errors: Dict[str, str] = dict(state.get("agent_errors") or {})
 
-    for agent_name in target_agents:
+    # On retry, only re-run agents that previously failed (P1.2.2 / G5.6.2)
+    if retry_count > 0:
+        agents_to_run = [a for a in target_agents if a not in agent_results]
+        skipped = [a for a in target_agents if a in agent_results]
+        if skipped:
+            logger.info("Retry %d: skipping already-succeeded agents %s", retry_count, skipped)
+        if agents_to_run:
+            logger.warning(
+                "Retry %d: re-dispatching %d agent(s) %s (cost ~%d extra LLM calls)",
+                retry_count, len(agents_to_run), agents_to_run, len(agents_to_run),
+            )
+    else:
+        agents_to_run = target_agents
+
+    for agent_name in agents_to_run:
         adapter_cls = ADAPTER_REGISTRY.get(agent_name)
         if adapter_cls is None:
             error_msg = f"Unknown agent: {agent_name}"

@@ -12,7 +12,7 @@ import os
 from typing import Any, Dict
 
 from config import get_llm
-from config.supervisor import VALID_INTENTS, AGENT_NAMES
+from config.supervisor import VALID_INTENTS, AGENT_NAMES, MAX_CONVERSATION_TURNS
 from Supervisor.prompts import (
     INTENT_CLASSIFICATION_SYSTEM_PROMPT,
     INTENT_CLASSIFICATION_USER_TEMPLATE,
@@ -52,7 +52,8 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
     history_text = ""
     if conversation_history:
         lines = []
-        for turn in conversation_history[-10:]:  # last 10 turns for context
+        _history_window = min(MAX_CONVERSATION_TURNS, 10)
+        for turn in conversation_history[-_history_window:]:
             role = turn.get("role", "unknown")
             content = turn.get("content", "")
             lines.append(f"[{role}]: {content}")
@@ -140,22 +141,34 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
                 target_agents, key=lambda a: _AGENT_ORDER.get(a, 99)
             )
 
+        # Sanitize reasoning before logging to prevent injection echoing (G5.1.2)
+        safe_reasoning = (result.reasoning or "")[:500].replace("\n", " ")
         logger.info(
             "Intent classified: %s -> agents=%s | reasoning: %s",
-            intent, target_agents, result.reasoning,
+            intent, target_agents, safe_reasoning,
         )
+
+        # Cap rewritten query to avoid downstream token overrun (G5.2.4)
+        rewritten = result.rewritten_query or judge_query
+        if len(rewritten) > MAX_QUERY_CHARS:
+            rewritten = rewritten[:MAX_QUERY_CHARS]
 
         return {
             "intent": intent,
             "target_agents": target_agents,
-            "classified_query": result.rewritten_query or judge_query,
+            "classified_query": rewritten,
         }
 
     except Exception as exc:
-        logger.exception("Intent classification failed: %s", exc)
-        # Conservative fallback: treat as off-topic
+        # Log at ERROR so operators can distinguish LLM failure from genuine off_topic (B5)
+        logger.error(
+            "Intent classification FAILED (LLM/parse error) — falling back to off_topic: %s",
+            exc,
+            exc_info=True,
+        )
         return {
             "intent": "off_topic",
             "target_agents": [],
             "classified_query": judge_query,
+            "classification_error": str(exc),
         }

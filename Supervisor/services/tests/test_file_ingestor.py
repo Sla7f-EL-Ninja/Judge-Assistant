@@ -125,12 +125,39 @@ class TestFileIngestor:
             "explanation": "Test classification",
         })
 
-        # Patch the properties
+        # Save originals so we can restore them after the test (B19)
+        orig_mongo = type(ingestor).__dict__.get("mongo_collection")
+        orig_vs = type(ingestor).__dict__.get("vectorstore")
+        orig_clf = type(ingestor).__dict__.get("classifier")
+
         type(ingestor).mongo_collection = property(lambda self: mock_collection)
         type(ingestor).vectorstore = property(lambda self: mock_vs)
         type(ingestor).classifier = property(lambda self: mock_classifier)
 
-        return ingestor, mock_collection, mock_vs, mock_classifier
+        yield ingestor, mock_collection, mock_vs, mock_classifier
+
+        # Restore class-level properties so other tests are not affected
+        if orig_mongo is not None:
+            type(ingestor).mongo_collection = orig_mongo
+        else:
+            try:
+                delattr(type(ingestor), "mongo_collection")
+            except AttributeError:
+                pass
+        if orig_vs is not None:
+            type(ingestor).vectorstore = orig_vs
+        else:
+            try:
+                delattr(type(ingestor), "vectorstore")
+            except AttributeError:
+                pass
+        if orig_clf is not None:
+            type(ingestor).classifier = orig_clf
+        else:
+            try:
+                delattr(type(ingestor), "classifier")
+            except AttributeError:
+                pass
 
     def test_ingest_text_file(self, mock_ingestor):
         ingestor, mock_col, mock_vs, mock_clf = mock_ingestor

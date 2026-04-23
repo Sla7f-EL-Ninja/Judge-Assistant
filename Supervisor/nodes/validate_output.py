@@ -18,6 +18,11 @@ from Supervisor.state import SupervisorState, ValidationResult
 logger = logging.getLogger(__name__)
 
 
+# G5.8.1: PII (names, national IDs, addresses) in judge_query and case docs is
+# forwarded to the external Gemini API.  A PII-redaction layer must be added
+# before these LLM calls for production judicial deployments.  Track as a
+# separate compliance task; not implemented here to avoid scope creep.
+
 def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
     """Validate the merged response against the three quality criteria.
 
@@ -99,9 +104,9 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
         }
 
     except Exception as exc:
-        logger.exception("Validation failed: %s", exc)
+        logger.exception("Validation LLM error (distinct from content failure): %s", exc)
         return {
-            "validation_status": "fail_completeness",
-            "validation_feedback": f"Validator unavailable — retry: {exc}",
+            "validation_status": "validator_error",
+            "validation_feedback": f"Validator unavailable: {exc}",
             "retry_count": retry_count + 1,
         }

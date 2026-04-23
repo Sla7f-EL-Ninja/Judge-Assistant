@@ -33,12 +33,12 @@ minio>=7.2
 # -- PostgreSQL (user management, RBAC, audit logging) -----------------------
 sqlalchemy[asyncio]>=2.0
 asyncpg>=0.29
-psycopg2-binary>=2.9
+psycopg[binary]>=3.1
 
 # -- LLM / LangChain --------------------------------------------------------
 langchain>=0.2
 langchain-core>=0.2
-langchain-community>=0.2
+langchain-community>=0.3.0,<0.4  # CVE-2024-8309/CVE-2024-2965 fixed in 0.2.38+; pin to 0.3.x
 langchain-groq>=0.1
 langchain-google-genai>=1.0
 langchain-huggingface>=0.0.3
@@ -52,7 +52,7 @@ sentence-transformers>=3.0
 surya-ocr>=0.6
 
 # -- PDF extraction ----------------------------------------------------------
-PyPDF2>=3.0
+pypdf>=4.0
 
 # -- Image processing --------------------------------------------------------
 Pillow>=10.0
@@ -64,6 +64,9 @@ PyYAML>=6.0
 
 # -- Environment variables ---------------------------------------------------
 python-dotenv>=1.0
+
+# -- Database migrations (PostgreSQL schema management) ----------------------
+alembic>=1.13
 
 # -- Production server -------------------------------------------------------
 gunicorn>=22.0

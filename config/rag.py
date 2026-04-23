@@ -22,7 +22,7 @@ DOCS_PATH = os.path.join(_PROJECT_ROOT, "RAG", "Civil Law RAG", "docs", "civil_l
 # -----------------------------
 EMBEDDING_MODEL = cfg.embedding.get("model", "BAAI/bge-m3")
 BATCH_SIZE = 50
-LLM_MODEL = cfg.llm.get("high", {}).get("model", "gemini-2.5-flash-lite")
+LLM_MODEL = cfg.llm.get("high", {}).get("model", "gemini-2.5-flash")
 
 # -----------------------------
 # Default State Template

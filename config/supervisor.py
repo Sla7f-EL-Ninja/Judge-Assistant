@@ -19,7 +19,7 @@ LLM_TEMPERATURE: float = cfg.llm.get("high", {}).get("temperature", 0.0)
 # ---------------------------------------------------------------------------
 # Retry / validation
 # ---------------------------------------------------------------------------
-MAX_RETRIES: int = cfg.supervisor.get("max_retries", 2)
+MAX_RETRIES: int = cfg.supervisor.get("max_retries", 3)
 
 # ---------------------------------------------------------------------------
 # Conversation memory

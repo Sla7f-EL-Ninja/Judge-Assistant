@@ -41,16 +41,19 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
             "validation_feedback": f"All agents failed: {error_summary}",
         }
 
-    # Collect sources from every agent
+    # Collect and normalize sources from every agent (P1.6.8)
     all_sources: List[str] = []
     for result in agent_results.values():
-        all_sources.extend(result.get("sources", []))
-    # Deduplicate while preserving order
-    seen = set()
+        for src in result.get("sources", []):
+            if src:
+                all_sources.append(str(src).strip())
+    # Deduplicate while preserving order (case-insensitive key)
+    seen: set = set()
     unique_sources = []
     for src in all_sources:
-        if src not in seen:
-            seen.add(src)
+        key = src.lower()
+        if key not in seen:
+            seen.add(key)
             unique_sources.append(src)
 
     # Single agent -- pass through directly

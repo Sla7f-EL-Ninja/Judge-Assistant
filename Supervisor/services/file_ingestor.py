@@ -26,6 +26,7 @@ import os
 import re
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional
 
 from pymongo import MongoClient
@@ -77,8 +78,32 @@ def _get_ocr_processor():
 # File type detection
 # ---------------------------------------------------------------------------
 
+_MAGIC_BYTES = {
+    b"%PDF": "pdf",
+    b"\x89PNG": "image",
+    b"\xff\xd8\xff": "image",   # JPEG
+    b"GIF8": "image",
+    b"BM": "image",             # BMP
+    b"RIFF": "image",           # WebP (RIFF....WEBP)
+    b"\x49\x49\x2a\x00": "image",  # TIFF LE
+    b"\x4d\x4d\x00\x2a": "image",  # TIFF BE
+}
+
+
 def detect_file_type(file_path: str) -> str:
-    """Return ``'text'``, ``'pdf'``, ``'image'``, or ``'unknown'``."""
+    """Return ``'text'``, ``'pdf'``, ``'image'``, or ``'unknown'``.
+
+    Checks magic bytes first, then falls back to extension (B13).
+    """
+    try:
+        with open(file_path, "rb") as f:
+            header = f.read(8)
+        for magic, ftype in _MAGIC_BYTES.items():
+            if header.startswith(magic):
+                return ftype
+    except OSError:
+        pass
+
     _, ext = os.path.splitext(file_path)
     ext = ext.lower()
     if ext in TEXT_EXTENSIONS:
@@ -114,7 +139,7 @@ def extract_text_from_pdf(file_path: str) -> str:
     Falls back to an empty string if extraction fails.
     """
     try:
-        from PyPDF2 import PdfReader
+        from pypdf import PdfReader
     except ImportError:
         logger.error(
             "PyPDF2 is required for PDF text extraction. "
@@ -418,14 +443,14 @@ class FileIngestor:
         list of dict
             One result dict per file.
         """
-        results = []
-        for fp in file_paths:
+        results: List[Dict[str, Any]] = [None] * len(file_paths)  # preserve order
+
+        def _ingest_one(idx: int, fp: str) -> tuple:
             try:
-                result = self.ingest_file(fp, case_id=case_id)
-                results.append(result)
+                return idx, self.ingest_file(fp, case_id=case_id)
             except Exception as exc:
                 logger.exception("Failed to ingest '%s': %s", fp, exc)
-                results.append({
+                return idx, {
                     "file": fp,
                     "title": "",
                     "doc_type": "unknown",
@@ -434,7 +459,15 @@ class FileIngestor:
                     "mongo_id": None,
                     "minio_object": None,
                     "file_type": detect_file_type(fp),
-                })
+                }
+
+        max_workers = min(4, len(file_paths))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(_ingest_one, i, fp): i for i, fp in enumerate(file_paths)}
+            for future in as_completed(futures):
+                idx, result = future.result()
+                results[idx] = result
+
         return results
 
     def ingest_ocr_results(

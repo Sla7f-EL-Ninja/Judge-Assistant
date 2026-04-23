@@ -7,7 +7,7 @@ across the Supervisor workflow (intent classification, validation, etc.).
 
 from typing import Any, Dict, List, Optional, TypedDict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -36,7 +36,7 @@ class SupervisorState(TypedDict):
     agent_errors: Dict[str, str]              # agent_name -> error message
 
     # -- Validation --
-    validation_status: str                    # pass / fail_hallucination / fail_relevance / fail_completeness / fallback
+    validation_status: str                    # pass | fail_hallucination | fail_relevance | fail_completeness | fallback (max-retries exhausted)
     validation_feedback: str                  # Explanation of what failed
     retry_count: int                          # Current retry attempt
     max_retries: int                          # Default 2
@@ -48,6 +48,14 @@ class SupervisorState(TypedDict):
     merged_response: str                      # Combined response from all agents
     final_response: str                       # Validated, formatted final answer
     sources: List[str]                        # Citations and references
+
+    # -- Enriched context (pre-fetched once per turn by enrich_context_node) --
+    case_summary: Optional[str]              # Latest case summary from MongoDB
+    case_doc_titles: List[str]               # Document titles/types in this case
+
+    # -- Diagnostics --
+    correlation_id: Optional[str]             # Per-turn ID for log correlation (P1.7.1)
+    classification_error: Optional[str]       # Set when classifier fails (B5)
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +80,13 @@ class IntentClassification(BaseModel):
     reasoning: str = Field(
         description="Brief explanation of classification decision"
     )
+
+    @model_validator(mode="after")
+    def enforce_off_topic_no_agents(self) -> "IntentClassification":
+        """off_topic must have empty target_agents (G5.3.3)."""
+        if self.intent == "off_topic" and self.target_agents:
+            self.target_agents = []
+        return self
 
 
 class ValidationResult(BaseModel):

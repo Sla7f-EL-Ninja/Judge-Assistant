@@ -65,14 +65,36 @@ def _apply_env_overrides(data: Dict[str, Any], prefix: str = "JA") -> Dict[str, 
     The convention is ``JA_<SECTION>_<KEY>`` for top-level keys and
     ``JA_<SECTION>_<SUB>_<KEY>`` for nested keys.  Values are cast to
     match the type of the YAML default (bool, int, float, str).
+
+    Net-new keys absent from YAML can also be injected via env (P1.9.5/B27):
+    ``JA_SECTION_KEY=value`` injects ``{section: {key: value}}`` as a string
+    if no matching path exists in the loaded config.
     """
+    prefix_upper = prefix.upper() + "_"
     flat = _flatten(data)
+    covered_env_keys: set = set()
+
+    # Pass 1 — update existing YAML keys
     for flat_key, default_value in flat.items():
         env_key = f"{prefix}_{'_'.join(flat_key)}".upper()
+        covered_env_keys.add(env_key)
         env_val = os.environ.get(env_key)
         if env_val is not None:
             cast_val = _cast(env_val, default_value)
             _set_nested(data, flat_key, cast_val)
+
+    # Pass 2 — inject net-new keys absent from YAML (P1.9.5)
+    for env_key, env_val in os.environ.items():
+        if not env_key.startswith(prefix_upper):
+            continue
+        if env_key in covered_env_keys:
+            continue
+        # Derive key path: JA_SECTION_KEY → ("section", "key")
+        remainder = env_key[len(prefix_upper):]
+        parts = tuple(p.lower() for p in remainder.split("_") if p)
+        if len(parts) >= 2:
+            _set_nested(data, parts, env_val)
+
     return data
 
 
@@ -132,6 +154,9 @@ class AppConfig:
 
     def __getitem__(self, key: str) -> Any:
         return self._data[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        raise TypeError("AppConfig is read-only after initialization — use settings.local.yaml or JA_* env vars")
 
     def get(self, key: str, default: Any = None) -> Any:
         return self._data.get(key, default)

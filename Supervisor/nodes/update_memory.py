@@ -30,6 +30,7 @@ it doesn't own, regardless of how the caller constructed the state.  We
 also ensure each appended dict is a new object (not aliased from elsewhere).
 """
 
+import copy
 import logging
 from typing import Any, Dict, List
 
@@ -50,7 +51,7 @@ def update_memory_node(state: SupervisorState) -> Dict[str, Any]:
     # Each item is also copied (dict()) so callers who pass dicts from
     # external sources cannot be affected by later mutations.
     incoming: List[dict] = state.get("conversation_history") or []
-    conversation_history: List[dict] = [dict(entry) for entry in incoming]
+    conversation_history: List[dict] = [copy.deepcopy(entry) for entry in incoming]
 
     turn_count = state.get("turn_count", 0)
 

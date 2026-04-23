@@ -85,15 +85,29 @@ class OCRAdapter(AgentAdapter):
                 all_texts.append(result.raw_text)
 
             combined = "\n\n---\n\n".join(all_texts)
+
+            # Cap per-text to 50 KB to prevent LangGraph state/checkpoint bloat (P1.3.1)
+            _MAX_TEXT_BYTES = 50_000
+            capped_texts = [t[:_MAX_TEXT_BYTES] for t in all_texts]
+            if any(len(t) > _MAX_TEXT_BYTES for t in all_texts):
+                logger.warning(
+                    "OCR text capped to %d chars per file to limit state size", _MAX_TEXT_BYTES
+                )
+
             return AgentResult(
-                response=combined,
+                response=combined[:_MAX_TEXT_BYTES * len(uploaded_files)],
                 sources=[f"OCR: {fp}" for fp in uploaded_files],
-                raw_output={"raw_texts": all_texts},
+                raw_output={"raw_texts": capped_texts},
             )
+
+        except ImportError as exc:
+            error_msg = f"OCR adapter import error: {exc}"
+            logger.exception(error_msg)
+            # Only reset on import failure — bad input/pipeline error should NOT poison cache
+            OCRAdapter._process_document = None
+            return AgentResult(response="", error=error_msg)
 
         except Exception as exc:
             error_msg = f"OCR adapter error: {exc}"
             logger.exception(error_msg)
-            # Reset so the next call retries the import
-            OCRAdapter._process_document = None
             return AgentResult(response="", error=error_msg)

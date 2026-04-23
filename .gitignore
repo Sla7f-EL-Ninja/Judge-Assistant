@@ -1,4 +1,5 @@
 .env
+config/settings.local.yaml
 DataBases/
 __pycache__/
 .claude/

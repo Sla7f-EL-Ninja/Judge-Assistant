@@ -121,6 +121,12 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
+  # NOTE (P1.8.20): In production, place a TLS-terminating reverse proxy
+  # (nginx or Traefik) in front of the api service.  The api port below
+  # should NOT be exposed to the internet directly — only the proxy port 443.
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
   # API - FastAPI application
   # ---------------------------------------------------------------------------
   api:
@@ -166,7 +172,7 @@ services:
         limits:
           memory: 4g
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

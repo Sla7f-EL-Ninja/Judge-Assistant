@@ -57,6 +57,20 @@ class CaseDocRAGAdapter(AgentAdapter):
 
             final_answer = result.get("final_answer", "")
 
+            # P1.4.3: empty answer with no explicit error is a silent failure —
+            # surface it so the supervisor can retry or fall back.
+            if not final_answer:
+                on_topic = result.get("on_topic", True)
+                if not on_topic:
+                    return AgentResult(
+                        response="",
+                        error="Case Doc RAG: query classified as off-topic for case documents",
+                    )
+                return AgentResult(
+                    response="",
+                    error="Case Doc RAG: no answer produced (empty result)",
+                )
+
             # Sources live inside each sub_answer entry
             sources = []
             for sub in result.get("sub_answers", []):

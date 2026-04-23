@@ -131,10 +131,22 @@ def classify_and_store_document_node(state: SupervisorState) -> Dict[str, Any]:
                 logger.exception(
                     "Failed to ingest file '%s': %s", file_path, exc,
                 )
+                classifications.append({
+                    "file_path": file_path,
+                    "error": str(exc),
+                    "status": "failed",
+                })
 
+        failed = [c for c in classifications if c.get("status") == "failed"]
+        if failed:
+            logger.warning(
+                "%d/%d file(s) failed ingest: %s",
+                len(failed), len(classifications),
+                [c.get("file_path") for c in failed],
+            )
         logger.info(
-            "Classified and stored %d document(s) from direct uploads",
-            len(classifications),
+            "Classified and stored %d document(s) from direct uploads (%d failed)",
+            len(classifications) - len(failed), len(failed),
         )
 
     return {
