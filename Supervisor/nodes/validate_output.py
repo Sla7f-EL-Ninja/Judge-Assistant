@@ -3,8 +3,16 @@ validate_output.py
 
 Output validation node for the Supervisor workflow.
 
-Runs three quality checks (hallucination, relevance, completeness) on
-the merged response before it reaches the judge.
+Runs four quality checks (hallucination, relevance, completeness, coherence)
+on the merged response before it reaches the judge.
+
+G5.7.6 partial-pass path: when hallucination, relevance, and coherence pass
+but completeness alone fails, the answer is accepted with a disclosure caveat
+instead of triggering a retry.  This avoids the all-or-nothing retry cost for
+responses that are factually sound but merely incomplete.
+
+G5.7.4 cross-turn coherence: the prior assistant turn (if any) is included in
+the validator prompt so the LLM can detect direct contradictions between turns.
 """
 
 import json
@@ -12,19 +20,43 @@ import logging
 from typing import Any, Dict
 
 from config import get_llm
-from Supervisor.prompts import VALIDATION_SYSTEM_PROMPT, VALIDATION_USER_TEMPLATE
+from Supervisor.prompts import (
+    PRIOR_RESPONSE_SECTION_EMPTY,
+    PRIOR_RESPONSE_SECTION_TEMPLATE,
+    VALIDATION_SYSTEM_PROMPT,
+    VALIDATION_USER_TEMPLATE,
+)
 from Supervisor.state import SupervisorState, ValidationResult
 
 logger = logging.getLogger(__name__)
 
+# Disclosure caveat appended to partial-pass responses (G5.7.6)
+_PARTIAL_PASS_CAVEAT = (
+    "\n\n---\n"
+    "**ملاحظة:** قد لا تكون هذه الإجابة شاملة لجميع جوانب السؤال. "
+    "يُنصح بإعادة الاستفسار عن الجوانب التي لم تُعالَج بشكل كافٍ."
+)
 
 # G5.8.1: PII (names, national IDs, addresses) in judge_query and case docs is
 # forwarded to the external Gemini API.  A PII-redaction layer must be added
 # before these LLM calls for production judicial deployments.  Track as a
 # separate compliance task; not implemented here to avoid scope creep.
 
+
+def _extract_prior_response(state: SupervisorState) -> str:
+    """Return the last assistant response from conversation_history, or ''."""
+    history = state.get("conversation_history") or []
+    for entry in reversed(history):
+        if entry.get("role") == "assistant":
+            content = entry.get("content", "")
+            if content:
+                # Truncate very long prior responses to keep prompt size bounded
+                return content[:2000] + ("..." if len(content) > 2000 else "")
+    return ""
+
+
 def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
-    """Validate the merged response against the three quality criteria.
+    """Validate the merged response against the four quality criteria.
 
     Updates state keys: ``validation_status``, ``validation_feedback``,
     ``retry_count``, ``final_response``.
@@ -60,9 +92,19 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
         raw_parts.append("\n".join(section))
     raw_outputs_text = "\n\n".join(raw_parts) if raw_parts else "(no raw outputs)"
 
+    # Build prior-response section for coherence check (G5.7.4)
+    prior_response = _extract_prior_response(state)
+    if prior_response:
+        prior_response_section = PRIOR_RESPONSE_SECTION_TEMPLATE.format(
+            prior_response=prior_response
+        )
+    else:
+        prior_response_section = PRIOR_RESPONSE_SECTION_EMPTY
+
     user_prompt = VALIDATION_USER_TEMPLATE.format(
         judge_query=judge_query,
         raw_agent_outputs=raw_outputs_text,
+        prior_response_section=prior_response_section,
         response=merged_response,
     )
 
@@ -83,6 +125,25 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
         if not hasattr(result, "overall_pass"):
             raise ValueError("Validation result missing required fields.")
 
+        # G5.7.6 — Partial-pass: hallucination + relevance + coherence pass but
+        # completeness fails.  Accept the answer with a disclosure caveat instead
+        # of burning a retry on an incomplete-but-sound response.
+        hallucination_ok = getattr(result, "hallucination_pass", False)
+        relevance_ok = getattr(result, "relevance_pass", False)
+        completeness_ok = getattr(result, "completeness_pass", False)
+        coherence_ok = getattr(result, "coherence_pass", True)
+
+        if hallucination_ok and relevance_ok and coherence_ok and not completeness_ok:
+            logger.info(
+                "Partial-pass: hallucination+relevance+coherence OK, completeness failed — "
+                "accepting with disclosure caveat (G5.7.6)"
+            )
+            return {
+                "validation_status": "partial_pass",
+                "validation_feedback": result.feedback,
+                "final_response": merged_response + _PARTIAL_PASS_CAVEAT,
+            }
+
         if result.overall_pass:
             return {
                 "validation_status": "pass",
@@ -90,9 +151,12 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
                 "final_response": merged_response,
             }
 
-        if not result.hallucination_pass:
+        # Full failure — determine dominant failure type for routing
+        if not hallucination_ok:
             status = "fail_hallucination"
-        elif not result.relevance_pass:
+        elif not coherence_ok:
+            status = "fail_hallucination"  # coherence failure is a correctness issue
+        elif not relevance_ok:
             status = "fail_relevance"
         else:
             status = "fail_completeness"

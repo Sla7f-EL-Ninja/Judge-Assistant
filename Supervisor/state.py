@@ -36,7 +36,7 @@ class SupervisorState(TypedDict):
     agent_errors: Dict[str, str]              # agent_name -> error message
 
     # -- Validation --
-    validation_status: str                    # pass | fail_hallucination | fail_relevance | fail_completeness | fallback (max-retries exhausted)
+    validation_status: str                    # pass | partial_pass | fail_hallucination | fail_relevance | fail_completeness | validator_error | fallback
     validation_feedback: str                  # Explanation of what failed
     retry_count: int                          # Current retry attempt
     max_retries: int                          # Default 2
@@ -101,8 +101,15 @@ class ValidationResult(BaseModel):
     completeness_pass: bool = Field(
         description="True if all aspects of the query are covered"
     )
+    coherence_pass: bool = Field(
+        default=True,
+        description=(
+            "True if the response does not directly contradict a prior-turn answer. "
+            "Set to True when no prior turn is available."
+        ),
+    )
     overall_pass: bool = Field(
-        description="True only when all three checks pass"
+        description="True only when hallucination, relevance, and coherence all pass"
     )
     feedback: str = Field(
         description="What failed and why, used for retry guidance"

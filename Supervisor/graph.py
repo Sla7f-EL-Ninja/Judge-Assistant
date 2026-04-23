@@ -89,7 +89,9 @@ def validation_router(state: SupervisorState) -> str:
     absent, so a validator crash cannot silently deliver unreviewed content.
     """
     status = state.get("validation_status") or ""
-    if status == "pass":
+    if status in ("pass", "partial_pass"):
+        # partial_pass: hallucination+relevance+coherence OK, completeness weak
+        # — response already has disclosure caveat appended (G5.7.6)
         return "pass"
 
     if not status:
