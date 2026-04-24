@@ -11,6 +11,7 @@ This replaces the original sequential for-loop (A6.5.3 / P1.2.1).
 """
 
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -37,6 +38,18 @@ ADAPTER_REGISTRY: Dict[str, type] = {
 # Tier 1: reasoning agent — needs civil_law_rag output in context.
 _TIER_0 = frozenset({"civil_law_rag", "case_doc_rag"})
 _TIER_1 = frozenset({"reason"})
+
+# Adapter instance cache — adapters are stateless; one instance per class is enough.
+_adapter_cache: Dict[str, "AgentAdapter"] = {}
+_adapter_cache_lock = threading.Lock()
+
+
+def _get_adapter(agent_name: str, adapter_cls: type) -> "AgentAdapter":
+    if agent_name not in _adapter_cache:
+        with _adapter_cache_lock:
+            if agent_name not in _adapter_cache:
+                _adapter_cache[agent_name] = adapter_cls()
+    return _adapter_cache[agent_name]
 
 
 def _agent_tier(agent: str) -> int:
@@ -73,7 +86,7 @@ def _run_single_agent(
 ) -> Tuple[str, Optional[Dict[str, Any]], Optional[str]]:
     """Run one adapter.  Returns (agent_name, result_dict | None, error | None)."""
     try:
-        adapter: AgentAdapter = adapter_cls()
+        adapter: AgentAdapter = _get_adapter(agent_name, adapter_cls)
         context = _build_context(state, agent_results_snapshot)
         result: AgentResult = adapter.invoke(query, context)
 

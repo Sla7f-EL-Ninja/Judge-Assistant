@@ -52,7 +52,7 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
     history_text = ""
     if conversation_history:
         lines = []
-        _history_window = min(MAX_CONVERSATION_TURNS, 10)
+        _history_window = MAX_CONVERSATION_TURNS
         for turn in conversation_history[-_history_window:]:
             role = turn.get("role", "unknown")
             content = turn.get("content", "")

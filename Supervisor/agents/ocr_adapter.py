@@ -19,6 +19,7 @@ lookup and module initialisation happen only once.
 import logging
 import os
 import sys
+import threading
 from typing import Any, Dict
 
 from Supervisor.agents.base import AgentAdapter, AgentResult
@@ -45,13 +46,16 @@ class OCRAdapter(AgentAdapter):
     """Thin wrapper around the OCR pipeline's ``process_document``."""
 
     _process_document = None
+    _process_document_lock = threading.Lock()
 
     @classmethod
     def _get_process_document(cls):
         if cls._process_document is None:
-            logger.info("Loading OCR pipeline (first call)...")
-            cls._process_document = _load_process_document()
-            logger.info("OCR pipeline loaded and cached.")
+            with cls._process_document_lock:
+                if cls._process_document is None:
+                    logger.info("Loading OCR pipeline (first call)...")
+                    cls._process_document = _load_process_document()
+                    logger.info("OCR pipeline loaded and cached.")
         return cls._process_document
 
     def invoke(self, query: str, context: Dict[str, Any]) -> AgentResult:
