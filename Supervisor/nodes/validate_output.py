@@ -20,6 +20,7 @@ import logging
 from typing import Any, Dict
 
 from config import get_llm
+from Supervisor.llm_utils import llm_invoke
 from Supervisor.prompts import (
     PRIOR_RESPONSE_SECTION_EMPTY,
     PRIOR_RESPONSE_SECTION_TEMPLATE,
@@ -117,7 +118,7 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
             {"role": "user", "content": user_prompt},
         ]
 
-        result = structured_llm.invoke(messages)
+        result = llm_invoke(structured_llm.invoke, messages)
 
         if not result:
             raise ValueError("Validation model returned None.")

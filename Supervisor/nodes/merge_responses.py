@@ -12,6 +12,7 @@ import logging
 from typing import Any, Dict, List
 
 from config import get_llm
+from Supervisor.llm_utils import llm_invoke
 from Supervisor.prompts import (
     MERGE_RESPONSES_SYSTEM_PROMPT,
     MERGE_RESPONSES_USER_TEMPLATE,
@@ -84,7 +85,7 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
             {"role": "system", "content": MERGE_RESPONSES_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ]
-        response = llm.invoke(messages)
+        response = llm_invoke(llm.invoke, messages)
         if response is None:
             raise ValueError("LLM returned None for merge_responses")
         merged = response.content if hasattr(response, "content") else str(response)

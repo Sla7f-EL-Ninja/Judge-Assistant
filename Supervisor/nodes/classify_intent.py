@@ -13,6 +13,7 @@ from typing import Any, Dict
 
 from config import get_llm
 from config.supervisor import VALID_INTENTS, AGENT_NAMES, MAX_CONVERSATION_TURNS
+from Supervisor.llm_utils import llm_invoke
 from Supervisor.prompts import (
     INTENT_CLASSIFICATION_SYSTEM_PROMPT,
     INTENT_CLASSIFICATION_USER_TEMPLATE,
@@ -89,7 +90,7 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
             {"role": "user", "content": user_prompt},
         ]
 
-        result: IntentClassification = structured_llm.invoke(messages)
+        result: IntentClassification = llm_invoke(structured_llm.invoke, messages)
 
         if result is None:
             raise ValueError(

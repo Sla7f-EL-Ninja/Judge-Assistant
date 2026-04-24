@@ -612,10 +612,17 @@ class FileIngestor:
                 secure=self._minio_secure,
             )
 
-            # Ensure bucket exists
+            # Ensure bucket exists — tolerate race with concurrent worker (B29)
             if not client.bucket_exists(self._minio_bucket):
-                client.make_bucket(self._minio_bucket)
-                logger.info("Created MinIO bucket '%s'", self._minio_bucket)
+                try:
+                    client.make_bucket(self._minio_bucket)
+                    logger.info("Created MinIO bucket '%s'", self._minio_bucket)
+                except Exception as bucket_exc:
+                    # Another worker created it concurrently — safe to continue
+                    logger.info(
+                        "MinIO bucket '%s' already exists (concurrent create): %s",
+                        self._minio_bucket, bucket_exc,
+                    )
 
             filename = os.path.basename(file_path)
             # Sanitize case_id to prevent path traversal (B8)
