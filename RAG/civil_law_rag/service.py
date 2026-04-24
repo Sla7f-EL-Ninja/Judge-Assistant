@@ -27,7 +27,10 @@ from typing import List, Optional
 
 from config import cfg
 
-LLM_MODEL: str = cfg.llm.get("high", {}).get("model", "gemini-2.5-flash")
+# Part 3.3d: read at call time so the cache key reflects the live config,
+# not a value frozen at import time (which becomes stale after env-var reload).
+def _current_llm_model() -> str:
+    return cfg.llm.get("high", {}).get("model", "gemini-2.5-flash")
 MAX_QUERY_LENGTH: int = 2000
 MIN_QUERY_LENGTH: int = 3
 MIN_ARABIC_RATIO: float = 0.3
@@ -143,7 +146,8 @@ def ask_question(query: str) -> CivilLawResult:
     query = validate_query(query)
 
     # 2. Cache lookup
-    cached = _cache.get(query, llm_model=LLM_MODEL)
+    llm_model = _current_llm_model()
+    cached = _cache.get(query, llm_model=llm_model)
     if cached is not None:
         return CivilLawResult(answer=cached, from_cache=True)
 
@@ -161,7 +165,7 @@ def ask_question(query: str) -> CivilLawResult:
 
         # 4. Cache successful answers
         if answer:
-            _cache.set(query, answer, llm_model=LLM_MODEL)
+            _cache.set(query, answer, llm_model=llm_model)
 
         return CivilLawResult(
             answer=answer,

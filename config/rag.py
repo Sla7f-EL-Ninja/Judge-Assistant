@@ -8,6 +8,7 @@ All values are sourced from the centralized ``config`` module.
 """
 
 import os
+import types
 
 from config import cfg
 
@@ -27,7 +28,9 @@ LLM_MODEL = cfg.llm.get("high", {}).get("model", "gemini-2.5-flash")
 # -----------------------------
 # Default State Template
 # -----------------------------
-default_state_template = {
+# Wrapped as MappingProxyType (P1.1.8): direct mutation raises TypeError.
+# Always obtain a mutable copy via get_default_state().
+default_state_template: types.MappingProxyType = types.MappingProxyType({
     "last_query": None,
     "last_results": [],
     "last_answer": None,
@@ -55,14 +58,14 @@ default_state_template = {
     "failure_reason": None,
     "proceedToGenerate": None,
     "retrieval_attempts": 0,
-    "final_answer": None
-}
+    "final_answer": None,
+})
 
 
 def get_default_state() -> dict:
-    """Return a deep copy of the state template — never mutate the module-level dict."""
+    """Return a mutable deep copy of the state template."""
     import copy
-    return copy.deepcopy(default_state_template)
+    return copy.deepcopy(dict(default_state_template))
 
 
 # -----------------------------

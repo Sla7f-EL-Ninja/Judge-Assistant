@@ -34,6 +34,9 @@ from typing import Any, Dict, Optional
 
 import yaml
 
+# Used to prevent callers from mutating returned section dicts (P1.1.7)
+_EMPTY: Dict[str, Any] = {}
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -161,55 +164,60 @@ class AppConfig:
     def get(self, key: str, default: Any = None) -> Any:
         return self._data.get(key, default)
 
-    # -- attribute access for top-level sections -----------------------------
+    # -- attribute access for top-level sections (P1.1.7) --------------------
+    # Each property returns a shallow copy so callers cannot mutate the
+    # shared singleton's internal state via the returned dict.
+
+    def _section(self, key: str) -> Dict[str, Any]:
+        return dict(self._data.get(key, _EMPTY))
 
     @property
     def llm(self) -> Dict[str, Any]:
-        return self._data.get("llm", {})
+        return self._section("llm")
 
     @property
     def embedding(self) -> Dict[str, Any]:
-        return self._data.get("embedding", {})
+        return self._section("embedding")
 
     @property
     def mongodb(self) -> Dict[str, Any]:
-        return self._data.get("mongodb", {})
+        return self._section("mongodb")
 
     @property
     def qdrant(self) -> Dict[str, Any]:
-        return self._data.get("qdrant", {})
+        return self._section("qdrant")
 
     @property
     def redis(self) -> Dict[str, Any]:
-        return self._data.get("redis", {})
+        return self._section("redis")
 
     @property
     def minio(self) -> Dict[str, Any]:
-        return self._data.get("minio", {})
+        return self._section("minio")
 
     @property
     def postgresql(self) -> Dict[str, Any]:
-        return self._data.get("postgresql", {})
+        return self._section("postgresql")
 
     @property
     def api(self) -> Dict[str, Any]:
-        return self._data.get("api", {})
+        return self._section("api")
 
     @property
     def supervisor(self) -> Dict[str, Any]:
-        return self._data.get("supervisor", {})
+        return self._section("supervisor")
 
     @property
     def rag(self) -> Dict[str, Any]:
-        return self._data.get("rag", {})
+        return self._section("rag")
 
     @property
     def ocr(self) -> Dict[str, Any]:
-        return self._data.get("ocr", {})
+        return self._section("ocr")
 
     @property
     def tei(self) -> Dict[str, Any]:
-        return self._data.get("tei", {})
+        return self._section("tei")
 
     def raw(self) -> Dict[str, Any]:
         """Return the full raw config dict."""
