@@ -21,6 +21,7 @@ from typing import Any, Dict
 
 from config import get_llm
 from Supervisor.llm_utils import llm_invoke
+from Supervisor.metrics import RETRY_COUNTER, TURN_COUNTER
 from Supervisor.prompts import (
     PRIOR_RESPONSE_SECTION_EMPTY,
     PRIOR_RESPONSE_SECTION_TEMPLATE,
@@ -139,6 +140,7 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
                 "Partial-pass: hallucination+relevance+coherence OK, completeness failed — "
                 "accepting with disclosure caveat (G5.7.6)"
             )
+            TURN_COUNTER.labels(status="partial_pass").inc()
             return {
                 "validation_status": "partial_pass",
                 "validation_feedback": result.feedback,
@@ -146,6 +148,7 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
             }
 
         if result.overall_pass:
+            TURN_COUNTER.labels(status="pass").inc()
             return {
                 "validation_status": "pass",
                 "validation_feedback": "",
@@ -162,6 +165,7 @@ def validate_output_node(state: SupervisorState) -> Dict[str, Any]:
         else:
             status = "fail_completeness"
 
+        RETRY_COUNTER.labels(reason=status).inc()
         return {
             "validation_status": status,
             "validation_feedback": result.feedback,

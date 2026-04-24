@@ -31,10 +31,15 @@ def _load_process_document():
     """Import and return ``process_document`` from the OCR pipeline.
 
     Called once; result cached on the class.
+    Directory resolved via HAKIM_OCR_DIR env var, then __file__-relative
+    fallback (P1.6.1).
     """
-    ocr_dir = os.path.normpath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "..", "OCR"
-    ))
+    from config.supervisor import HAKIM_OCR_DIR
+    ocr_dir = os.path.normpath(
+        HAKIM_OCR_DIR or os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "..", "..", "OCR"
+        )
+    )
     if ocr_dir not in sys.path:
         sys.path.insert(0, ocr_dir)
 

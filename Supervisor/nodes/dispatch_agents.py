@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Tuple
 
 from Supervisor.agents.base import AgentAdapter, AgentResult
+from Supervisor.metrics import AGENT_ERROR_COUNTER
 from Supervisor.agents.case_doc_rag_adapter import CaseDocRAGAdapter
 from Supervisor.agents.case_reasoner_adapter import CaseReasonerAdapter
 from Supervisor.agents.civil_law_rag_adapter import CivilLawRAGAdapter
@@ -92,6 +93,7 @@ def _run_single_agent(
 
         if result.error:
             logger.warning("Agent %s returned error: %s", agent_name, result.error)
+            AGENT_ERROR_COUNTER.labels(agent=agent_name).inc()
             return (agent_name, None, result.error)
 
         logger.info("Agent %s completed successfully", agent_name)
@@ -107,6 +109,7 @@ def _run_single_agent(
     except Exception as exc:
         error_msg = f"Agent {agent_name} raised exception: {exc}"
         logger.exception(error_msg)
+        AGENT_ERROR_COUNTER.labels(agent=agent_name).inc()
         return (agent_name, None, error_msg)
 
 

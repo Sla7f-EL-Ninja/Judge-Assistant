@@ -10,6 +10,7 @@ malformed input so classifiers never see adversarial or oversized queries.
 
 import logging
 import re
+import uuid
 from typing import Any, Dict
 
 from config.supervisor import MAX_QUERY_CHARS
@@ -45,12 +46,16 @@ def validate_input_node(state: SupervisorState) -> Dict[str, Any]:
     Sets intent='off_topic' with a classification_error when input is
     invalid, causing intent_router to short-circuit to off_topic_response.
     """
+    # Assign a per-turn correlation ID for log tracing (P1.7.1)
+    correlation_id: str = state.get("correlation_id") or str(uuid.uuid4())
+
     query: str = state.get("judge_query", "")
 
     # Empty query
     if not query or not query.strip():
-        logger.warning("Empty judge_query — routing off_topic")
+        logger.warning("Empty judge_query — routing off_topic [cid=%s]", correlation_id)
         return {
+            "correlation_id": correlation_id,
             "intent": "off_topic",
             "target_agents": [],
             "classified_query": "",
@@ -59,8 +64,12 @@ def validate_input_node(state: SupervisorState) -> Dict[str, Any]:
 
     # Length cap
     if len(query) > _MAX_QUERY_CHARS:
-        logger.warning("judge_query exceeds %d chars (%d) — routing off_topic", _MAX_QUERY_CHARS, len(query))
+        logger.warning(
+            "judge_query exceeds %d chars (%d) — routing off_topic [cid=%s]",
+            _MAX_QUERY_CHARS, len(query), correlation_id,
+        )
         return {
+            "correlation_id": correlation_id,
             "intent": "off_topic",
             "target_agents": [],
             "classified_query": "",
@@ -70,13 +79,17 @@ def validate_input_node(state: SupervisorState) -> Dict[str, Any]:
     # Prompt injection heuristics
     for pattern in _INJECTION_PATTERNS:
         if pattern.search(query):
-            logger.warning("Potential prompt injection detected in judge_query — routing off_topic")
+            logger.warning(
+                "Potential prompt injection detected in judge_query — routing off_topic [cid=%s]",
+                correlation_id,
+            )
             return {
+                "correlation_id": correlation_id,
                 "intent": "off_topic",
                 "target_agents": [],
                 "classified_query": "",
                 "classification_error": "prompt_injection_detected",
             }
 
-    # Pass through — no mutations needed
-    return {}
+    # Pass through — set correlation_id for downstream nodes
+    return {"correlation_id": correlation_id}

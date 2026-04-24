@@ -9,6 +9,7 @@ it simply passes the response through.
 """
 
 import logging
+import unicodedata
 from typing import Any, Dict, List
 
 from config import get_llm
@@ -42,13 +43,15 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
             "validation_feedback": f"All agents failed: {error_summary}",
         }
 
-    # Collect and normalize sources from every agent (P1.6.8)
+    # Collect, unicode-normalize, and deduplicate sources (P1.6.8)
     all_sources: List[str] = []
     for result in agent_results.values():
         for src in result.get("sources", []):
             if src:
-                all_sources.append(str(src).strip())
-    # Deduplicate while preserving order (case-insensitive key)
+                normalized = unicodedata.normalize("NFKC", str(src)).strip()
+                if normalized:
+                    all_sources.append(normalized)
+    # Deduplicate while preserving insertion order (case-insensitive key)
     seen: set = set()
     unique_sources = []
     for src in all_sources:

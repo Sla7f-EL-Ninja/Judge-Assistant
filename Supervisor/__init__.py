@@ -5,3 +5,7 @@ Sits on top of 4 worker agents (Summarization, Civil Law RAG,
 Case Doc RAG, Case Reasoner), classifies judge intent, dispatches to
 one or more workers, validates outputs, and maintains conversation history.
 """
+
+from Supervisor.telemetry import setup_telemetry as _setup_telemetry
+
+_setup_telemetry()

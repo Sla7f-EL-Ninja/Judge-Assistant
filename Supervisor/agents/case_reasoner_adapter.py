@@ -16,8 +16,11 @@ from Supervisor.agents.base import AgentAdapter, AgentResult
 
 logger = logging.getLogger(__name__)
 
-# Add Case Reasoner directory to path once at import time
+# Add Case Reasoner directory to path once at import time.
+# HAKIM_REASONER_DIR env var overrides the __file__-relative default (P1.6.1).
+from config.supervisor import HAKIM_REASONER_DIR as _REASONER_DIR_ENV
 _reasoner_dir = os.path.normpath(
+    _REASONER_DIR_ENV or
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "Case Reasoner")
 )
 if _reasoner_dir not in sys.path:

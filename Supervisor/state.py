@@ -7,6 +7,20 @@ across the Supervisor workflow (intent classification, validation, etc.).
 
 from typing import Any, Dict, List, Optional, TypedDict
 
+
+# ---------------------------------------------------------------------------
+# Agent result dict shape (P1.6.7)
+# dispatch_agents_node stores each adapter result as:
+#   agent_results[agent_name] = {"response": str, "sources": List[str], "raw_output": dict}
+# Downstream nodes must use agent_results[name]["raw_output"][key],
+# NOT agent_results[name][key] directly.
+# ---------------------------------------------------------------------------
+
+class AgentResultDict(TypedDict):
+    response: str
+    sources: List[str]
+    raw_output: Dict[str, Any]
+
 from pydantic import BaseModel, Field, model_validator
 
 
