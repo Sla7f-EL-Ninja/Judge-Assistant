@@ -27,6 +27,7 @@ from Supervisor.nodes.enrich_context import enrich_context_node
 from Supervisor.nodes.fallback import fallback_response_node
 from Supervisor.nodes.merge_responses import merge_responses_node
 from Supervisor.nodes.off_topic import off_topic_response_node
+from Supervisor.nodes.prepare_retry import prepare_retry_node
 from Supervisor.nodes.update_memory import update_memory_node
 from Supervisor.nodes.validate_input import validate_input_node
 from Supervisor.nodes.validate_output import validate_output_node
@@ -65,16 +66,45 @@ def intent_router(state: SupervisorState) -> str:
 def post_dispatch_router(state: SupervisorState) -> str:
     """Route after agent dispatch.
 
-    Returns ``"classify_document"`` only when case documents should be
-    indexed (case_doc_rag intent with uploaded files), or ``"merge"``
-    otherwise.  Previously this routed on any uploaded file regardless
-    of intent, causing unintended indexing on civil_law_rag queries.
+    Returns ``"classify_document"`` when documents should be classified and
+    indexed — either because case_doc_rag ran (needs case document embedding)
+    or OCR ran (needs raw text classified and stored).  A6.2.1/A6.6.1: gate
+    on intent rather than blanket uploaded_files presence.
     """
     target_agents = state.get("target_agents", [])
     uploaded_files = state.get("uploaded_files", [])
 
-    if uploaded_files and "case_doc_rag" in target_agents:
+    if uploaded_files and (
+        "case_doc_rag" in target_agents or "ocr" in target_agents
+    ):
         return "classify_document"
+
+    return "merge"
+
+
+def post_classify_store_router(state: SupervisorState) -> str:
+    """Route after classify_and_store_document (A6.6.3).
+
+    For OCR-only turns where document storage is the primary deliverable,
+    route to fallback when ALL files failed classification.  In all other
+    cases — including partial success or non-OCR intents — continue to merge.
+    """
+    target_agents = state.get("target_agents", [])
+    agent_results = state.get("agent_results", {})
+    classifications = state.get("document_classifications", [])
+
+    # Only short-circuit for OCR-only turns (no other successful agents)
+    ocr_only = target_agents == ["ocr"] or (
+        "ocr" in target_agents and not agent_results
+    )
+    if ocr_only and classifications and all(
+        c.get("status") == "failed" for c in classifications
+    ):
+        logger.warning(
+            "OCR-only turn: all %d document(s) failed classification — routing to fallback",
+            len(classifications),
+        )
+        return "fallback"
 
     return "merge"
 
@@ -130,6 +160,7 @@ def build_supervisor_graph() -> StateGraph:
     workflow.add_node("classify_intent", classify_intent_node)
     workflow.add_node("enrich_context", enrich_context_node)
     workflow.add_node("dispatch_agents", dispatch_agents_node)
+    workflow.add_node("prepare_retry", prepare_retry_node)
     workflow.add_node("classify_and_store_document", classify_and_store_document_node)
     workflow.add_node("merge_responses", merge_responses_node)
     workflow.add_node("verify_citations", verify_citations_node)
@@ -173,7 +204,14 @@ def build_supervisor_graph() -> StateGraph:
         },
     )
 
-    workflow.add_edge("classify_and_store_document", "merge_responses")
+    workflow.add_conditional_edges(
+        "classify_and_store_document",
+        post_classify_store_router,
+        {
+            "merge": "merge_responses",
+            "fallback": "fallback_response",
+        },
+    )
     workflow.add_edge("merge_responses", "verify_citations")
     workflow.add_edge("verify_citations", "validate_output")
 
@@ -182,10 +220,13 @@ def build_supervisor_graph() -> StateGraph:
         validation_router,
         {
             "pass": "update_memory",
-            "retry": "dispatch_agents",
+            "retry": "prepare_retry",
             "fallback": "fallback_response",
         },
     )
+
+    # Retry cooldown: prepare_retry sleeps, then re-dispatches (A6.6.4)
+    workflow.add_edge("prepare_retry", "dispatch_agents")
 
     workflow.add_edge("off_topic_response", "update_memory")
     workflow.add_edge("fallback_response", "update_memory")

@@ -68,6 +68,21 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
             "sources": unique_sources,
         }
 
+    # A6.8.3: partial-success disclosure when some agents failed
+    agent_errors = state.get("agent_errors", {})
+    partial_disclosure = ""
+    if agent_errors:
+        failed_names = ", ".join(agent_errors.keys())
+        partial_disclosure = (
+            "\n\n---\n"
+            f"**ملاحظة:** لم تتمكن بعض المصادر ({failed_names}) من تقديم بيانات كاملة. "
+            "الإجابة مبنية على المعلومات المتاحة فقط."
+        )
+        logger.warning(
+            "Partial-success merge: %d agent(s) succeeded, %d failed: %s",
+            len(agent_results), len(agent_errors), list(agent_errors.keys()),
+        )
+
     # Multiple agents -- use LLM to merge
     judge_query = state.get("classified_query", state.get("judge_query", ""))
 
@@ -94,7 +109,7 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
         merged = response.content if hasattr(response, "content") else str(response)
 
         return {
-            "merged_response": merged,
+            "merged_response": merged + partial_disclosure,
             "sources": unique_sources,
         }
 
@@ -106,6 +121,6 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
             for name, r in agent_results.items()
         )
         return {
-            "merged_response": fallback,
+            "merged_response": fallback + partial_disclosure,
             "sources": unique_sources,
         }

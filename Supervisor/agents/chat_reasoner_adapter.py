@@ -82,8 +82,25 @@ class ChatReasonerAdapter(AgentAdapter):
                     ),
                 )
 
+            final_answer = result.get("final_answer", "")
+            synth_sufficient = result.get("synth_sufficient", True)
+
+            # Part 3.1: synth_sufficient=False means the synthesizer flagged the
+            # answer as incomplete/partial.  Surface this instead of silently
+            # delivering a truncated answer.
+            if not synth_sufficient and final_answer:
+                logger.warning(
+                    "ChatReasoner: synth_sufficient=False — answer may be incomplete "
+                    "(session_id=%s)", result.get("session_id", "")
+                )
+                final_answer += (
+                    "\n\n---\n"
+                    "**ملاحظة:** قد لا تكون هذه الإجابة شاملة — لم يتمكن نظام الاستدلال من "
+                    "استيفاء جميع خطوات التحليل. يُنصح بالتحقق من النتائج."
+                )
+
             return AgentResult(
-                response=result.get("final_answer", ""),
+                response=final_answer,
                 sources=result.get("final_sources", []),
                 raw_output={
                     "plan": result.get("plan", []),
@@ -91,7 +108,7 @@ class ChatReasonerAdapter(AgentAdapter):
                     "replan_count": result.get("replan_count", 0),
                     "run_count": result.get("run_count", 0),
                     "session_id": result.get("session_id", ""),
-                    "synth_sufficient": result.get("synth_sufficient", True),
+                    "synth_sufficient": synth_sufficient,
                 },
             )
 

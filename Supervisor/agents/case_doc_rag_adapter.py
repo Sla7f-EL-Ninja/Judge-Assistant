@@ -31,12 +31,14 @@ class CaseDocRAGAdapter(AgentAdapter):
 
             case_id = context.get("case_id", "")
             conversation_history = context.get("conversation_history", [])
+            # Prefer supervisor correlation_id for end-to-end traceability (Part 3.2)
+            request_id = context.get("correlation_id") or str(uuid.uuid4())
 
             initial_state = {
                 "query": query,
                 "case_id": case_id,
                 "conversation_history": conversation_history,
-                "request_id": str(uuid.uuid4()),
+                "request_id": request_id,
                 # processing fields — use feature defaults
                 "sub_questions": [],
                 "on_topic": True,

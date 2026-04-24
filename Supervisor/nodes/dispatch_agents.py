@@ -75,6 +75,8 @@ def _build_context(state: SupervisorState, agent_results: Dict[str, Any]) -> Dic
         # Pre-fetched by enrich_context_node (A6.5.4)
         "case_summary": state.get("case_summary", ""),
         "case_doc_titles": state.get("case_doc_titles", []),
+        # Per-turn correlation ID — used as request_id by case_doc_rag (Part 3.2)
+        "correlation_id": state.get("correlation_id", ""),
     }
 
 
