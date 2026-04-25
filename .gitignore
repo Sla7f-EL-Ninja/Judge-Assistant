@@ -1,8 +1,8 @@
 .env
 DataBases/
 __pycache__/
-.claude/
-/.claude/
+
+/
 CLAUDE.md
 .pytest_cache/
 evaluation_results/
@@ -16,5 +16,4 @@ docker-compose.yml
 Dockerfile
 .graphify_detect.json
 .graphify_python
-.claude/
 .json
