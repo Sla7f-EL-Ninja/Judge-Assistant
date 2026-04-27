@@ -47,6 +47,11 @@ def _import_mongodb_saver():
     return MongoDBSaver
 
 
+def _import_inmemory_saver():
+    from langgraph.checkpoint.memory import MemorySaver  # noqa: PLC0415
+    return MemorySaver
+
+
 def _import_langmem():
     import langmem  # noqa: PLC0415
     return langmem
@@ -55,6 +60,17 @@ def _import_langmem():
 def _import_base_store():
     from langgraph.store.base import BaseStore, Item, SearchItem  # noqa: PLC0415
     return BaseStore, Item, SearchItem
+
+
+def _import_inmemory_store():
+    from langgraph.store.memory import InMemoryStore  # noqa: PLC0415
+    return InMemoryStore
+
+
+def _get_default_model() -> Any:
+    """Lazy-load the medium-tier LLM for use in langmem managers."""
+    from config import get_llm  # noqa: PLC0415
+    return get_llm("medium")
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +170,7 @@ class _MongoMemoryStore:
 # ---------------------------------------------------------------------------
 
 class _NoopStore:
-    """Drop-in store stub used when MongoDB is unreachable."""
+    """Drop-in store stub used in crash-safety tests only."""
 
     def put(self, *a: Any, **kw: Any) -> None: ...
     def get(self, *a: Any, **kw: Any) -> None: ...
@@ -179,88 +195,170 @@ class _NoopReflectionExecutor:
     def schedule(self, *a: Any, **kw: Any) -> None: ...
 
 
+class _LocalScheduleExecutor:
+    """Simple background scheduler replacing langmem.ReflectionExecutor.
+
+    Calls manager.invoke(payload) in a daemon thread after `after` seconds.
+    langmem's LocalReflectionExecutor has no .schedule() method — this adapter
+    provides the API our nodes expect without depending on langmem's executor.
+    """
+
+    def schedule(self, manager: Any, payload: Dict[str, Any], *, after: int = 0) -> None:
+        def _run() -> None:
+            if after > 0:
+                time.sleep(after)
+            try:
+                manager.invoke(payload)
+            except Exception as exc:
+                logger.warning("_LocalScheduleExecutor: reflection invoke failed — %s", exc)
+
+        t = threading.Thread(target=_run, daemon=True)
+        t.start()
+
+
 # ---------------------------------------------------------------------------
 # Singletons
 # ---------------------------------------------------------------------------
 
 _lock = threading.Lock()
 
-_mongo_client: Optional[MongoClient] = None
-_checkpointer: Optional[Any] = None
-_store: Optional[Any] = None
-_reflection_executor: Optional[Any] = None
+# Sentinel: distinguishes "not yet initialised" from "initialised to fallback"
+# Avoids retrying a blocked/failed MongoDB connection on every call.
+_UNSET: Any = object()
+
+_mongo_client: Any = _UNSET
+_checkpointer: Any = _UNSET
+_store: Any = _UNSET
+_reflection_executor: Any = _UNSET
+
+_MONGO_TIMEOUT_MS = 3000   # serverSelection + connect + socket
+_INIT_TIMEOUT_S   = 5      # hard wall-clock limit for any singleton init
 
 
 def _get_mongo_client() -> Optional[MongoClient]:
     global _mongo_client
-    if _mongo_client is None:
+    if _mongo_client is _UNSET:
         with _lock:
-            if _mongo_client is None:
-                try:
-                    _mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=3000)
-                    _mongo_client.admin.command("ping")
-                except Exception as exc:
-                    logger.warning("memory: MongoDB unavailable — %s", exc)
+            if _mongo_client is _UNSET:
+                result: list = []
+                exc_box: list = []
+
+                def _connect():
+                    try:
+                        client = MongoClient(
+                            MONGO_URI,
+                            serverSelectionTimeoutMS=_MONGO_TIMEOUT_MS,
+                            connectTimeoutMS=_MONGO_TIMEOUT_MS,
+                            socketTimeoutMS=_MONGO_TIMEOUT_MS,
+                        )
+                        client.admin.command("ping")
+                        result.append(client)
+                    except Exception as exc:
+                        exc_box.append(exc)
+
+                t = threading.Thread(target=_connect, daemon=True)
+                t.start()
+                t.join(timeout=_INIT_TIMEOUT_S)
+                if result:
+                    _mongo_client = result[0]
+                    logger.info("memory: MongoDB client connected")
+                else:
+                    err = exc_box[0] if exc_box else TimeoutError("connection timed out")
+                    logger.warning("memory: MongoDB unavailable — %s", err)
                     _mongo_client = None
-    return _mongo_client
+    return _mongo_client  # type: ignore[return-value]
 
 
 def get_checkpointer() -> Any:
-    """Return MongoDBSaver singleton; NoopCheckpointer on failure."""
+    """Return MongoDBSaver singleton; MemorySaver fallback on failure."""
     global _checkpointer
-    if _checkpointer is None:
+    if _checkpointer is _UNSET:
         with _lock:
-            if _checkpointer is None:
-                try:
-                    MongoDBSaver = _import_mongodb_saver()
-                    client = _get_mongo_client()
-                    if client is None:
-                        raise RuntimeError("MongoDB client unavailable")
-                    _checkpointer = MongoDBSaver(
-                        client,
-                        db_name=MONGO_DB,
-                        collection_name=CHECKPOINT_COLL,
-                    )
+            if _checkpointer is _UNSET:
+                result: list = []
+                exc_box: list = []
+
+                def _init():
+                    try:
+                        MongoDBSaver = _import_mongodb_saver()
+                        client = _get_mongo_client()
+                        if client is None:
+                            raise RuntimeError("MongoDB client unavailable")
+                        saver = MongoDBSaver(
+                            client,
+                            db_name=MONGO_DB,
+                            collection_name=CHECKPOINT_COLL,
+                        )
+                        result.append(saver)
+                    except Exception as exc:
+                        exc_box.append(exc)
+
+                t = threading.Thread(target=_init, daemon=True)
+                t.start()
+                t.join(timeout=_INIT_TIMEOUT_S)
+                if result:
+                    _checkpointer = result[0]
                     logger.info("memory: MongoDBSaver checkpointer ready")
-                except Exception as exc:
-                    logger.warning("memory: checkpointer init failed — %s; using None", exc)
-                    _checkpointer = None  # compile(checkpointer=None) is valid
+                else:
+                    err = exc_box[0] if exc_box else TimeoutError("init timed out")
+                    logger.warning("memory: checkpointer init failed — %s; falling back to MemorySaver", err)
+                    try:
+                        _checkpointer = _import_inmemory_saver()()
+                    except Exception as fb_exc:
+                        logger.warning("memory: MemorySaver fallback failed — %s; using None", fb_exc)
+                        _checkpointer = None
     return _checkpointer
 
 
 def get_store() -> Any:
-    """Return _MongoMemoryStore singleton; _NoopStore on failure."""
+    """Return _MongoMemoryStore singleton; _NoopStore fallback on failure."""
     global _store
-    if _store is None:
+    if _store is _UNSET:
         with _lock:
-            if _store is None:
-                try:
-                    client = _get_mongo_client()
-                    if client is None:
-                        raise RuntimeError("MongoDB client unavailable")
-                    col = client[MONGO_DB][STORE_COLL]
-                    _store = _MongoMemoryStore(col)
+            if _store is _UNSET:
+                result: list = []
+                exc_box: list = []
+
+                def _init():
+                    try:
+                        client = _get_mongo_client()
+                        if client is None:
+                            raise RuntimeError("MongoDB client unavailable")
+                        col = client[MONGO_DB][STORE_COLL]
+                        result.append(_MongoMemoryStore(col))
+                    except Exception as exc:
+                        exc_box.append(exc)
+
+                t = threading.Thread(target=_init, daemon=True)
+                t.start()
+                t.join(timeout=_INIT_TIMEOUT_S)
+                if result:
+                    _store = result[0]
                     logger.info("memory: MongoMemoryStore ready (collection=%s)", STORE_COLL)
-                except Exception as exc:
-                    logger.warning("memory: store init failed — %s; using NoopStore", exc)
-                    _store = _NoopStore()
+                else:
+                    err = exc_box[0] if exc_box else TimeoutError("init timed out")
+                    logger.warning("memory: store init failed — %s; using InMemoryStore (not persistent)", err)
+                    try:
+                        _store = _import_inmemory_store()()
+                    except Exception as fb_exc:
+                        logger.warning("memory: InMemoryStore fallback failed — %s; using NoopStore", fb_exc)
+                        _store = _NoopStore()
     return _store
 
 
 def get_reflection_executor() -> Any:
-    """Return shared ReflectionExecutor; noop on failure."""
+    """Return shared _LocalScheduleExecutor.
+
+    langmem.ReflectionExecutor (LocalReflectionExecutor) exposes only .submit(),
+    not .schedule() — our nodes call .schedule(manager, payload, after=N).
+    Use _LocalScheduleExecutor which implements exactly that API.
+    """
     global _reflection_executor
-    if _reflection_executor is None:
+    if _reflection_executor is _UNSET:
         with _lock:
-            if _reflection_executor is None:
-                try:
-                    langmem = _import_langmem()
-                    store = get_store()
-                    _reflection_executor = langmem.ReflectionExecutor(store=store)
-                    logger.info("memory: ReflectionExecutor ready")
-                except Exception as exc:
-                    logger.warning("memory: ReflectionExecutor init failed — %s; using noop", exc)
-                    _reflection_executor = _NoopReflectionExecutor()
+            if _reflection_executor is _UNSET:
+                _reflection_executor = _LocalScheduleExecutor()
+                logger.info("memory: _LocalScheduleExecutor ready")
     return _reflection_executor
 
 
@@ -271,6 +369,7 @@ def get_semantic_manager(case_id: str) -> Any:
     try:
         langmem = _import_langmem()
         return langmem.create_memory_store_manager(
+            _get_default_model(),
             store=get_store(),
             namespace=("case", case_id, "facts"),
         )
@@ -284,6 +383,7 @@ def get_episodic_manager(case_id: str) -> Any:
     try:
         langmem = _import_langmem()
         return langmem.create_memory_store_manager(
+            _get_default_model(),
             store=get_store(),
             namespace=("case", case_id, "episodes"),
         )
@@ -297,6 +397,7 @@ def get_procedural_manager(user_id: str) -> Any:
     try:
         langmem = _import_langmem()
         return langmem.create_memory_store_manager(
+            _get_default_model(),
             store=get_store(),
             namespace=("user", user_id, "prefs"),
         )

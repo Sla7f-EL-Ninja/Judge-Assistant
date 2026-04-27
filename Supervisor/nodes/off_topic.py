@@ -26,5 +26,5 @@ def off_topic_response_node(state: SupervisorState) -> Dict[str, Any]:
     return {
         "final_response": OFF_TOPIC_RESPONSE,
         "merged_response": OFF_TOPIC_RESPONSE,
-        "validation_status": "pass",
+        "validation_status": "off_topic",
     }

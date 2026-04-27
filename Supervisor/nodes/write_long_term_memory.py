@@ -58,7 +58,8 @@ def write_long_term_memory_node(state: SupervisorState) -> Dict[str, Any]:
     if case_id:
         try:
             manager = get_semantic_manager(case_id)
-            manager.invoke({"messages": messages, "existing": semantic_facts})
+            valid_facts = [f for f in semantic_facts if isinstance(f.get("content"), str)]
+            manager.invoke({"messages": messages, "existing": valid_facts})
             logger.info("write_long_term_memory: semantic facts updated for case %s", case_id)
         except Exception as exc:
             logger.warning("write_long_term_memory: semantic write failed — %s", exc)

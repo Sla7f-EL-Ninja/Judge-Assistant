@@ -40,51 +40,33 @@ logger = logging.getLogger(__name__)
 
 
 def update_memory_node(state: SupervisorState) -> Dict[str, Any]:
-    """Append the latest exchange to conversation history and trim.
-
-    Updates state keys: ``conversation_history``, ``turn_count``.
-    """
-    # Build a fully independent copy of the incoming history so that
-    # appending to it never mutates the caller's original list or any
-    # intermediate state objects held by LangGraph.
-    # Each item is also copied (dict()) so callers who pass dicts from
-    # external sources cannot be affected by later mutations.
-    incoming: List[dict] = state.get("conversation_history") or []
-    conversation_history: List[dict] = [copy.deepcopy(entry) for entry in incoming]
-
-    turn_count = state.get("turn_count", 0)
-
+    """Append the latest exchange to conversation history."""
+    
     judge_query = state.get("judge_query", "")
     final_response = state.get("final_response", "")
 
-    # Append the turn -- only write both sides together to preserve role alternation.
-    # An assistant turn without a preceding user turn breaks HumanMessage/AIMessage ordering.
+    new_messages = []
     if judge_query:
-        conversation_history.append({
-            "role": "user",
-            "content": judge_query,
-        })
+        new_messages.append({"role": "user", "content": judge_query})
         if final_response:
-            conversation_history.append({
-                "role": "assistant",
-                "content": final_response,
-            })
+            new_messages.append({"role": "assistant", "content": final_response})
     elif final_response:
-        logger.warning("Skipping assistant turn: no judge_query present (would break role alternation)")
+        logger.warning("Skipping assistant turn: no judge_query present")
 
-    turn_count += 1
-
-    # Trimming/summarization is handled downstream by the conditional
-    # summarize_history node (only fires when token threshold is exceeded).
+    turn_count = state.get("turn_count", 0) + 1
+    messages_since_last_summary = state.get("messages_since_last_summary", 0) + len(new_messages)
 
     logger.info(
-        "Memory updated: turn=%d, history_len=%d",
+        "Memory updated: turn=%d, new_messages_added=%d, messages_since_last_summary=%d",
         turn_count,
-        len(conversation_history),
+        len(new_messages),
+        messages_since_last_summary,
     )
 
     return {
-        "conversation_history": conversation_history,
+        # ONLY return the delta; the `operator.add` reducer in state.py will append it
+        "conversation_history": new_messages, 
         "turn_count": turn_count,
         "case_id": state.get("case_id", ""),
+        "messages_since_last_summary": messages_since_last_summary,
     }

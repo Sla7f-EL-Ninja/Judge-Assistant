@@ -44,13 +44,13 @@ def audit_log_node(state: SupervisorState) -> Dict[str, Any]:
             # Routing decisions
             "intent": state.get("intent", ""),
             "target_agents": state.get("target_agents", []),
-            "classified_query_length": len(state.get("classified_query", "")),
+            "classified_query_length": len(state.get("classified_query") or ""),
             # Execution outcomes
             "agents_succeeded": list((state.get("agent_results") or {}).keys()),
             "agents_failed": list((state.get("agent_errors") or {}).keys()),
             # Validation
             "validation_status": state.get("validation_status", ""),
-            "validation_feedback_length": len(state.get("validation_feedback", "")),
+            "validation_feedback_length": len(state.get("validation_feedback") or ""),
             "retry_count": state.get("retry_count", 0),
             # Sources cited (for citation audit)
             "sources": state.get("sources", []),

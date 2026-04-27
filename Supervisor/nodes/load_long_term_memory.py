@@ -22,6 +22,13 @@ from Supervisor.state import SupervisorState
 logger = logging.getLogger(__name__)
 
 
+def _item_value(r: Any) -> Any:
+    """Extract value from either a dict or a SearchItem object."""
+    if isinstance(r, dict):
+        return r.get("value")
+    return getattr(r, "value", None)
+
+
 def load_long_term_memory_node(state: SupervisorState) -> Dict[str, Any]:
     """Populate semantic_facts and procedural_prefs from long-term store."""
     case_id: str = state.get("case_id", "")
@@ -40,7 +47,7 @@ def load_long_term_memory_node(state: SupervisorState) -> Dict[str, Any]:
                 query=judge_query,
                 limit=SEMANTIC_FACTS_TOP_K,
             )
-            semantic_facts = [r["value"] for r in results if isinstance(r.get("value"), dict)]
+            semantic_facts = [v for r in results if isinstance((v := _item_value(r)), dict)]
             logger.debug("load_long_term_memory: loaded %d semantic facts for case %s", len(semantic_facts), case_id)
         except Exception as exc:
             logger.warning("load_long_term_memory: semantic load failed — %s", exc)
@@ -55,7 +62,7 @@ def load_long_term_memory_node(state: SupervisorState) -> Dict[str, Any]:
             )
             if results:
                 raw = "\n".join(
-                    r["value"].get("content", "") if isinstance(r.get("value"), dict) else str(r.get("value", ""))
+                    v.get("content", "") if isinstance((v := _item_value(r)), dict) else str(v or "")
                     for r in results
                 )
                 procedural_prefs = raw[:PROCEDURAL_INJECT_MAX_CHARS] or None

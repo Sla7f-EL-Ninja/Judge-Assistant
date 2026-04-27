@@ -18,15 +18,17 @@ llm:
     provider: google            # groq | google
     model: gemini-2.5-flash
     temperature: 0.0
-    timeout_seconds: 300
+    timeout_seconds: 1300
   medium:
     provider: google
     model: gemini-2.5-flash
     temperature: 0.0
+    timeout_seconds: 1300
   low:
     provider: google
     model: gemini-2.5-flash-lite
     temperature: 0.0
+    timeout_seconds: 1300
 
 # -------------------------------------------------------
 # Embedding Model
