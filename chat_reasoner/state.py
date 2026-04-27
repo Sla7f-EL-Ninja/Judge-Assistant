@@ -5,7 +5,7 @@ ChatReasonerState TypedDict, Pydantic schemas, and reducer helpers.
 """
 
 from operator import add
-from typing import Annotated, Any, Dict, List, Optional, TypedDict
+from typing import Annotated, Any, Dict, List, Literal, Optional, TypedDict
 
 from pydantic import BaseModel, Field
 
@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 # Allowed tool names (validated by plan_validator)
 # ---------------------------------------------------------------------------
 
-ALLOWED_TOOLS = frozenset({"case_doc_rag", "civil_law_rag"})
+ALLOWED_TOOLS = frozenset({"case_doc_rag", "civil_law_rag", "fetch_summary_report"})
 
 # ---------------------------------------------------------------------------
 # Reducer helpers
@@ -103,7 +103,7 @@ class ChatReasonerState(TypedDict):
 
 class PlanStep(BaseModel):
     step_id: str
-    tool: str
+    tool: Literal["case_doc_rag", "civil_law_rag", "fetch_summary_report"]
     query: str
     depends_on: List[str] = Field(default_factory=list)
 

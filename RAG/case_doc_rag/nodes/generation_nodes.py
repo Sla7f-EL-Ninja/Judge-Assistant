@@ -77,6 +77,8 @@ def generateAnswer(state: SubQuestionState) -> Dict[str, Any]:
     context_str = "\n\n".join(doc.page_content for doc in docs) if docs else ""
     history_str = _serialize_history(state.get("conversation_history", []))
 
+    _NO_ANSWER_MARKER = "المستندات المتاحة لا تحتوي على إجابة مباشرة"
+
     try:
         response = get_rag_chain().invoke({
             "history": history_str,
@@ -84,11 +86,11 @@ def generateAnswer(state: SubQuestionState) -> Dict[str, Any]:
             "question": sub_question,
         })
         answer = response.content.strip()
-        found = True
+        found = _NO_ANSWER_MARKER not in answer
     except Exception:
         logger.exception("[%s] LLM error in generateAnswer", request_id)
         answer = "حدث خطأ أثناء توليد الإجابة. يرجى المحاولة مرة أخرى."
-        found = True  # docs were found, generation failed
+        found = False
 
     # Build sources from document metadata
     sources = []
@@ -111,7 +113,7 @@ def generateAnswer(state: SubQuestionState) -> Dict[str, Any]:
     return {
         "sub_answer": answer,
         "sources": sources,
-        "found": True,
+        "found": found,
         "sub_answers": [answer_entry],
     }
 
@@ -194,11 +196,15 @@ def mergeAnswers(state: AgentState) -> Dict[str, Any]:
         logger.warning("[%s] mergeAnswers: no sub_answers", request_id)
         return {"final_answer": ""}
 
-    if len(sub_answers) == 1:
-        final_answer = sub_answers[0].get("answer", "")
+    answered = [sa for sa in sub_answers if sa.get("found")]
+    if not answered:
+        answered = sub_answers  # all failed — include everything so caller gets something
+
+    if len(answered) == 1:
+        final_answer = answered[0].get("answer", "")
     else:
         parts = []
-        for i, sa in enumerate(sub_answers, 1):
+        for sa in answered:
             q = sa.get("question", "")
             a = sa.get("answer", "")
             if q:

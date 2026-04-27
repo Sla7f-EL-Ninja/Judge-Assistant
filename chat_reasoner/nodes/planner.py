@@ -17,6 +17,7 @@ from chat_reasoner.prompts import (
     PLANNER_SYSTEM,
 )
 from chat_reasoner.state import ChatReasonerState, Plan
+from chat_reasoner.state import ALLOWED_TOOLS  # ← state module
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,20 @@ def planner_node(state: ChatReasonerState) -> Dict[str, Any]:
 
     try:
         plan: Plan = llm.invoke(prompt)
+
+        # Coerce any near-miss tool names before validation
+        for step in plan.steps:
+            if step.tool not in ALLOWED_TOOLS:
+                normalized = step.tool.lower().replace("-", "_").replace(" ", "_")
+                match = next(
+                    (t for t in ALLOWED_TOOLS if
+                     t in normalized or normalized in t or
+                     normalized.startswith(t[:6]) or t.startswith(normalized[:6])),
+                    None,
+                )
+                if match:
+                    logger.warning("Planner tool name coerced: %r → %r", step.tool, match)
+                    step.tool = match
         logger.info("Planner: produced %d steps", len(plan.steps))
         return {
             "plan": [s.model_dump() for s in plan.steps],

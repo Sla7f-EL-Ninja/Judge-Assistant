@@ -16,7 +16,9 @@
       "Bash(pip install *)",
       "Bash(graphify claude *)",
       "PowerShell(python -c \"import sys; open\\('.graphify_python', 'w'\\).write\\(sys.executable\\)\")",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(dir /b \"D:\\\\FUCK!!\\\\Grad\\\\Code\")",
+      "mcp__plugin_context-mode_context-mode__ctx_batch_execute"
     ],
     "deny": [
       "Read(**/*.log)",

@@ -18,6 +18,7 @@ llm:
     provider: google            # groq | google
     model: gemini-2.5-flash
     temperature: 0.0
+    timeout_seconds: 300
   medium:
     provider: google
     model: gemini-2.5-flash

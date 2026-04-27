@@ -149,7 +149,8 @@ def ask_question(query: str) -> CivilLawResult:
     llm_model = _current_llm_model()
     cached = _cache.get(query, llm_model=llm_model)
     if cached is not None:
-        return CivilLawResult(answer=cached, from_cache=True)
+        cached_answer, cached_sources = cached
+        return CivilLawResult(answer=cached_answer, sources=cached_sources, from_cache=True)
 
     # 3. Graph invocation
     try:
@@ -165,8 +166,7 @@ def ask_question(query: str) -> CivilLawResult:
 
         # 4. Cache successful answers
         if answer:
-            _cache.set(query, answer, llm_model=llm_model)
-
+            _cache.set(query, answer, sources=sources, llm_model=llm_model)
         return CivilLawResult(
             answer=answer,
             sources=sources,

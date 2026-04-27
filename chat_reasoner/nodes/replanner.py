@@ -23,7 +23,7 @@ from chat_reasoner.prompts import (
     REPLANNER_CONTEXT_TEMPLATE,
     REPLANNER_SYSTEM,
 )
-from chat_reasoner.state import ChatReasonerState, Plan, _STEP_RESULTS_RESET
+from chat_reasoner.state import ChatReasonerState, Plan, _STEP_RESULTS_RESET, ALLOWED_TOOLS
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,11 @@ def replanner_node(state: ChatReasonerState) -> Dict[str, Any]:
         replan_reason=replan_reason,
     )
 
-    prompt = REPLANNER_SYSTEM.format(context_block=context_block)
+    prompt = REPLANNER_SYSTEM.format(
+        context_block=context_block,
+        allowed_tools=sorted(ALLOWED_TOOLS),           # ← LLM sees exact valid names
+        plan_validation_feedback=state.get("plan_validation_feedback", ""),  # ← why it failed
+    )
     llm = get_llm("high").with_structured_output(Plan)
 
     try:

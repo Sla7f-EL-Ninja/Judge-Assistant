@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from Supervisor.agents.base import AgentAdapter, AgentResult
 from Supervisor.metrics import AGENT_ERROR_COUNTER
 from Supervisor.agents.case_doc_rag_adapter import CaseDocRAGAdapter
-from Supervisor.agents.case_reasoner_adapter import CaseReasonerAdapter
+from Supervisor.agents.chat_reasoner_adapter import ChatReasonerAdapter
 from Supervisor.agents.civil_law_rag_adapter import CivilLawRAGAdapter
 from Supervisor.state import SupervisorState
 
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 ADAPTER_REGISTRY: Dict[str, type] = {
     "civil_law_rag": CivilLawRAGAdapter,
     "case_doc_rag": CaseDocRAGAdapter,
-    "reason": CaseReasonerAdapter,
+    "reason": ChatReasonerAdapter,
 }
 
 # Dependency tiers.  Agents in the same tier have no inter-dependencies and

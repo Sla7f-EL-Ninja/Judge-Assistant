@@ -89,4 +89,5 @@ def update_memory_node(state: SupervisorState) -> Dict[str, Any]:
     return {
         "conversation_history": conversation_history,
         "turn_count": turn_count,
+        "case_id": state.get("case_id", ""),
     }

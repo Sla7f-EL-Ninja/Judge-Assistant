@@ -79,19 +79,34 @@ def llm_invoke(
         Base backoff between retries; doubles each attempt.
     """
     for attempt in range(max_retries + 1):
+        executor = ThreadPoolExecutor(max_workers=1)
         try:
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(fn, *args, **kwargs)
-                try:
-                    return future.result(timeout=timeout_s)
-                except FuturesTimeoutError:
-                    future.cancel()
-                    raise TimeoutError(
-                        f"LLM call timed out after {timeout_s}s (attempt {attempt + 1})"
+            future = executor.submit(fn, *args, **kwargs)
+            try:
+                result = future.result(timeout=timeout_s)
+                executor.shutdown(wait=False)
+                return result
+            except FuturesTimeoutError:
+                # Abandon the executor without waiting — the LLM thread may have
+                # no HTTP-level timeout and would block shutdown(wait=True) forever.
+                executor.shutdown(wait=False)
+                exc = TimeoutError(
+                    f"LLM call timed out after {timeout_s}s (attempt {attempt + 1})"
+                )
+                transient = True
+                if transient and attempt < max_retries:
+                    wait = backoff_s * (2 ** attempt)
+                    logger.warning(
+                        "Transient LLM error (attempt %d/%d), retrying in %.1fs: %s",
+                        attempt + 1, max_retries + 1, wait, exc,
                     )
+                    time.sleep(wait)
+                    continue
+                raise exc
 
         except Exception as exc:
-            transient = isinstance(exc, TimeoutError) or is_transient_error(exc)
+            executor.shutdown(wait=False)
+            transient = is_transient_error(exc)
 
             if transient and attempt < max_retries:
                 wait = backoff_s * (2 ** attempt)

@@ -50,7 +50,7 @@ def _get_classifier():
     """Lazy-import the document classifier."""
     classifier_dir = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "..", "..", "RAG", "Case Doc RAG",
+        "..", "..", "RAG", "Document Classfier",
     )
     classifier_dir = os.path.normpath(classifier_dir)
     if classifier_dir not in sys.path:

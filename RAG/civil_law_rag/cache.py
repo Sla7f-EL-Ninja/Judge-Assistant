@@ -67,8 +67,8 @@ class SemanticCache:
             arr /= norm
         return arr
 
-    def get(self, query: str, llm_model: str = "") -> Optional[str]:
-        """Return a cached answer or None."""
+    def get(self, query: str, llm_model: str = "") -> Optional[tuple]:
+        """Return a cached (answer, sources) tuple or None."""
         if not self._entries:
             return None
 
@@ -76,37 +76,39 @@ class SemanticCache:
         query_vec  = self._embed(query)
 
         with self._lock:
-            best_score  = -1.0
-            best_answer = None
-            for entry_key, cached_vec, cached_answer in self._entries:
+            best_score   = -1.0
+            best_answer  = None
+            best_sources = []
+            for entry_key, cached_vec, cached_answer, cached_sources in self._entries:
                 # Only compare entries with matching version prefix
                 if entry_key != key_prefix:
                     continue
                 score = float(np.dot(query_vec, cached_vec))
                 if score > best_score:
-                    best_score  = score
-                    best_answer = cached_answer
+                    best_score   = score
+                    best_answer  = cached_answer
+                    best_sources = cached_sources
 
             if best_score >= self._threshold:
                 log_event(logger, "cache_hit",
-                          score=round(best_score, 4),
-                          threshold=self._threshold)
-                return best_answer
+                        score=round(best_score, 4),
+                        threshold=self._threshold)
+                return best_answer, best_sources
 
         log_event(logger, "cache_miss",
-                  best_score=round(best_score, 4),
-                  level=logging.DEBUG)
+                best_score=round(best_score, 4),
+                level=logging.DEBUG)
         return None
 
-    def set(self, query: str, answer: str, llm_model: str = "") -> None:
-        """Store a (query, answer) pair."""
+    def set(self, query: str, answer: str, sources: list = None, llm_model: str = "") -> None:
+        """Store a (query, answer, sources) entry."""
         key_prefix = _cache_key_prefix(query, llm_model)
         query_vec  = self._embed(query)
 
         with self._lock:
             if len(self._entries) >= self._max_size:
                 self._entries.pop(0)  # FIFO eviction
-            self._entries.append((key_prefix, query_vec, answer))
+            self._entries.append((key_prefix, query_vec, answer, sources or []))
 
     def clear(self) -> None:
         with self._lock:

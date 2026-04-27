@@ -11,6 +11,7 @@ RAG graph instances are cached at module level (singletons) to avoid
 repeated import overhead on each invocation.
 """
 
+import copy
 import logging
 import os
 import sys
@@ -157,7 +158,7 @@ def _run_case_doc_rag(
                 {"role": t.get("role", "user"), "content": t.get("content", "")}
                 for t in (conversation_history or [])
             ],
-            "request_id": str(uuid.uuid4()),
+            "request_id": step.get("request_id") or str(uuid.uuid4()),
             # required reducer fields
             "sub_questions": [],
             "on_topic": True,
@@ -168,7 +169,20 @@ def _run_case_doc_rag(
             "final_answer": "",
             "error": None,
         }
-
+        try:
+            from RAG.case_doc_rag.infrastructure import (
+                set_vectorstore as _set_case_vs,
+                get_qdrant_client as _get_case_client,
+                get_embedding_function as _get_case_emb,
+            )
+            from langchain_qdrant import QdrantVectorStore
+            _set_case_vs(QdrantVectorStore(
+                client=_get_case_client(),
+                collection_name="case_docs",
+                embedding=_get_case_emb(),
+            ))
+        except Exception as _vs_exc:
+            logger.warning("Could not inject case vectorstore for case_id=%s: %s", case_id, _vs_exc)
         result = app.invoke(initial_state)
         answer = result.get("final_answer", "")
         sources = list({
@@ -254,7 +268,7 @@ def _run_civil_law_rag(
 ) -> StepResult:
     try:
         app, template = _get_civil_law_app()
-        state = dict(template)
+        state = copy.deepcopy(template)
         query = step["query"]
         if prior_results:
             query = _rewrite_civil_query_with_context(query, prior_results)
@@ -373,6 +387,7 @@ TOOL_REGISTRY: Dict[str, Callable] = {
     "civil_law_rag": _run_civil_law_rag,
     "fetch_summary_report": _run_fetch_summary_report,
 }
+
 
 # ---------------------------------------------------------------------------
 # Pre-warm Civil Law RAG at import time so the SentenceTransformer model
