@@ -11,3 +11,5 @@ graphify-out/
 graph.png
 .obsidian/
 .graphify*
+.github/
+CLAUDE.original.md
