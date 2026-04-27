@@ -1,0 +1,20 @@
+{
+  "test": "e2e_case_doc_plus_reason",
+  "timestamp": "2026-04-26T21:52:39.584349+00:00",
+  "latency_s": 132.73,
+  "intent": "reason",
+  "target_agents": [
+    "reason"
+  ],
+  "retry_count": 0,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\مذكرة_بدفاع_المدعى_عليها_الثانية.txt:chunk_0",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_1",
+    "civil_law"
+  ],
+  "judge_query": "بناءً على ملف القضية، حلل الموقف القانوني للمدعى عليهم",
+  "final_response_excerpt": "بناءً على وقائع القضية والأحكام القانونية المستخلصة، يمكن تحليل الموقف القانوني للمدعى عليهم، وتحديداً المدعى عليها الثانية (شركة العقارات الحديثة)، على النحو التالي:\n\n**وقائع القضية:**\nفوجئ المدعي في عام 2022 ببيع شقته المملوكة له بموجب عقد ابتدائي مسجل، وذلك بمقتضى عقد بيع مزور يحمل توقيعاً منسوبا",
+  "correlation_id": "test-cid-6d28d4bc-9ea2-42d2-b9c2-ccf68d4d8b6e"
+}

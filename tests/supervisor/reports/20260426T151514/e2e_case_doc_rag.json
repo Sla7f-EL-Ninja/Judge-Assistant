@@ -1,0 +1,18 @@
+{
+  "test": "e2e_case_doc_rag",
+  "timestamp": "2026-04-26T15:40:02.151363+00:00",
+  "latency_s": 11.071,
+  "intent": "case_doc_rag",
+  "target_agents": [
+    "case_doc_rag"
+  ],
+  "retry_count": 0,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\تقرير_الخبير.txt:chunk_0"
+  ],
+  "judge_query": "ما قيمة الأضرار المقدرة من الخبير؟",
+  "final_response_excerpt": "إجمالي تكلفة الإصلاح والترميم التي قدرها الخبير هي مئتا ألف جنيه مصري (200,000 ج.م).",
+  "correlation_id": "test-cid-9c61ab6e-fbb2-489f-8013-68389d234851"
+}
