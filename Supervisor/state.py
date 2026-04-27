@@ -71,6 +71,13 @@ class SupervisorState(TypedDict):
     correlation_id: Optional[str]             # Per-turn ID for log correlation (P1.7.1)
     classification_error: Optional[str]       # Set when classifier fails (B5)
 
+    # -- Memory subsystem --
+    user_id: Optional[str]                    # Judge identifier (from API layer)
+    session_id: Optional[str]                 # Conversation thread_id for checkpointer
+    running_summary: Optional[str]            # Compressed older turns (Arabic)
+    semantic_facts: List[Dict[str, Any]]      # Long-term case facts loaded at turn start
+    procedural_prefs: Optional[str]           # Long-term judge preferences loaded at turn start
+
 
 # ---------------------------------------------------------------------------
 # Pydantic schemas for LLM structured output

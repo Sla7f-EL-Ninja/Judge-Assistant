@@ -79,3 +79,14 @@ PROMETHEUS_ENABLED: bool = cfg.supervisor.get("prometheus_enabled", True)
 # ---------------------------------------------------------------------------
 HAKIM_OCR_DIR: str = _os.getenv("HAKIM_OCR_DIR", "")
 HAKIM_REASONER_DIR: str = _os.getenv("HAKIM_REASONER_DIR", "")
+
+# ---------------------------------------------------------------------------
+# Memory subsystem
+# ---------------------------------------------------------------------------
+CHECKPOINT_COLL: str = cfg.supervisor.get("checkpoint_collection", "supervisor_checkpoints")
+STORE_COLL: str = cfg.supervisor.get("memory_store_collection", "supervisor_memory_store")
+SHORT_TERM_KEEP_TURNS: int = int(cfg.supervisor.get("short_term_keep_turns", 6))
+SUMMARIZE_TRIGGER_TOKENS: int = int(cfg.supervisor.get("summarize_trigger_tokens", 4000))
+EPISODIC_REFLECT_DELAY_S: int = int(cfg.supervisor.get("episodic_reflect_delay_s", 300))
+SEMANTIC_FACTS_TOP_K: int = int(cfg.supervisor.get("semantic_facts_top_k", 8))
+PROCEDURAL_INJECT_MAX_CHARS: int = int(cfg.supervisor.get("procedural_inject_max_chars", 800))

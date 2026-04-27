@@ -17,6 +17,8 @@ from Supervisor.llm_utils import llm_invoke
 from Supervisor.prompts import (
     INTENT_CLASSIFICATION_SYSTEM_PROMPT,
     INTENT_CLASSIFICATION_USER_TEMPLATE,
+    PROCEDURAL_PREFS_SECTION_TEMPLATE,
+    PROCEDURAL_PREFS_SECTION_EMPTY,
 )
 from Supervisor.state import IntentClassification, SupervisorState
 
@@ -66,7 +68,15 @@ def classify_intent_node(state: SupervisorState) -> Dict[str, Any]:
     safe_filenames = [os.path.basename(f) for f in uploaded_files]
     uploaded_files_text = ", ".join(safe_filenames) if safe_filenames else "لا يوجد"
 
+    procedural_prefs = state.get("procedural_prefs") or ""
+    procedural_prefs_section = (
+        PROCEDURAL_PREFS_SECTION_TEMPLATE.format(procedural_prefs=procedural_prefs)
+        if procedural_prefs
+        else PROCEDURAL_PREFS_SECTION_EMPTY
+    )
+
     user_prompt = INTENT_CLASSIFICATION_USER_TEMPLATE.format(
+        procedural_prefs_section=procedural_prefs_section,
         conversation_history=history_text,
         judge_query=judge_query,
         uploaded_files=uploaded_files_text,

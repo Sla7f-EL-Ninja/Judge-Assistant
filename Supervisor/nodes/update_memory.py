@@ -34,7 +34,6 @@ import copy
 import logging
 from typing import Any, Dict, List
 
-from config.supervisor import MAX_CONVERSATION_TURNS
 from Supervisor.state import SupervisorState
 
 logger = logging.getLogger(__name__)
@@ -75,10 +74,8 @@ def update_memory_node(state: SupervisorState) -> Dict[str, Any]:
 
     turn_count += 1
 
-    # Trim to the configured maximum (each turn = 2 messages)
-    max_messages = MAX_CONVERSATION_TURNS * 2
-    if len(conversation_history) > max_messages:
-        conversation_history = conversation_history[-max_messages:]
+    # Trimming/summarization is handled downstream by the conditional
+    # summarize_history node (only fires when token threshold is exceeded).
 
     logger.info(
         "Memory updated: turn=%d, history_len=%d",

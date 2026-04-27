@@ -17,6 +17,10 @@ from Supervisor.llm_utils import llm_invoke
 from Supervisor.prompts import (
     MERGE_RESPONSES_SYSTEM_PROMPT,
     MERGE_RESPONSES_USER_TEMPLATE,
+    RUNNING_SUMMARY_SECTION_TEMPLATE,
+    RUNNING_SUMMARY_SECTION_EMPTY,
+    SEMANTIC_FACTS_SECTION_TEMPLATE,
+    SEMANTIC_FACTS_SECTION_EMPTY,
 )
 from Supervisor.state import SupervisorState
 
@@ -92,8 +96,27 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
         agent_output_parts.append(f"--- {agent_name} ---\n{response}")
     agent_outputs_text = "\n\n".join(agent_output_parts)
 
+    running_summary = state.get("running_summary") or ""
+    running_summary_section = (
+        RUNNING_SUMMARY_SECTION_TEMPLATE.format(running_summary=running_summary)
+        if running_summary
+        else RUNNING_SUMMARY_SECTION_EMPTY
+    )
+
+    raw_semantic_facts = state.get("semantic_facts") or []
+    if raw_semantic_facts:
+        facts_text = "\n".join(
+            f"- {f.get('content', str(f))}" if isinstance(f, dict) else f"- {f}"
+            for f in raw_semantic_facts
+        )
+        semantic_facts_section = SEMANTIC_FACTS_SECTION_TEMPLATE.format(semantic_facts=facts_text)
+    else:
+        semantic_facts_section = SEMANTIC_FACTS_SECTION_EMPTY
+
     user_prompt = MERGE_RESPONSES_USER_TEMPLATE.format(
         judge_query=judge_query,
+        running_summary_section=running_summary_section,
+        semantic_facts_section=semantic_facts_section,
         agent_outputs=agent_outputs_text,
     )
 
