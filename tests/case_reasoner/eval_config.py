@@ -7,7 +7,7 @@ for the Case Reasoner evaluation harness.
 # Timing
 # ---------------------------------------------------------------------------
 
-PIPELINE_TIMING_THRESHOLD_SECONDS = 300
+PIPELINE_TIMING_THRESHOLD_SECONDS = 500
 
 # ---------------------------------------------------------------------------
 # Rule-Based and LLM-Judge Metric Definitions

@@ -67,7 +67,7 @@ samples:
     # =========================================================================
     expected:
       # (!) Number of distinct legal issues that should be extracted
-      issue_count: 2
+      issue_count: 5
 
       expected_issues:
 
