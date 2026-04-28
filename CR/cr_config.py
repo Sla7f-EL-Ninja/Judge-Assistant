@@ -1,4 +1,9 @@
 """Case Reasoner configuration — reads from settings.yaml case_reasoner section."""
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from config import cfg
 
 _section: dict = cfg.get("case_reasoner") or {}

@@ -7,9 +7,50 @@ def _last_value(existing: Any, new: Any) -> Any:
     return new
 
 
+# ---------------------------------------------------------------------------
+# Reducer helpers
+# ---------------------------------------------------------------------------
+
+
+_STEP_RESULTS_RESET = {"__reset__": True}
+
+
+def _add_or_reset_step_results(a: List[dict], b: List[dict]) -> List[dict]:
+    """Append reducer with reset support.
+
+    An empty b list signals a full reset (used by replanner to wipe old results
+    before a new execution wave). A non-empty b is appended to a as usual.
+    Legacy sentinel check retained for backwards compatibility.
+    """
+    if not b:
+        return []
+    if b[0] == _STEP_RESULTS_RESET:
+        return list(b[1:])
+    return a + b
+
+
+def _merge_step_failures(
+    a: Dict[str, int], b: Dict[str, int]
+) -> Dict[str, int]:
+    """Merge two step-failure dicts, keeping the higher count per step_id.
+
+    Used as a state reducer so parallel Send-dispatched step_workers can each
+    contribute their failure increments without clobbering sibling counters.
+    """
+    out = dict(a)
+    for k, v in b.items():
+        out[k] = max(out.get(k, 0), v)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# State
+# ---------------------------------------------------------------------------
+
+
 class CaseReasonerState(TypedDict):
     # Input — set by adapter, never modified
-    case_id: str
+    case_id: Annotated[str, _last_value]
     judge_query: str
     case_brief: Dict[str, str]          # CaseBrief serialized: 7 Arabic prose fields
     rendered_brief: str

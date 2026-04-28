@@ -1,4 +1,11 @@
 """Aggregation Node — detects cross-issue relationships after all branches merge."""
+import os
+import sys
+
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 import logging
 import re
 from collections import defaultdict
