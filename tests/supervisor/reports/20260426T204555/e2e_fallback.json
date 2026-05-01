@@ -1,0 +1,18 @@
+{
+  "test": "e2e_fallback",
+  "timestamp": "2026-04-26T21:26:12.598392+00:00",
+  "latency_s": 0.0,
+  "intent": "civil_law_rag",
+  "target_agents": [
+    "civil_law_rag"
+  ],
+  "retry_count": 3,
+  "validation_status": "fallback",
+  "agent_errors": {},
+  "sources": [
+    "المادة 163 — مادة (163)"
+  ],
+  "judge_query": "ما المادة 163؟",
+  "final_response_excerpt": "لم يتمكن النظام من تقديم إجابة موثوقة بالكامل على هذا السؤال بعد عدة محاولات. يرجى إعادة صياغة السؤال أو تقسيمه إلى أسئلة أصغر.\n\nملاحظات التحقق: all fail forced",
+  "correlation_id": "ea843fc1-898f-4d62-8dcb-c346683b7ecc"
+}

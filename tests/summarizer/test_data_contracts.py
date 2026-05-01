@@ -14,13 +14,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-_SUMMARIZE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "Summerize"
-if str(_SUMMARIZE_DIR) not in sys.path:
-    sys.path.insert(0, str(_SUMMARIZE_DIR))
 
-from node_0 import Node0_DocumentIntake
-from node_1 import BatchClassificationResult, ClassificationItem, Node1_RoleClassifier
-from node_2 import BatchBulletResult, ChunkBullets, Node2_BulletExtractor
+from summarize.nodes.intake import Node0_DocumentIntake
+from summarize.nodes.classifier import BatchClassificationResult, ClassificationItem, Node1_RoleClassifier
+from summarize.nodes.extractor import BatchBulletResult, ChunkBullets, Node2_BulletExtractor
 
 
 # ---------------------------------------------------------------------------

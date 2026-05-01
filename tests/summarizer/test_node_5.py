@@ -21,12 +21,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-_SUMMARIZE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "Summerize"
-if str(_SUMMARIZE_DIR) not in sys.path:
-    sys.path.insert(0, str(_SUMMARIZE_DIR))
 
-from node_5 import BIAS_KEYWORDS, Node5_BriefGenerator
-from schemas import CaseBrief
+from summarize.nodes.brief import BIAS_KEYWORDS, Node5_BriefGenerator
+from summarize.schemas import CaseBrief
 
 
 def make_case_brief(**overrides) -> CaseBrief:

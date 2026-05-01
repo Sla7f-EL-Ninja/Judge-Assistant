@@ -1,0 +1,24 @@
+{
+  "test": "e2e_multi_turn_3",
+  "timestamp": "2026-04-26T22:56:34.331443+00:00",
+  "latency_s": 0.0,
+  "intent": "reason",
+  "target_agents": [
+    "reason"
+  ],
+  "retry_count": 3,
+  "validation_status": "fallback",
+  "agent_errors": {
+    "reason": "تعذّر إكمال الاستدلال: استُنفدت محاولات إعادة التخطيط."
+  },
+  "sources": [
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_0",
+    "d:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_1",
+    "d:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\مذكرة_بدفاع_المدعى_عليها_الثانية.txt:chunk_0",
+    "civil_law"
+  ],
+  "judge_query": "ما رأيك في دفاع المدعى عليه الثاني؟",
+  "final_response_excerpt": "لم يتمكن النظام من تقديم إجابة موثوقة بالكامل على هذا السؤال بعد عدة محاولات. يرجى إعادة صياغة السؤال أو تقسيمه إلى أسئلة أصغر.\n\nملاحظات التحقق: The response mentions \"المادة 163\" but this article is not present in the raw output. The response is also incomplete as it cuts off mid-sentence in the se",
+  "correlation_id": "test-cid-52668ac4-82c3-48d4-8063-e8f3bf5954c2-t3",
+  "turns": 3
+}

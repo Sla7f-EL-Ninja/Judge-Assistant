@@ -1,0 +1,18 @@
+{
+  "test": "e2e_retry_then_pass",
+  "timestamp": "2026-04-26T21:22:34.944449+00:00",
+  "latency_s": 0.0,
+  "intent": "civil_law_rag",
+  "target_agents": [
+    "civil_law_rag"
+  ],
+  "retry_count": 1,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [
+    "المادة 163 — مادة (163)"
+  ],
+  "judge_query": "ما المادة 163؟",
+  "final_response_excerpt": "مادة (١٦٣): كل خطأ سبب ضررا للغير يلزم من ارتكبه بالتعويض.",
+  "correlation_id": "aa06ba7e-c84b-4db4-87e3-ace79df3e2f9"
+}

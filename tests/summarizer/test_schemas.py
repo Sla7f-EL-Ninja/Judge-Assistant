@@ -13,11 +13,8 @@ import sys
 import pytest
 from pydantic import ValidationError
 
-_SUMMARIZE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "Summerize"
-if str(_SUMMARIZE_DIR) not in sys.path:
-    sys.path.insert(0, str(_SUMMARIZE_DIR))
 
-from schemas import (
+from summarize.schemas import (
     CaseBrief,
     ClassifiedChunk,
     DocTypeEnum,

@@ -1,0 +1,19 @@
+{
+  "test": "e2e_case_doc_rag",
+  "timestamp": "2026-04-26T21:31:32.551753+00:00",
+  "latency_s": 49.427,
+  "intent": "case_doc_rag",
+  "target_agents": [
+    "case_doc_rag"
+  ],
+  "retry_count": 0,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\تقرير_الخبير.txt:chunk_0",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\محضر_جلسة_25_03_2024.txt:chunk_0"
+  ],
+  "judge_query": "ما قيمة الأضرار المقدرة من الخبير؟",
+  "final_response_excerpt": "قيمة الأضرار التي قدرها الخبير في تقريره هي مئتا ألف جنيه مصري (200,000 ج.م).",
+  "correlation_id": "test-cid-97a20065-63e9-4954-8272-c49b435afc02"
+}

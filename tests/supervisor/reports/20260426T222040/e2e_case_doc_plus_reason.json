@@ -1,0 +1,24 @@
+{
+  "test": "e2e_case_doc_plus_reason",
+  "timestamp": "2026-04-26T22:29:27.179070+00:00",
+  "latency_s": 184.263,
+  "intent": "multi",
+  "target_agents": [
+    "case_doc_rag",
+    "reason"
+  ],
+  "retry_count": 0,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_1",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_0",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\مذكرة_بدفاع_المدعى_عليه_الأول.txt:chunk_0",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\مذكرة_بدفاع_المدعى_عليها_الثانية.txt:chunk_0",
+    "unknown:chunk_?",
+    "civil_law"
+  ],
+  "judge_query": "بناءً على ملف القضية، حلل الموقف القانوني للمدعى عليهم",
+  "final_response_excerpt": "حضرة القاضي الجليل،\n\nبناءً على طلبكم بتحليل الموقف القانوني للمدعى عليهم بالاستناد إلى مستندات ملف القضية، وبعد دمج نتائج وكلاء التحليل، يمكن إيجاز الموقف القانوني لكل من المدعى عليه الأول والمدعى عليها الثانية (شركة العقارات الحديثة) على النحو التالي:\n\n**أولاً: الوقائع والطلبات الموجهة ضد المدعى عل",
+  "correlation_id": "test-cid-f1a1fd25-445f-44d5-874b-4fb0fd25a66a"
+}

@@ -1,4 +1,6 @@
-FROM python:3.11-slim
+# Pin to exact patch version for reproducibility (P1.8.12).
+# Update the tag and digest together when upgrading Python.
+FROM python:3.11.12-slim
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -10,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsm6 \
     libxext6 \
     libxrender1 \
-    curl \
+    tini \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -22,11 +24,16 @@ RUN pip install --no-cache-dir \
 
 COPY . .
 
-RUN mkdir -p /app/uploads /app/chroma_data
+RUN mkdir -p /app/uploads && \
+    useradd -r -u 1000 -g root appuser && \
+    chown -R appuser /app
+
+USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
 
-CMD ["uvicorn", "api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["gunicorn", "api.app:create_app", "--worker-class", "uvicorn.workers.UvicornWorker", "--workers", "2", "--bind", "0.0.0.0:8000", "--forwarded-allow-ips", "*", "--proxy-protocol", "--timeout", "120", "--graceful-timeout", "30"]

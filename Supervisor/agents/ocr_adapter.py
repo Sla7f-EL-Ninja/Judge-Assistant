@@ -19,6 +19,7 @@ lookup and module initialisation happen only once.
 import logging
 import os
 import sys
+import threading
 from typing import Any, Dict
 
 from Supervisor.agents.base import AgentAdapter, AgentResult
@@ -30,10 +31,15 @@ def _load_process_document():
     """Import and return ``process_document`` from the OCR pipeline.
 
     Called once; result cached on the class.
+    Directory resolved via HAKIM_OCR_DIR env var, then __file__-relative
+    fallback (P1.6.1).
     """
-    ocr_dir = os.path.normpath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "..", "OCR"
-    ))
+    from config.supervisor import HAKIM_OCR_DIR
+    ocr_dir = os.path.normpath(
+        HAKIM_OCR_DIR or os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "..", "..", "OCR"
+        )
+    )
     if ocr_dir not in sys.path:
         sys.path.insert(0, ocr_dir)
 
@@ -45,13 +51,16 @@ class OCRAdapter(AgentAdapter):
     """Thin wrapper around the OCR pipeline's ``process_document``."""
 
     _process_document = None
+    _process_document_lock = threading.Lock()
 
     @classmethod
     def _get_process_document(cls):
         if cls._process_document is None:
-            logger.info("Loading OCR pipeline (first call)...")
-            cls._process_document = _load_process_document()
-            logger.info("OCR pipeline loaded and cached.")
+            with cls._process_document_lock:
+                if cls._process_document is None:
+                    logger.info("Loading OCR pipeline (first call)...")
+                    cls._process_document = _load_process_document()
+                    logger.info("OCR pipeline loaded and cached.")
         return cls._process_document
 
     def invoke(self, query: str, context: Dict[str, Any]) -> AgentResult:
@@ -85,15 +94,29 @@ class OCRAdapter(AgentAdapter):
                 all_texts.append(result.raw_text)
 
             combined = "\n\n---\n\n".join(all_texts)
+
+            # Cap per-text to 50 KB to prevent LangGraph state/checkpoint bloat (P1.3.1)
+            _MAX_TEXT_BYTES = 50_000
+            capped_texts = [t[:_MAX_TEXT_BYTES] for t in all_texts]
+            if any(len(t) > _MAX_TEXT_BYTES for t in all_texts):
+                logger.warning(
+                    "OCR text capped to %d chars per file to limit state size", _MAX_TEXT_BYTES
+                )
+
             return AgentResult(
-                response=combined,
+                response=combined[:_MAX_TEXT_BYTES * len(uploaded_files)],
                 sources=[f"OCR: {fp}" for fp in uploaded_files],
-                raw_output={"raw_texts": all_texts},
+                raw_output={"raw_texts": capped_texts},
             )
+
+        except ImportError as exc:
+            error_msg = f"OCR adapter import error: {exc}"
+            logger.exception(error_msg)
+            # Only reset on import failure — bad input/pipeline error should NOT poison cache
+            OCRAdapter._process_document = None
+            return AgentResult(response="", error=error_msg)
 
         except Exception as exc:
             error_msg = f"OCR adapter error: {exc}"
             logger.exception(error_msg)
-            # Reset so the next call retries the import
-            OCRAdapter._process_document = None
             return AgentResult(response="", error=error_msg)

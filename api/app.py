@@ -8,8 +8,10 @@ structured error handlers, and all routers mounted.
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +25,82 @@ from api.db.minio_client import close_minio, connect_minio
 from api.db.postgres import close_postgres, connect_postgres
 from api.errors import INTERNAL_ERROR, UNAUTHORIZED, VALIDATION_ERROR
 from api.schemas.common import ErrorDetail, ErrorEnvelope
+
+
+def _configure_logging(debug: bool = False) -> None:
+    """Wire structlog for JSON structured logging in production, console in dev."""
+    log_level = logging.DEBUG if debug else logging.INFO
+
+    shared_processors = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+    ]
+
+    if debug:
+        renderer = structlog.dev.ConsoleRenderer()
+    else:
+        renderer = structlog.processors.JSONRenderer()
+
+    structlog.configure(
+        processors=shared_processors + [
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+    formatter = structlog.stdlib.ProcessorFormatter(
+        processor=renderer,
+        foreign_pre_chain=shared_processors,
+    )
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.addHandler(handler)
+    root_logger.setLevel(log_level)
+
+    # Silence noisy third-party loggers
+    for noisy in ("httpx", "httpcore", "urllib3", "multipart"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
+
+def _configure_langsmith() -> None:
+    """Activate LangSmith tracing if LANGCHAIN_API_KEY is set (P1.7.3)."""
+    api_key = os.environ.get("LANGCHAIN_API_KEY", "")
+    if not api_key:
+        return
+    os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
+    os.environ.setdefault("LANGCHAIN_PROJECT", os.environ.get("LANGCHAIN_PROJECT", "hakim"))
+    logging.getLogger(__name__).info("LangSmith tracing enabled (project=%s)", os.environ["LANGCHAIN_PROJECT"])
+
+
+def _configure_sentry() -> None:
+    """Wire Sentry error aggregator if DSN is configured."""
+    dsn = os.environ.get("SENTRY_DSN", "")
+    if not dsn:
+        return
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.starlette import StarletteIntegration
+
+        sentry_sdk.init(
+            dsn=dsn,
+            integrations=[StarletteIntegration(), FastApiIntegration()],
+            traces_sample_rate=0.1,
+            send_default_pii=False,
+        )
+        logging.getLogger(__name__).info("Sentry initialized")
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Sentry init failed (non-fatal): %s", exc)
+
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +213,10 @@ def create_app() -> FastAPI:
     """Build and return the configured FastAPI application."""
     settings = get_settings()
 
+    _configure_logging(debug=settings.debug)
+    _configure_sentry()
+    _configure_langsmith()
+
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
@@ -165,6 +247,13 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
         expose_headers=["*"],
     )
+
+    # -- Prometheus metrics ---------------------------------------------------
+    try:
+        from prometheus_fastapi_instrumentator import Instrumentator
+        Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+    except Exception as exc:
+        logger.warning("Prometheus instrumentation failed (non-fatal): %s", exc)
 
     # -- Auth middleware (runs before body parsing so 401 always beats 422) ---
     _PUBLIC_PATHS = {"/api/v1/health", "/health", "/docs", "/openapi.json", "/redoc"}

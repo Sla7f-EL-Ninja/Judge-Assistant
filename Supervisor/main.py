@@ -17,17 +17,10 @@ from typing import List, Optional
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 from config.supervisor import MAX_RETRIES
-from Supervisor.graph import app
+from Supervisor.graph import get_app
 from Supervisor.state import SupervisorState
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
 logger = logging.getLogger(__name__)
 
 
@@ -76,7 +69,7 @@ def run_single_query(
         conversation_history=conversation_history,
         turn_count=turn_count,
     )
-    result = app.invoke(state)
+    result = get_app().invoke(state)
     return result
 
 
@@ -154,6 +147,11 @@ def ingest_files(
 
 
 def main() -> None:
+    load_dotenv()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    )
     parser = argparse.ArgumentParser(description="Supervisor Agent CLI")
     parser.add_argument(
         "--query", "-q",

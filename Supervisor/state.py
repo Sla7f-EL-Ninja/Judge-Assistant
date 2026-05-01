@@ -5,9 +5,37 @@ Defines the SupervisorState TypedDict and all Pydantic schemas used
 across the Supervisor workflow (intent classification, validation, etc.).
 """
 
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict, Annotated
+import operator
 
-from pydantic import BaseModel, Field
+# ---------------------------------------------------------------------------
+# Custom reducers
+# ---------------------------------------------------------------------------
+
+def _keep_non_none(old: Any, new: Any) -> Any:
+    """Reducer that ignores None updates, preserving the last real value.
+
+    Used for fields like running_summary that are written infrequently but
+    must never be silently wiped by a None coming in from a graph input.
+    Without this, any caller that includes the field in their input dict with
+    value=None will overwrite whatever the graph had previously stored.
+    """
+    return new if new is not None else old
+
+# ---------------------------------------------------------------------------
+# Agent result dict shape (P1.6.7)
+# dispatch_agents_node stores each adapter result as:
+#   agent_results[agent_name] = {"response": str, "sources": List[str], "raw_output": dict}
+# Downstream nodes must use agent_results[name]["raw_output"][key],
+# NOT agent_results[name][key] directly.
+# ---------------------------------------------------------------------------
+
+class AgentResultDict(TypedDict):
+    response: str
+    sources: List[str]
+    raw_output: Dict[str, Any]
+
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -23,11 +51,12 @@ class SupervisorState(TypedDict):
     uploaded_files: List[str]                 # File paths if documents uploaded
 
     # -- Conversation Memory --
-    conversation_history: List[dict]          # role/content message pairs
+    conversation_history: Annotated[List[dict], operator.add]          # role/content message pairs
     turn_count: int                           # Current conversation turn
+    messages_since_last_summary: int   # resets to 0 after each summarization
 
     # -- Intent Classification --
-    intent: str                               # ocr / summarize / civil_law_rag / case_doc_rag / reason / multi / off_topic
+    intent: str                               # civil_law_rag / case_doc_rag / reason / multi / off_topic
     target_agents: List[str]                  # Which agents to invoke
     classified_query: str                     # Rewritten/clarified query
 
@@ -36,7 +65,7 @@ class SupervisorState(TypedDict):
     agent_errors: Dict[str, str]              # agent_name -> error message
 
     # -- Validation --
-    validation_status: str                    # pass / fail_hallucination / fail_relevance / fail_completeness
+    validation_status: str                    # pass | partial_pass | fail_hallucination | fail_relevance | fail_completeness | validator_error | fallback
     validation_feedback: str                  # Explanation of what failed
     retry_count: int                          # Current retry attempt
     max_retries: int                          # Default 2
@@ -49,6 +78,21 @@ class SupervisorState(TypedDict):
     final_response: str                       # Validated, formatted final answer
     sources: List[str]                        # Citations and references
 
+    # -- Enriched context (pre-fetched once per turn by enrich_context_node) --
+    case_summary: Optional[str]              # Latest case summary from MongoDB
+    case_doc_titles: List[str]               # Document titles/types in this case
+
+    # -- Diagnostics --
+    correlation_id: Optional[str]             # Per-turn ID for log correlation (P1.7.1)
+    classification_error: Optional[str]       # Set when classifier fails (B5)
+
+    # -- Memory subsystem --
+    user_id: Optional[str]                    # Judge identifier (from API layer)
+    session_id: Optional[str]                 # Conversation thread_id for checkpointer
+    running_summary: Annotated[Optional[str], _keep_non_none]  # Compressed older turns (Arabic)
+    semantic_facts: List[Dict[str, Any]]      # Long-term case facts loaded at turn start
+    procedural_prefs: Optional[str]           # Long-term judge preferences loaded at turn start
+
 
 # ---------------------------------------------------------------------------
 # Pydantic schemas for LLM structured output
@@ -59,7 +103,7 @@ class IntentClassification(BaseModel):
 
     intent: str = Field(
         description=(
-            "One of: ocr, summarize, civil_law_rag, case_doc_rag, "
+            "One of: civil_law_rag, case_doc_rag, "
             "reason, multi, off_topic"
         )
     )
@@ -72,6 +116,13 @@ class IntentClassification(BaseModel):
     reasoning: str = Field(
         description="Brief explanation of classification decision"
     )
+
+    @model_validator(mode="after")
+    def enforce_off_topic_no_agents(self) -> "IntentClassification":
+        """off_topic must have empty target_agents (G5.3.3)."""
+        if self.intent == "off_topic" and self.target_agents:
+            self.target_agents = []
+        return self
 
 
 class ValidationResult(BaseModel):
@@ -86,8 +137,15 @@ class ValidationResult(BaseModel):
     completeness_pass: bool = Field(
         description="True if all aspects of the query are covered"
     )
+    coherence_pass: bool = Field(
+        default=True,
+        description=(
+            "True if the response does not directly contradict a prior-turn answer. "
+            "Set to True when no prior turn is available."
+        ),
+    )
     overall_pass: bool = Field(
-        description="True only when all three checks pass"
+        description="True only when hallucination, relevance, and coherence all pass"
     )
     feedback: str = Field(
         description="What failed and why, used for retry guidance"

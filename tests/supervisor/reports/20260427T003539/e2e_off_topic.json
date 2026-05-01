@@ -1,0 +1,14 @@
+{
+  "test": "e2e_off_topic",
+  "timestamp": "2026-04-27T00:36:13.072758+00:00",
+  "latency_s": 30.221,
+  "intent": "off_topic",
+  "target_agents": [],
+  "retry_count": 0,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [],
+  "judge_query": "ما عاصمة فرنسا؟",
+  "final_response_excerpt": "عذراً، هذا السؤال خارج نطاق اختصاص النظام. يمكنني مساعدتك في الأمور المتعلقة بالقضايا المدنية المصرية، مثل: استرجاع المستندات، البحث في القانون المدني، أو التحليل القضائي.",
+  "correlation_id": "test-cid-aa59f359-c3e9-4e66-92ed-df509efe948c"
+}

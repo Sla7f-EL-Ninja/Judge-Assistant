@@ -1,35 +1,16 @@
 """
 case_doc_rag_adapter.py
 
-Adapter for the Case Document RAG agent (RAG/Case Doc RAG/rag_docs.py).
-
-Wraps the compiled ``app`` graph and returns an AgentResult with the
-answer extracted from case documents.
+Adapter for the Case Document RAG agent (RAG/case_doc_rag/).
 """
 
 import logging
-import os
-import sys
+import uuid
 from typing import Any, Dict
-
-from langchain_core.messages import HumanMessage
 
 from Supervisor.agents.base import AgentAdapter, AgentResult
 
 logger = logging.getLogger(__name__)
-
-
-def _get_shared_vectorstore():
-    """Return the shared Qdrant vector store used by the FileIngestor.
-
-    This ensures the Case Doc RAG reads from the *same* store that
-    documents were indexed into, avoiding the empty-store problem that
-    occurs when ``rag_docs.py`` creates its own Qdrant client
-    instance at import time.
-    """
-    from Supervisor.nodes.classify_and_store_document import _get_ingestor
-    ingestor = _get_ingestor()
-    return ingestor.vectorstore
 
 
 class CaseDocRAGAdapter(AgentAdapter):
@@ -43,94 +24,70 @@ class CaseDocRAGAdapter(AgentAdapter):
         query:
             The (rewritten) judge query about case documents.
         context:
-            Should contain ``case_id``.  May also contain
-            ``conversation_history`` for multi-turn context.
+            Should contain ``case_id`` and ``conversation_history``.
         """
         try:
-            # Add Case Doc RAG directory to path
-            rag_dir = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "..", "..", "RAG", "Case Doc RAG",
-            )
-            rag_dir = os.path.normpath(rag_dir)
-            if rag_dir not in sys.path:
-                sys.path.insert(0, rag_dir)
-
-            from dotenv import load_dotenv
-            load_dotenv()
-
-            import rag_docs
-            from rag_docs import app
-
-            # Inject the shared vector store so rag_docs queries the
-            # same Qdrant instance that documents were indexed into.
-            try:
-                shared_vs = _get_shared_vectorstore()
-                rag_docs.set_vectorstore(shared_vs)
-                logger.info("Injected shared vectorstore into rag_docs")
-            except Exception as exc:
-                logger.warning(
-                    "Could not inject shared vectorstore: %s. "
-                    "rag_docs will use its own Qdrant instance.",
-                    exc,
-                )
+            from RAG.case_doc_rag.graph import build_graph
 
             case_id = context.get("case_id", "")
-
-            # Build message list from conversation history
-            messages = []
-            for turn in context.get("conversation_history", []):
-                role = turn.get("role", "user")
-                content = turn.get("content", "")
-                if role == "user":
-                    messages.append(HumanMessage(content=content))
-
-            # The current query as a HumanMessage
-            human_msg = HumanMessage(content=query)
-            messages.append(human_msg)
+            conversation_history = context.get("conversation_history", [])
+            # Prefer supervisor correlation_id for end-to-end traceability (Part 3.2)
+            request_id = context.get("correlation_id") or str(uuid.uuid4())
 
             initial_state = {
-                "query": human_msg,
-                "messages": messages,
+                "query": query,
                 "case_id": case_id,
-                "doc_type": None,
-                "retrieved_docs": [],
-                "context": "",
-                "refined_query": "",
-                "safety_notes": [],
-                "answer": "",
-                "onTopic": True,
-                "proceedToGenerate": False,
-                "rephraseCount": 0,
-                "doc_selection_mode": "",
+                "conversation_history": conversation_history,
+                "request_id": request_id,
+                # processing fields — use feature defaults
+                "sub_questions": [],
+                "on_topic": True,
+                "doc_selection_mode": "no_doc_specified",
                 "selected_doc_id": None,
+                "doc_titles": [],
+                "sub_answers": [],
+                "final_answer": "",
+                "error": None,
             }
 
+            app = build_graph()
             result = app.invoke(initial_state)
 
-            # Extract the answer from the last AI message
-            answer = result.get("answer", "")
-            if not answer:
-                result_messages = result.get("messages", [])
-                for msg in reversed(result_messages):
-                    if hasattr(msg, "content") and hasattr(msg, "type"):
-                        if msg.type == "ai":
-                            answer = msg.content
-                            break
+            error = result.get("error")
+            if error:
+                return AgentResult(response="", error=str(error))
 
-            # Extract sources from retrieved docs
+            final_answer = result.get("final_answer", "")
+
+            # P1.4.3: empty answer with no explicit error is a silent failure —
+            # surface it so the supervisor can retry or fall back.
+            if not final_answer:
+                on_topic = result.get("on_topic", True)
+                if not on_topic:
+                    return AgentResult(
+                        response="",
+                        error="Case Doc RAG: query classified as off-topic for case documents",
+                    )
+                return AgentResult(
+                    response="",
+                    error="Case Doc RAG: no answer produced (empty result)",
+                )
+
+            # Sources live inside each sub_answer entry
             sources = []
-            for doc in result.get("retrieved_docs", []):
-                if isinstance(doc, dict):
-                    title = doc.get("title", doc.get("doc_id", ""))
-                    if title:
-                        sources.append(str(title))
+            for sub in result.get("sub_answers", []):
+                for src in sub.get("sources", []):
+                    if src:
+                        s = str(src)
+                        if s not in sources:
+                            sources.append(s)
 
             return AgentResult(
-                response=answer,
+                response=final_answer,
                 sources=sources,
                 raw_output={
-                    "answer": answer,
+                    "final_answer": final_answer,
+                    "sub_answers": result.get("sub_answers", []),
                     "doc_selection_mode": result.get("doc_selection_mode"),
                     "selected_doc_id": result.get("selected_doc_id"),
                 },

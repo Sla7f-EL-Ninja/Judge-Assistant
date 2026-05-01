@@ -50,7 +50,7 @@ class TestSummarizerMongoFallback:
 
     def test_summarize_schemas_have_required_fields(self):
         """Summarize pipeline schemas must have text-related fields."""
-        from Summerize.schemas import NormalizedChunk
+        from summarize.schemas import NormalizedChunk
 
         schema = NormalizedChunk.model_json_schema()
         properties = schema.get("properties", {})

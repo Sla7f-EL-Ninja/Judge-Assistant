@@ -34,6 +34,9 @@ from typing import Any, Dict, Optional
 
 import yaml
 
+# Used to prevent callers from mutating returned section dicts (P1.1.7)
+_EMPTY: Dict[str, Any] = {}
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -65,14 +68,36 @@ def _apply_env_overrides(data: Dict[str, Any], prefix: str = "JA") -> Dict[str, 
     The convention is ``JA_<SECTION>_<KEY>`` for top-level keys and
     ``JA_<SECTION>_<SUB>_<KEY>`` for nested keys.  Values are cast to
     match the type of the YAML default (bool, int, float, str).
+
+    Net-new keys absent from YAML can also be injected via env (P1.9.5/B27):
+    ``JA_SECTION_KEY=value`` injects ``{section: {key: value}}`` as a string
+    if no matching path exists in the loaded config.
     """
+    prefix_upper = prefix.upper() + "_"
     flat = _flatten(data)
+    covered_env_keys: set = set()
+
+    # Pass 1 — update existing YAML keys
     for flat_key, default_value in flat.items():
         env_key = f"{prefix}_{'_'.join(flat_key)}".upper()
+        covered_env_keys.add(env_key)
         env_val = os.environ.get(env_key)
         if env_val is not None:
             cast_val = _cast(env_val, default_value)
             _set_nested(data, flat_key, cast_val)
+
+    # Pass 2 — inject net-new keys absent from YAML (P1.9.5)
+    for env_key, env_val in os.environ.items():
+        if not env_key.startswith(prefix_upper):
+            continue
+        if env_key in covered_env_keys:
+            continue
+        # Derive key path: JA_SECTION_KEY → ("section", "key")
+        remainder = env_key[len(prefix_upper):]
+        parts = tuple(p.lower() for p in remainder.split("_") if p)
+        if len(parts) >= 2:
+            _set_nested(data, parts, env_val)
+
     return data
 
 
@@ -133,50 +158,66 @@ class AppConfig:
     def __getitem__(self, key: str) -> Any:
         return self._data[key]
 
+    def __setitem__(self, key: str, value: Any) -> None:
+        raise TypeError("AppConfig is read-only after initialization — use settings.local.yaml or JA_* env vars")
+
     def get(self, key: str, default: Any = None) -> Any:
         return self._data.get(key, default)
 
-    # -- attribute access for top-level sections -----------------------------
+    # -- attribute access for top-level sections (P1.1.7) --------------------
+    # Each property returns a shallow copy so callers cannot mutate the
+    # shared singleton's internal state via the returned dict.
+
+    def _section(self, key: str) -> Dict[str, Any]:
+        return dict(self._data.get(key, _EMPTY))
 
     @property
     def llm(self) -> Dict[str, Any]:
-        return self._data.get("llm", {})
+        return self._section("llm")
 
     @property
     def embedding(self) -> Dict[str, Any]:
-        return self._data.get("embedding", {})
+        return self._section("embedding")
 
     @property
     def mongodb(self) -> Dict[str, Any]:
-        return self._data.get("mongodb", {})
+        return self._section("mongodb")
 
     @property
     def qdrant(self) -> Dict[str, Any]:
-        return self._data.get("qdrant", {})
+        return self._section("qdrant")
 
     @property
     def redis(self) -> Dict[str, Any]:
-        return self._data.get("redis", {})
+        return self._section("redis")
 
     @property
     def minio(self) -> Dict[str, Any]:
-        return self._data.get("minio", {})
+        return self._section("minio")
 
     @property
     def postgresql(self) -> Dict[str, Any]:
-        return self._data.get("postgresql", {})
+        return self._section("postgresql")
 
     @property
     def api(self) -> Dict[str, Any]:
-        return self._data.get("api", {})
+        return self._section("api")
 
     @property
     def supervisor(self) -> Dict[str, Any]:
-        return self._data.get("supervisor", {})
+        return self._section("supervisor")
+
+    @property
+    def rag(self) -> Dict[str, Any]:
+        return self._section("rag")
 
     @property
     def ocr(self) -> Dict[str, Any]:
-        return self._data.get("ocr", {})
+        return self._section("ocr")
+
+    @property
+    def tei(self) -> Dict[str, Any]:
+        return self._section("tei")
 
     @property
     def tei(self) -> Dict[str, Any]:
@@ -258,13 +299,17 @@ def get_llm(tier: str, **overrides: Any):
         )
 
     tier_cfg = cfg.llm.get(tier, {})
-    provider = tier_cfg.get("provider", "groq")
-    model = tier_cfg.get("model", "llama-3.3-70b-versatile")
+    provider = tier_cfg.get("provider", "google")
+    model = tier_cfg.get("model", "gemini-2.5-flash")
     temperature = tier_cfg.get("temperature", 0.0)
 
     # Allow caller overrides
     model = overrides.pop("model", model)
     temperature = overrides.pop("temperature", temperature)
+    # Default 120 s per call; callers may override via request_timeout=N
+    timeout = overrides.pop("request_timeout", tier_cfg.get("timeout_seconds", 120))
+
+    llm_retries = overrides.pop("max_retries", tier_cfg.get("max_retries", 3))
 
     if provider == "groq":
         from langchain_groq import ChatGroq
@@ -272,6 +317,8 @@ def get_llm(tier: str, **overrides: Any):
         return ChatGroq(
             model_name=model,
             temperature=temperature,
+            request_timeout=timeout,
+            max_retries=llm_retries,
             **overrides,
         )
 
@@ -281,6 +328,8 @@ def get_llm(tier: str, **overrides: Any):
         return ChatGoogleGenerativeAI(
             model=model,
             temperature=temperature,
+            request_timeout=timeout,
+            max_retries=llm_retries,
             **overrides,
         )
 
