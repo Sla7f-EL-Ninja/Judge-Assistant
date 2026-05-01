@@ -107,7 +107,7 @@ def make_initial_state(corpus_config: CorpusConfig) -> dict:
     invocations.
 
     Args:
-        corpus_config: The CorpusConfig for the target law (civil, evidence…).
+        corpus_config: The CorpusConfig for the target law (civil, evidence, procedures…).
 
     Returns:
         A fresh state dict ready to pass to app.invoke().

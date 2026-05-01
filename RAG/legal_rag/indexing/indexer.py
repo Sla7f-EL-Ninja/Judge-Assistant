@@ -11,14 +11,17 @@ The correct integration point is the FastAPI lifespan in api/app.py::
     from RAG.legal_rag.indexing.indexer import ensure_indexed
     from RAG.civil_law_rag.corpus import CIVIL_LAW_CORPUS
     from RAG.evidence_rag.corpus import EVIDENCE_CORPUS
+    from RAG.procedures_rag.corpus import PROCEDURES_CORPUS
 
     ensure_indexed(CIVIL_LAW_CORPUS)
     ensure_indexed(EVIDENCE_CORPUS)
+    ensure_indexed(PROCEDURES_CORPUS)
 
 Can also be run as a standalone CLI::
 
     python -m RAG.legal_rag.indexing.indexer --corpus civil_law
     python -m RAG.legal_rag.indexing.indexer --corpus evidence_law --force
+    python -m RAG.legal_rag.indexing.indexer --corpus procedures_law --force
 
 Pipeline:
     1. Load tagged text file (path from CorpusConfig.docs_path)
@@ -153,8 +156,10 @@ if __name__ == "__main__":
         from RAG.legal_rag.civil_law_rag.corpus import CIVIL_LAW_CORPUS as _cfg
     elif corpus_name == "evidence_law":
         from RAG.legal_rag.evidence_rag.corpus import EVIDENCE_CORPUS as _cfg
+    elif corpus_name == "procedures_law":
+        from RAG.legal_rag.procedures_rag.corpus import PROCEDURES_CORPUS as _cfg
     else:
-        print("Usage: python -m RAG.legal_rag.indexing.indexer --corpus <civil_law|evidence_law> [--force]")
+        print("Usage: python -m RAG.legal_rag.indexing.indexer --corpus <civil_law|evidence_law|procedures_law> [--force]")
         sys.exit(1)
 
     index_corpus(_cfg, force=force)

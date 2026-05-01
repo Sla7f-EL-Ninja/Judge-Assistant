@@ -8,7 +8,7 @@ structured hierarchy used by the scope classifier to map a query to
 its nearest chapter → section before retrieval.
 
 API change from v1: load_toc(docs_path) now takes an explicit path
-argument so the same module serves any corpus (civil law, evidence law…).
+argument so the same module serves any corpus (civil law, evidence law, procedures law).
 The in-memory + JSON cache is keyed by docs_path.
 
 Cache: a JSON file (.toc_cache.json) next to docs_path, keyed by

@@ -6,7 +6,9 @@ Manual smoke-test for the legal_rag engine.
 Run from the project root:
     python RAG/legal_rag/test_main.py
     python RAG/legal_rag/test_main.py --corpus evidence
-    python RAG/legal_rag/test_main.py --corpus both
+    python RAG/legal_rag/test_main.py --corpus civil
+    python RAG/legal_rag/test_main.py --corpus procedures
+    python RAG/legal_rag/test_main.py --corpus all
     python RAG/legal_rag/test_main.py --query "ما هي شروط صحة العقد؟" --corpus civil
 """
 
@@ -56,6 +58,12 @@ EVIDENCE_QUERIES = [
     "متى يجوز الإثبات بالبينة الشهادة؟",
 ]
 
+PROCEDURES_QUERIES = [
+    "ما هي أنواع الدعاوى المدنية؟",
+    "ما نص المادة 10 من قانون المرافعات؟",
+    "ما هي شروط رفع الدعوى؟",
+]
+
 
 # ── indexing check ────────────────────────────────────────────────────────────
 
@@ -65,8 +73,13 @@ def check_and_index(corpus_name: str) -> bool:
     try:
         if corpus_name == "civil":
             from RAG.legal_rag.civil_law_rag import ensure_indexed
-        else:
+        elif corpus_name == "evidence":
             from RAG.legal_rag.evidence_rag import ensure_indexed
+        elif corpus_name == "procedures":
+            from RAG.legal_rag.procedures_rag import ensure_indexed
+        else:
+            print("Invalid corpus name for indexing check: must be 'civil', 'evidence', or 'procedures'.")
+            return False
 
         ensure_indexed()
         print(_ok(f"  ✓ {corpus_name} corpus is indexed and ready."))
@@ -88,8 +101,13 @@ def run_query(query: str, corpus_name: str) -> None:
     try:
         if corpus_name == "civil":
             from RAG.legal_rag.civil_law_rag import ask_question
-        else:
+        elif corpus_name == "evidence":
             from RAG.legal_rag.evidence_rag import ask_question
+        elif corpus_name == "procedures":
+            from RAG.legal_rag.procedures_rag import ask_question
+        else:
+            print("Invalid corpus name for query: must be 'civil', 'evidence', or 'procedures'.")
+            return
 
         t0     = time.perf_counter()
         result = ask_question(query)
@@ -124,7 +142,8 @@ def run_query(query: str, corpus_name: str) -> None:
 def test_corpus(corpus_name: str, custom_query: str | None = None) -> None:
     _sep()
     label = "Civil Law (القانون المدني)" if corpus_name == "civil" \
-            else "Evidence Law (قانون الإثبات)"
+            else "Evidence Law (قانون الإثبات)" if corpus_name == "evidence" \
+            else "Procedures Law (قانون الإجراءات)"
     print(_h(f"══ Testing corpus: {label} ══"))
 
     if not check_and_index(corpus_name):
@@ -132,7 +151,7 @@ def test_corpus(corpus_name: str, custom_query: str | None = None) -> None:
         return
 
     queries = [custom_query] if custom_query else (
-        CIVIL_QUERIES if corpus_name == "civil" else EVIDENCE_QUERIES
+        CIVIL_QUERIES if corpus_name == "civil" else EVIDENCE_QUERIES if corpus_name == "evidence" else PROCEDURES_QUERIES
     )
 
     for q in queries:
@@ -163,8 +182,13 @@ def test_edge_cases(corpus_name: str) -> None:
         try:
             if corpus_name == "civil":
                 from RAG.legal_rag.civil_law_rag import ask_question
-            else:
+            elif corpus_name == "evidence":
                 from RAG.legal_rag.evidence_rag import ask_question
+            elif corpus_name == "procedures":
+                from RAG.legal_rag.procedures_rag import ask_question
+            else:
+                print("Invalid corpus name for edge case test: must be 'civil', 'evidence', or 'procedures'.")
+                return
             result = ask_question(query)
             short  = (result.answer or "")[:120].replace("\n", " ")
             print(f"    classification : {result.classification}")
@@ -181,8 +205,13 @@ def test_graph_build(corpus_name: str) -> None:
     try:
         if corpus_name == "civil":
             from RAG.legal_rag.civil_law_rag import build_graph
-        else:
+        elif corpus_name == "evidence":
             from RAG.legal_rag.evidence_rag import build_graph
+        elif corpus_name == "procedures":
+            from RAG.legal_rag.procedures_rag import build_graph
+        else:
+            print("Invalid corpus name for graph build test: must be 'civil', 'evidence', or 'procedures'.")
+            return
 
         g = build_graph()
         print(_ok(f"  ✓ Graph compiled successfully: {type(g).__name__}"))
@@ -195,7 +224,7 @@ def test_graph_build(corpus_name: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Smoke-test the legal_rag engine.")
     parser.add_argument(
-        "--corpus", choices=["civil", "evidence", "both"], default="civil",
+        "--corpus", choices=["civil", "evidence", "procedures", "all"], default="civil",
         help="Which corpus to test (default: civil)",
     )
     parser.add_argument(
@@ -208,7 +237,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    corpora = ["civil", "evidence"] if args.corpus == "both" else [args.corpus]
+    corpora = ["civil", "evidence", "procedures"] if args.corpus == "all" else [args.corpus]
 
     print(_h("\n══════════════════════════════════════════"))
     print(_h("   legal_rag engine — smoke test"))

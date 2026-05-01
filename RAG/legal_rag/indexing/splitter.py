@@ -94,7 +94,7 @@ def split_legal_document(text: str, source_value: str) -> List[Document]:
     Args:
         text:         Full tagged legal text (UTF-8 Arabic).
         source_value: Value written to metadata.source, e.g. "civil_law"
-                      or "evidence_law".  Must match CorpusConfig.source_filter_value.
+                      or "evidence_law" or "procedures_law".  Must match CorpusConfig.source_filter_value.
 
     Returns:
         List of Document objects — one per numeric article, ready for embedding.
@@ -179,3 +179,11 @@ def split_legal_document(text: str, source_value: str) -> List[Document]:
 def split_egyptian_civil_law(text: str) -> List[Document]:
     """Deprecated alias — use split_legal_document(text, 'civil_law') instead."""
     return split_legal_document(text, source_value="civil_law")
+
+def split_egyptian_evidence_law(text: str) -> List[Document]:
+    """Deprecated alias — use split_legal_document(text, 'evidence_law') instead."""
+    return split_legal_document(text, source_value="evidence_law")
+
+def split_egyptian_procedures_law(text: str) -> List[Document]:
+    """Deprecated alias — use split_legal_document(text, 'procedures_law') instead."""
+    return split_legal_document(text, source_value="procedures_law")
