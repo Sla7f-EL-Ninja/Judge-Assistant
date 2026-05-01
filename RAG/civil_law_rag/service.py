@@ -20,20 +20,16 @@ from __future__ import annotations
 
 import logging
 import re
-import threading
 import traceback
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from config import cfg
-
-# Part 3.3d: read at call time so the cache key reflects the live config,
-# not a value frozen at import time (which becomes stale after env-var reload).
-def _current_llm_model() -> str:
-    return cfg.llm.get("high", {}).get("model", "gemini-2.5-flash")
-MAX_QUERY_LENGTH: int = 2000
-MIN_QUERY_LENGTH: int = 3
-MIN_ARABIC_RATIO: float = 0.3
+from RAG.civil_law_rag.config import (
+    LLM_MODEL,
+    MAX_QUERY_LENGTH,
+    MIN_ARABIC_RATIO,
+    MIN_QUERY_LENGTH,
+)
 from RAG.civil_law_rag.errors import QueryValidationError
 from RAG.civil_law_rag.indexing.normalizer import normalize
 from RAG.civil_law_rag.state import make_initial_state
@@ -44,20 +40,6 @@ logger = get_logger(__name__)
 # Module-level singleton cache
 from RAG.civil_law_rag.cache import SemanticCache
 _cache = SemanticCache()
-
-# Module-level singleton graph (avoid rebuilding per call)
-_app = None
-_app_lock = threading.Lock()
-
-
-def _get_app():
-    global _app
-    if _app is None:
-        with _app_lock:
-            if _app is None:
-                from RAG.civil_law_rag.graph import build_graph
-                _app = build_graph()
-    return _app
 
 
 # ---------------------------------------------------------------------------
@@ -146,15 +128,14 @@ def ask_question(query: str) -> CivilLawResult:
     query = validate_query(query)
 
     # 2. Cache lookup
-    llm_model = _current_llm_model()
-    cached = _cache.get(query, llm_model=llm_model)
+    cached = _cache.get(query, llm_model=LLM_MODEL)
     if cached is not None:
-        cached_answer, cached_sources = cached
-        return CivilLawResult(answer=cached_answer, sources=cached_sources, from_cache=True)
+        return CivilLawResult(answer=cached, from_cache=True)
 
     # 3. Graph invocation
     try:
-        app = _get_app()
+        from RAG.civil_law_rag.graph import build_graph
+        app = build_graph()
 
         state = make_initial_state()
         state["last_query"] = query
@@ -166,7 +147,8 @@ def ask_question(query: str) -> CivilLawResult:
 
         # 4. Cache successful answers
         if answer:
-            _cache.set(query, answer, sources=sources, llm_model=llm_model)
+            _cache.set(query, answer, llm_model=LLM_MODEL)
+
         return CivilLawResult(
             answer=answer,
             sources=sources,

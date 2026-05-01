@@ -226,9 +226,8 @@ import re
 from pathlib import Path
 from typing import List, Optional
 
+from RAG.civil_law_rag.config import DOCS_PATH
 from RAG.civil_law_rag.telemetry import get_logger, log_event
-
-DOCS_PATH: str = str(Path(__file__).resolve().parent.parent / "docs" / "civil_law.txt")
 
 logger = get_logger(__name__)
 
@@ -418,3 +417,4 @@ def load_toc() -> List[dict]:
 def get_toc_hash() -> str:
     """Fingerprint of the TOC source — used as a cache key component."""
     return _source_fingerprint()
+

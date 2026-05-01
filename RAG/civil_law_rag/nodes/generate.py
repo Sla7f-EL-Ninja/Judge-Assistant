@@ -21,10 +21,7 @@ load_dotenv()  # Load environment variables from .env file
 from langchain_core.documents import Document
 from langsmith import traceable
 
-from config import get_llm
-
-MAX_LLM_CALLS: int = 5
-LLM_TIMEOUT: int = 30
+from RAG.civil_law_rag.config import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT
 from RAG.civil_law_rag.prompts import ANALYTICAL_PROMPT
 from RAG.civil_law_rag.telemetry import get_logger, log_event
 

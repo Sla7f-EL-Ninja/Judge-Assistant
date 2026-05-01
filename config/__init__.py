@@ -219,6 +219,10 @@ class AppConfig:
     def tei(self) -> Dict[str, Any]:
         return self._section("tei")
 
+    @property
+    def tei(self) -> Dict[str, Any]:
+        return self._data.get("tei", {})
+
     def raw(self) -> Dict[str, Any]:
         """Return the full raw config dict."""
         return copy.deepcopy(self._data)

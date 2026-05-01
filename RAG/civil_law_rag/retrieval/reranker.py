@@ -152,15 +152,8 @@ from typing import List
 import httpx
 from langchain_core.documents import Document
 
-import os
-
-from config import cfg
+from RAG.civil_law_rag.config import TEI_RERANKER_URL
 from RAG.civil_law_rag.telemetry import get_logger, log_event
-
-TEI_RERANKER_URL: str = os.environ.get(
-    "JA_TEI_RERANKER_URL",
-    cfg.tei.get("reranker_url", "http://localhost:8081"),
-)
 
 logger = get_logger(__name__)
 

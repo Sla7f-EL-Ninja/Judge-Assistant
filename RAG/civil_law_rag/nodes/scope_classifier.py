@@ -28,10 +28,7 @@ from langsmith import traceable
 
 load_dotenv()
 
-from config import cfg, get_llm
-
-MAX_LLM_CALLS: int = 5
-LLM_TIMEOUT: int = 30
+from RAG.civil_law_rag.config import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT, cfg
 from RAG.civil_law_rag.indexing.toc import load_toc, get_toc_hash
 from RAG.civil_law_rag.prompts import CHAPTER_CLASSIFIER_PROMPT, SECTION_CLASSIFIER_PROMPT
 from RAG.civil_law_rag.telemetry import get_logger, log_event

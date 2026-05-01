@@ -22,16 +22,11 @@ from typing import List
 
 import httpx
 
-import os
-
-from config import cfg
-from RAG.civil_law_rag.telemetry import get_logger, log_event
-
-EMBEDDING_MODEL: str = cfg.embedding.get("model", "BAAI/bge-m3")
-TEI_EMBEDDING_URL: str = os.environ.get(
-    "JA_TEI_EMBEDDING_URL",
-    cfg.tei.get("embedding_url", "http://localhost:8080"),
+from RAG.civil_law_rag.config import (
+    EMBEDDING_MODEL,
+    TEI_EMBEDDING_URL,
 )
+from RAG.civil_law_rag.telemetry import get_logger, log_event
 
 logger = get_logger(__name__)
 

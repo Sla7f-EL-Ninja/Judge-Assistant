@@ -30,10 +30,7 @@ from langchain_core.documents import Document
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 from langsmith import traceable
 
-from config import cfg, get_llm
-
-MAX_LLM_CALLS: int = 5
-LLM_TIMEOUT: int = 30
+from RAG.civil_law_rag.config import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT, cfg
 from RAG.civil_law_rag.indexing.normalizer import normalize
 from RAG.civil_law_rag.prompts import HYDE_EXPANSION_PROMPT
 from RAG.civil_law_rag.retrieval.vectorstore import civil_law_filter, load_vectorstore
@@ -215,3 +212,4 @@ def retrieve_node(state: dict) -> dict:
         top_indices=[d.metadata.get("index") for d in reranked_docs],
     )
     return state
+
