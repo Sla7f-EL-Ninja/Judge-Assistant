@@ -1,0 +1,302 @@
+# golden_set.yaml — Case Reasoner evaluation samples
+#
+# INSTRUCTIONS FOR LEGAL EXPERT:
+#   - Replace every [PLACEHOLDER: ...] value with real Arabic case content.
+#   - Do NOT invent facts. Use actual case materials.
+#   - Keep all text in formal Egyptian legal Arabic (عربية قانونية فصيحة).
+#   - Fields marked with a (!) are critical for rule-based metrics.
+#   - Save as UTF-8 encoding after editing.
+#
+# HOW TO RUN EVAL:
+#   pytest tests/case_reasoner/test_eval_quality.py -m llm_eval -v
+#   pytest tests/case_reasoner/test_pipeline_integration.py -m case_reasoner_llm -v
+
+samples:
+
+  # =========================================================================
+  # GS-CR-01: Standard two-issue civil contract dispute
+  # Target metrics: branch coverage=100%, confidence=high, no reconciliation
+  # =========================================================================
+  - sample_id: "GS-CR-01"
+    description: "دعوى عقدية بمسألتين مستقلتين — تعويض وإخلال"
+
+    input:
+      case_id: "golden-001"
+    
+      # (!) The judge's question — should be specific and legal in nature
+      judge_query: "ما مدى صحة عقد البيع الابتدائي المؤرخ في 15/04/2022 في ضوء ادعاء التزوير، وما يترتب على ذلك من آثار قانونية بشأن طلب الفسخ والتعويض ومسؤولية أطراف النزاع؟"
+
+      case_brief:
+        # 2-3 paragraph Arabic summary of the overall dispute
+        dispute_summary: >
+          [يدور النزاع بين السيد / أحمد محمد عبد الله (المدعي) والسيد / محمود سعيد إبراهيم (المدعى عليه الأول) وشركة العقارات الحديثة (المدعى عليها الثانية)، حول ادعاء المدعي بتزوير عقد بيع ابتدائي مؤرخ في 15/04/2022 لشقة يملكها، ومطالبته بفسخ العقد أو إهداره، وإلزام المدعى عليهما بالتضامن بتعويض قدره مليوني جنيه مصري عن الأضرار المادية والأدبية.]
+
+        # (!) Facts BOTH parties agree on — bullet list in Arabic
+        # Must include: contract date, parties, subject matter, agreed amounts
+        uncontested_facts: >
+          [المدعي هو السيد / أحمد محمد عبد الله، والمدعى عليه الأول هو السيد / محمود سعيد إبراهيم، والمدعى عليها الثانية هي شركة العقارات الحديثة. الدعوى مقيدة برقم 2847 لسنة 2024 أمام محكمة جنوب القاهرة الابتدائية. توجد شقة مملوكة للمدعي بموجب عقد ابتدائي مسجل لدى الشهر العقاري، وقد تم بيعها بموجب عقد بيع ابتدائي مؤرخ في 15/04/2022.]
+
+        # (!) Contested factual/legal points — MUST contain >= 2 distinct legal issues
+#"تتمثل نقاط الخلاف الجوهرية في صحة عقد البيع الابتدائي المؤرخ في 15/04/2022 وما إذا كان التوقيع المنسوب للمدعي عليه مزوراً، حيث يتمسك المدعي بالتزوير بينما ينكر المدعى عليه الأول ذلك ويؤكد استلام المدعي للثمن. كما يدور الخلاف حول مسؤولية المدعى عليهما عن التعويض المطالب به، حيث تدفع المدعى عليها الثانية بانعدام صفتها وحسن نيتها وانقطاع العلاقة السببية. ويتمسك المدعى عليه الأول بدفع بعدم قبول الدعوى لرفعها قبل الأوان لعدم استنفاد طريق التسوية الودية. كما يوجد خلاف حول الدائرة المختصة بنظر الدعوى، حيث يذكر المدعي الدائرة المدنية بينما يتمسك المدعى عليه الأول والمدعى عليها الثانية بالدائرة الثالثة مدني.",
+    
+        key_disputes: >
+          [تتمثل نقاط الخلاف الجوهرية في صحة عقد البيع الابتدائي المؤرخ في 15/04/2022 وما إذا كان التوقيع المنسوب للمدعي عليه مزوراً، حيث يتمسك المدعي بالتزوير بينما ينكر المدعى عليه الأول ذلك ويؤكد استلام المدعي للثمن. كما يدور الخلاف حول مسؤولية المدعى عليهما عن التعويض المطالب به، حيث تدفع المدعى عليها الثانية بانعدام صفتها وحسن نيتها وانقطاع العلاقة السببية. ويتمسك المدعى عليه الأول بدفع بعدم قبول الدعوى لرفعها قبل الأوان لعدم استنفاد طريق التسوية الودية. كما يوجد خلاف حول الدائرة المختصة بنظر الدعوى، حيث يذكر المدعي الدائرة المدنية بينما يتمسك المدعى عليه الأول والمدعى عليها الثانية بالدائرة الثالثة مدني.]
+
+        # Party requests to the court
+        party_requests: >
+          [طلبات المدعي (السيد / أحمد محمد عبد الله): الحكم بفسخ عقد البيع الابتدائي المؤرخ في 15/04/2022 الموصوف بالمزور، أو إهداره. إلزام المدعى عليهما بالتضامن بأن يؤديا للمدعي مبلغ مليوني جنيه مصري تعويضاً عن الأضرار المادية والأدبية و/أو تعويضاً شاملاً. إلزام المدعى عليهما بالمصاريف وأتعاب المحاماة.\nطلبات المدعى عليه الأول (السيد / محمود سعيد إبراهيم): رفض الدعوى موضوعاً. إلزام المدعي بالمصاريف وأتعاب المحاماة.\nطلبات المدعى عليها الثانية (شركة العقارات الحديثة): أصلياً: القضاء بعدم قبول الدعوى لانعدام الصفة. احتياطياً: رفض الدعوى موضوعاً. إلزام المدعي بالمصاريف.]
+
+        # Legal defenses raised by each party
+        party_defenses: >
+          [دفوع المدعي (السيد / أحمد محمد عبد الله): لم ترد دفوع لهذا الطرف في المدخلات.\nدفوع المدعى عليه الأول (السيد / محمود سعيد إبراهيم):\n- دفوع بعدم القبول: عدم قبول الدعوى لرفعها قبل الأوان، حيث لم يُستنفد طريق التسوية الودية المنصوص عليها في بنود العقد.\n- دفوع موضوعية: ينكر أن التوقيع الوارد على العقد مزوراً، ويؤكد أن المدعي أمضى بنفسه وبإرادته الحرة، وأن المدعي استلم كامل الثمن المتفق عليه بموجب إيصالات موقعة.\n- دفوع متعلقة بصحة الأدلة: يدفع بأن تقرير الطب الشرعي مشكوك في صحته لأسباب إجرائية تتعلقة بتسلسل حفظ الأدلة.\nدفوع المدعى عليها الثانية (شركة العقارات الحديثة):\n- دفوع بعدم القبول: عدم صفتها في الدعوى الحالية، مؤكدة أن الشركة شخص اعتباري مستقل ولم تكن طرفاً في عقد البيع الابتدائي المطعون فيه.\n- دفوع موضوعية: تتمسك بالدفع الموضوعي، حيث اشترت العقار بحسن نية وبسعر السوق، واطلعت على مستندات الملكية قبل إتمام الصفقة ولم يظهر ما يثير الريبة. تتمسك بالدفع بانقطاع العلاقة السببية، حيث لم تكن طرفاً في التزوير حتى لو ثبت، ولا علم لها بالتزوير، مما ينفي مسؤوليتها التضامنية عن التعويض.\n\n[تصحيح] المدعى عليه: لم ترد مذكرة دفاع لهذا الطرف في الملف المقدم]
+
+        # Documents submitted as evidence
+        submitted_documents: >
+          [المستندات المقدمة من المدعي (السيد / أحمد محمد عبد الله):\n- تقرير مصلحة الطب الشرعي رقم 471 لسنة 2023.\n- صورة عقد البيع المطعون فيه.\n- صورة بطاقة الهوية الوطنية للمدعي.\n- صورة عقد الملكية الأصلي.\n- محضر الجلسة بتاريخ 25/03/2024.]
+
+        # (!) Legal questions — MUST reference specific civil code articles
+        # This is the PRIMARY input to Issue Extraction Node
+        legal_questions: >
+          [1. هل عقد البيع الابتدائي المؤرخ في 15/04/2022 مزور، وهل التوقيع المنسوب للمدعي صحيح أم مزور؟\n2. هل الدعوى مقبولة شكلاً لعدم استنفاد طريق التسوية الودية المنصوص عليها في العقد؟\n3. هل تتوفر الصفة القانونية للمدعى عليها الثانية في الدعوى، وهل كانت طرفاً في عقد البيع الابتدائي المطعون فيه؟\n4. ما مدى مسؤولية المدعى عليه الأول والمدعى عليها الثانية عن الأضرار المادية والأدبية المطالب بها، في حال ثبوت التزوير؟\n5. ما مدى حجية تقرير مصلحة الطب الشرعي رقم 471 لسنة 2023 في إثبات صحة التوقيع؟\n6. ما هي الدائرة القضائية المختصة بنظر النزاع؟]
+
+      # Full rendered brief from summarizer (output of Summerize pipeline)
+      rendered_brief: "# مذكرة ملخص القضية\n\n## أولاً: ملخص النزاع\nيدور النزاع بين السيد / أحمد محمد عبد الله (المدعي) والسيد / محمود سعيد إبراهيم (المدعى عليه الأول) وشركة العقارات الحديثة (المدعى عليها الثانية)، حول ادعاء المدعي بتزوير عقد بيع ابتدائي مؤرخ في 15/04/2022 لشقة يملكها، ومطالبته بفسخ العقد أو إهداره، وإلزام المدعى عليهما بالتضامن بتعويض قدره مليوني جنيه مصري عن الأضرار المادية والأدبية.\n\n## ثانياً: الوقائع غير المتنازع عليها\nالمدعي هو السيد / أحمد محمد عبد الله، والمدعى عليه الأول هو السيد / محمود سعيد إبراهيم، والمدعى عليها الثانية هي شركة العقارات الحديثة. الدعوى مقيدة برقم 2847 لسنة 2024 أمام محكمة جنوب القاهرة الابتدائية. توجد شقة مملوكة للمدعي بموجب عقد ابتدائي مسجل لدى الشهر العقاري، وقد تم بيعها بموجب عقد بيع ابتدائي مؤرخ في 15/04/2022.\n\n## ثالثاً: نقاط الخلاف الجوهرية\nتتمثل نقاط الخلاف الجوهرية في صحة عقد البيع الابتدائي المؤرخ في 15/04/2022 وما إذا كان التوقيع المنسوب للمدعي عليه مزوراً، حيث يتمسك المدعي بالتزوير بينما ينكر المدعى عليه الأول ذلك ويؤكد استلام المدعي للثمن. كما يدور الخلاف حول مسؤولية المدعى عليهما عن التعويض المطالب به، حيث تدفع المدعى عليها الثانية بانعدام صفتها وحسن نيتها وانقطاع العلاقة السببية. ويتمسك المدعى عليه الأول بدفع بعدم قبول الدعوى لرفعها قبل الأوان لعدم استنفاد طريق التسوية الودية. كما يوجد خلاف حول الدائرة المختصة بنظر الدعوى، حيث يذكر المدعي الدائرة المدنية بينما يتمسك المدعى عليه الأول والمدعى عليها الثانية بالدائرة الثالثة مدني.\n\n## رابعاً: طلبات الخصوم\nطلبات المدعي (السيد / أحمد محمد عبد الله): الحكم بفسخ عقد البيع الابتدائي المؤرخ في 15/04/2022 الموصوف بالمزور، أو إهداره. إلزام المدعى عليهما بالتضامن بأن يؤديا للمدعي مبلغ مليوني جنيه مصري تعويضاً عن الأضرار المادية والأدبية و/أو تعويضاً شاملاً. إلزام المدعى عليهما بالمصاريف وأتعاب المحاماة.\nطلبات المدعى عليه الأول (السيد / محمود سعيد إبراهيم): رفض الدعوى موضوعاً. إلزام المدعي بالمصاريف وأتعاب المحاماة.\nطلبات المدعى عليها الثانية (شركة العقارات الحديثة): أصلياً: القضاء بعدم قبول الدعوى لانعدام الصفة. احتياطياً: رفض الدعوى موضوعاً. إلزام المدعي بالمصاريف.\n\n## خامساً: دفوع الخصوم\nدفوع المدعي (السيد / أحمد محمد عبد الله): لم ترد دفوع لهذا الطرف في المدخلات.\nدفوع المدعى عليه الأول (السيد / محمود سعيد إبراهيم):\n- دفوع بعدم القبول: عدم قبول الدعوى لرفعها قبل الأوان، حيث لم يُستنفد طريق التسوية الودية المنصوص عليها في بنود العقد.\n- دفوع موضوعية: ينكر أن التوقيع الوارد على العقد مزوراً، ويؤكد أن المدعي أمضى بنفسه وبإرادته الحرة، وأن المدعي استلم كامل الثمن المتفق عليه بموجب إيصالات موقعة.\n- دفوع متعلقة بصحة الأدلة: يدفع بأن تقرير الطب الشرعي مشكوك في صحته لأسباب إجرائية تتعلقة بتسلسل حفظ الأدلة.\nدفوع المدعى عليها الثانية (شركة العقارات الحديثة):\n- دفوع بعدم القبول: عدم صفتها في الدعوى الحالية، مؤكدة أن الشركة شخص اعتباري مستقل ولم تكن طرفاً في عقد البيع الابتدائي المطعون فيه.\n- دفوع موضوعية: تتمسك بالدفع الموضوعي، حيث اشترت العقار بحسن نية وبسعر السوق، واطلعت على مستندات الملكية قبل إتمام الصفقة ولم يظهر ما يثير الريبة. تتمسك بالدفع بانقطاع العلاقة السببية، حيث لم تكن طرفاً في التزوير حتى لو ثبت، ولا علم لها بالتزوير، مما ينفي مسؤوليتها التضامنية عن التعويض.\n\n[تصحيح] المدعى عليه: لم ترد مذكرة دفاع لهذا الطرف في الملف المقدم\n\n## سادساً: المستندات المقدمة\nالمستندات المقدمة من المدعي (السيد / أحمد محمد عبد الله):\n- تقرير مصلحة الطب الشرعي رقم 471 لسنة 2023.\n- صورة عقد البيع المطعون فيه.\n- صورة بطاقة الهوية الوطنية للمدعي.\n- صورة عقد الملكية الأصلي.\n- محضر الجلسة بتاريخ 25/03/2024.\n\n## سابعاً: الأسئلة القانونية المطروحة\n1. هل عقد البيع الابتدائي المؤرخ في 15/04/2022 مزور، وهل التوقيع المنسوب للمدعي صحيح أم مزور؟\n2. هل الدعوى مقبولة شكلاً لعدم استنفاد طريق التسوية الودية المنصوص عليها في العقد؟\n3. هل تتوفر الصفة القانونية للمدعى عليها الثانية في الدعوى، وهل كانت طرفاً في عقد البيع الابتدائي المطعون فيه؟\n4. ما مدى مسؤولية المدعى عليه الأول والمدعى عليها الثانية عن الأضرار المادية والأدبية المطالب بها، في حال ثبوت التزوير؟\n5. ما مدى حجية تقرير مصلحة الطب الشرعي رقم 471 لسنة 2023 في إثبات صحة التوقيع؟\n6. ما هي الدائرة القضائية المختصة بنظر النزاع؟\n\n---\nالمصادر المرجعية: صحيفة_دعوى.txt ص1 ف1, مذكرة_بدفاع_المدعى_عليه_الأول.txt ص1 ف1, مذكرة_بدفاع_المدعى_عليها_الثانية.txt ص1 ف1, صحيفة_دعوى.txt ص1 ف2, صحيفة_دعوى.txt ص1 ف7, مذكرة_بدفاع_المدعى_عليه_الأول.txt ص1 ف2, مذكرة_بدفاع_المدعى_عليه_الأول.txt ص1 ف6, مذكرة_بدفاع_المدعى_عليها_الثانية.txt ص1 ف2, مذكرة_بدفاع_المدعى_عليها_الثانية.txt ص1 ف7, صحيفة_دعوى.txt ص1 ف3, صحيفة_دعوى.txt ص1 ف5, مذكرة_بدفاع_المدعى_عليه_الأول.txt ص1 ف5, مذكرة_بدفاع_المدعى_عليها_الثانية.txt ص1 ف6, صحيفة_دعوى.txt ص1 ف4, صحيفة_دعوى.txt ص1 ف6, مذكرة_بدفاع_المدعى_عليه_الأول.txt ص1 ف3, مذكرة_بدفاع_المدعى_عليها_الثانية.txt ص1 ف3, مذكرة_بدفاع_المدعى_عليه_الأول.txt ص1 ف4, مذكرة_بدفاع_المدعى_عليها_الثانية.txt ص1 ف4, مذكرة_بدفاع_المدعى_عليها_الثانية.txt ص1 ف5"
+
+    # =========================================================================
+    # EXPECTED OUTPUT — for rule-based metrics
+    # =========================================================================
+    expected:
+      # (!) Number of distinct legal issues that should be extracted
+      issue_count: 5
+
+      expected_issues:
+
+        - issue_id: 1
+          title_keywords: ["تزوير", "التوقيع", "صحة العقد"]
+          legal_domain: "الإثبات في المواد المدنية"
+          min_elements: 3
+          expected_articles: [10, 11, 14]  # قانون الإثبات (حجية المحررات)
+
+        - issue_id: 2
+          title_keywords: ["بطلان", "فسخ", "عقد البيع"]
+          legal_domain: "العقود المدنية"
+          min_elements: 2
+          expected_articles: [135, 136, 157]  # بطلان + فسخ
+
+        - issue_id: 3
+          title_keywords: ["تعويض", "ضرر", "مسؤولية"]
+          legal_domain: "المسؤولية المدنية"
+          min_elements: 3
+          expected_articles: [163, 221, 222]
+
+        - issue_id: 4
+          title_keywords: ["عدم القبول", "التسوية الودية"]
+          legal_domain: "قانون المرافعات"
+          min_elements: 2
+          expected_articles: []  # إجرائي—غالباً ليس من القانون المدني
+
+        - issue_id: 5
+          title_keywords: ["الصفة", "انعدام الصفة", "الشخص الاعتباري"]
+          legal_domain: "المرافعات / الصفة في الدعوى"
+          min_elements: 2
+          expected_articles: [3]  # مرافعات (المصلحة والصفة)
+
+      # (!) Expected confidence level based on evidence quality in the brief
+      # Choose: "high" (score >= 0.75), "medium" (0.45-0.75), "low" (< 0.45)
+      expected_confidence_level: "high"
+      confidence_rationale: "النزاع يتضمن طعناً بالتزوير مع وجود طعن على تقرير الطب الشرعي ودفوع شكلية وموضوعية متعددة، مما يقلل من وضوح النتيجة القانونية"
+
+      # Cross-issue expectations
+      # (!) Set true only if the two issues cite the same civil code article
+      has_shared_articles: false
+      # (!) Set true only if the two issues have logically contradictory analyses
+      has_cross_issue_conflicts: true
+      expected_reconciliation_count: 2
+
+      # Report structure
+      # 8 sections mandatory if reconciliation; 7 if no conflicts (section 8 omitted)
+      report_sections_present: 8
+      # (!) Section VI must contain ZERO directional language
+      section_vi_bias_free: true
+
+    # LLM-judge quality expectations (guidance for evaluators)
+    llm_judge_expectations:
+      arabic_register: "formal"       # formal legal Arabic throughout
+      neutrality: "strict"            # zero directional language in Section VI
+      counterargument_balance: "both_present"  # non-empty lists for both parties per issue
+      faithfulness: "traceable"       # every claim cites retrieved law or facts
+
+  # # =========================================================================
+  # # GS-CR-02: Single-issue case with insufficient evidence on some elements
+  # # Target metrics: confidence=medium/low, skipped elements > 0
+  # # =========================================================================
+  # - sample_id: "GS-CR-02"
+  #   description: "مسألة واحدة — بعض العناصر ذات أدلة غير كافية"
+
+  #   input:
+  #     case_id: "golden-002"
+  #     judge_query: "[PLACEHOLDER]"
+  #     case_brief:
+  #       dispute_summary: "[PLACEHOLDER: single-issue dispute summary]"
+  #       uncontested_facts: "[PLACEHOLDER: minimal agreed facts]"
+  #       # (!) MUST contain exactly 1 distinct legal issue
+  #       # (!) Some factual elements should clearly lack supporting documents
+  #       key_disputes: "[PLACEHOLDER: single contested point with insufficient evidence for some sub-elements]"
+  #       party_requests: "[PLACEHOLDER]"
+  #       party_defenses: "[PLACEHOLDER]"
+  #       submitted_documents: "[PLACEHOLDER: fewer documents than needed to prove all elements]"
+  #       legal_questions: "[PLACEHOLDER: single legal question referencing relevant articles]"
+  #     rendered_brief: "[PLACEHOLDER]"
+
+  #   expected:
+  #     issue_count: 1
+  #     expected_issues:
+  #       - issue_id: 1
+  #         title_keywords: ["[PLACEHOLDER]"]
+  #         legal_domain: "[PLACEHOLDER]"
+  #         min_elements: 2
+  #         expected_articles: []   # PLACEHOLDER
+  #     expected_confidence_level: "medium"   # evidence gaps reduce confidence
+  #     confidence_rationale: "[PLACEHOLDER: e.g. 'بعض العناصر مصنفة كغير كافية الأدلة']"
+  #     has_shared_articles: false
+  #     has_cross_issue_conflicts: false
+  #     expected_reconciliation_count: 0
+  #     report_sections_present: 7
+  #     section_vi_bias_free: true
+  #   llm_judge_expectations:
+  #     arabic_register: "formal"
+  #     neutrality: "strict"
+  #     counterargument_balance: "both_present"
+  #     faithfulness: "traceable"
+
+  # # =========================================================================
+  # # GS-CR-03: Multi-issue case with cross-issue conflicts requiring reconciliation
+  # # Target metrics: has_cross_issue_conflicts=true, reconciliation_count >= 1
+  # # =========================================================================
+  # - sample_id: "GS-CR-03"
+  #   description: "قضية بمسائل متعددة — تناقض بين مسألتين يستوجب التوفيق"
+
+  #   input:
+  #     case_id: "golden-003"
+  #     judge_query: "[PLACEHOLDER]"
+  #     case_brief:
+  #       dispute_summary: "[PLACEHOLDER: multi-issue dispute where two issues apply the same article contradictorily]"
+  #       uncontested_facts: "[PLACEHOLDER]"
+  #       # (!) MUST contain >= 2 issues where SAME civil code article is applied differently
+  #       key_disputes: "[PLACEHOLDER: multiple contested points including contradictory applications of same article]"
+  #       party_requests: "[PLACEHOLDER]"
+  #       party_defenses: "[PLACEHOLDER]"
+  #       submitted_documents: "[PLACEHOLDER]"
+  #       legal_questions: "[PLACEHOLDER: multiple questions referencing same article in different contexts]"
+  #     rendered_brief: "[PLACEHOLDER]"
+
+  #   expected:
+  #     issue_count: 3        # PLACEHOLDER — adjust to actual case
+  #     expected_issues:
+  #       - issue_id: 1
+  #         title_keywords: ["[PLACEHOLDER]"]
+  #         legal_domain: "[PLACEHOLDER]"
+  #         min_elements: 2
+  #         expected_articles: [148]   # PLACEHOLDER — shared article triggers conflict
+  #       - issue_id: 2
+  #         title_keywords: ["[PLACEHOLDER]"]
+  #         legal_domain: "[PLACEHOLDER]"
+  #         min_elements: 2
+  #         expected_articles: [148]   # PLACEHOLDER — same article as issue 1
+  #       - issue_id: 3
+  #         title_keywords: ["[PLACEHOLDER]"]
+  #         legal_domain: "[PLACEHOLDER]"
+  #         min_elements: 1
+  #         expected_articles: [221]
+  #     expected_confidence_level: "medium"   # reconciliation triggered reduces confidence
+  #     confidence_rationale: "[PLACEHOLDER]"
+  #     # (!) These must be true for reconciliation tests
+  #     has_shared_articles: true
+  #     has_cross_issue_conflicts: true
+  #     expected_reconciliation_count: 1
+  #     report_sections_present: 8    # Section VIII (reconciliation) is present
+  #     section_vi_bias_free: true
+  #   llm_judge_expectations:
+  #     arabic_register: "formal"
+  #     neutrality: "strict"
+  #     counterargument_balance: "both_present"
+  #     faithfulness: "traceable"
+
+  # # =========================================================================
+  # # GS-CR-04: Edge case — no extractable legal issues (empty report path)
+  # # Target metrics: issue_count=0, empty_report=true
+  # # =========================================================================
+  # - sample_id: "GS-CR-04"
+  #   description: "حالة حافة — لا مسائل قانونية قابلة للاستخراج"
+
+  #   input:
+  #     case_id: "golden-004"
+  #     judge_query: "[PLACEHOLDER: vague or non-legal query]"
+  #     case_brief:
+  #       dispute_summary: "[PLACEHOLDER: vague summary with no specific legal questions]"
+  #       uncontested_facts: "[PLACEHOLDER]"
+  #       # (!) This must be vague enough that LLM extracts 0 issues
+  #       key_disputes: ""
+  #       party_requests: "[PLACEHOLDER: non-specific requests]"
+  #       party_defenses: ""
+  #       submitted_documents: ""
+  #       # (!) This should NOT reference specific legal articles or contain clear legal questions
+  #       legal_questions: "[PLACEHOLDER: e.g. 'ما هي الإجراءات القانونية الواجب اتخاذها؟' — vague administrative question]"
+  #     rendered_brief: "[PLACEHOLDER]"
+
+  #   expected:
+  #     issue_count: 0
+  #     empty_report: true
+  #     # No other expected fields needed for empty report path
+  #     section_vi_bias_free: true
+
+  #   llm_judge_expectations:
+  #     arabic_register: "n/a"   # empty report — no quality evaluation
+  #     neutrality: "n/a"
+  #     counterargument_balance: "n/a"
+  #     faithfulness: "n/a"
+
+  # # =========================================================================
+  # # GS-CR-05: Arabic numeral citations and range citation patterns
+  # # Target metrics: citation extraction accuracy for patterns ١٤٨, ٢٢١-٢٢٥
+  # # =========================================================================
+  # - sample_id: "GS-CR-05"
+  #   description: "اختبار استخراج الاستشهادات بالأرقام العربية والنطاقات"
+
+  #   input:
+  #     case_id: "golden-005"
+  #     judge_query: "[PLACEHOLDER]"
+  #     case_brief:
+  #       dispute_summary: "[PLACEHOLDER]"
+  #       uncontested_facts: "[PLACEHOLDER]"
+  #       key_disputes: "[PLACEHOLDER: single issue]"
+  #       party_requests: "[PLACEHOLDER]"
+  #       party_defenses: "[PLACEHOLDER]"
+  #       submitted_documents: "[PLACEHOLDER]"
+  #       # (!) MUST use Arabic numerals for article numbers in the questions
+  #       # e.g. استناداً للمادة ١٤٨ والمواد من ٢٢١ إلى ٢٢٥
+  #       legal_questions: "[PLACEHOLDER: questions using Arabic numerals ١٤٨ and range ٢٢١ إلى ٢٢٥]"
+  #     rendered_brief: "[PLACEHOLDER]"
+
+  #   expected:
+  #     issue_count: 1
+  #     expected_issues:
+  #       - issue_id: 1
+  #         title_keywords: ["[PLACEHOLDER]"]
+  #         legal_domain: "[PLACEHOLDER]"
+  #         min_elements: 1
+  #         # (!) These must be in the retrieved articles so citation check passes
+  #         expected_articles: [148, 221, 222, 223, 224, 225]   # PLACEHOLDER — from Arabic numeral range
+  #     expected_confidence_level: "high"
+  #     confidence_rationale: "[PLACEHOLDER]"
+  #     has_shared_articles: false
+  #     has_cross_issue_conflicts: false
+  #     expected_reconciliation_count: 0
+  #     report_sections_present: 7
+  #     section_vi_bias_free: true
+
+  #   llm_judge_expectations:
+  #     arabic_register: "formal"
+  #     neutrality: "strict"
+  #     counterargument_balance: "both_present"
+  #     faithfulness: "traceable"

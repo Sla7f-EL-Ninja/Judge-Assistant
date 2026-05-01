@@ -80,6 +80,13 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("PostgreSQL connection failed (non-fatal, user management disabled): %s", exc)
 
+    # -- Civil Law RAG: ensure corpus is indexed (fast no-op if already present)
+    try:
+        from RAG.civil_law_rag.indexing.indexer import ensure_civil_law_indexed
+        ensure_civil_law_indexed()
+    except Exception as exc:
+        logger.warning("Civil Law RAG indexing check failed (non-fatal): %s", exc)
+
     yield
 
     # -- Shutdown all connections ----------------------------------------------

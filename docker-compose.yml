@@ -113,6 +113,10 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      tei-embedder:
+        condition: service_healthy
+      tei-reranker:
+        condition: service_healthy
     env_file:
       - path: .env
         required: false
@@ -132,6 +136,9 @@ services:
       # PostgreSQL
       - JA_POSTGRESQL_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-judge_assistant}
       - JA_POSTGRESQL_SYNC_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-judge_assistant}
+      # TEI services
+      - JA_TEI_EMBEDDING_URL=http://tei-embedder:80
+      - JA_TEI_RERANKER_URL=http://tei-reranker:80
     volumes:
       - ./uploads:/app/uploads
       - huggingface_cache:/root/.cache/huggingface
@@ -140,6 +147,40 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 120s
+
+  # ---------------------------------------------------------------------------
+  # TEI Embedding Service - BAAI/bge-m3 (dense vectors for civil law RAG)
+  # ---------------------------------------------------------------------------
+  tei-embedder:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    ports:
+      - "8080:80"
+    command: ["--model-id", "BAAI/bge-m3", "--port", "80"]
+    volumes:
+      - tei_model_cache:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # ---------------------------------------------------------------------------
+  # TEI Reranker Service - BAAI/bge-reranker-v2-m3 (cross-encoder)
+  # ---------------------------------------------------------------------------
+  tei-reranker:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    ports:
+      - "8081:80"
+    command: ["--model-id", "BAAI/bge-reranker-v2-m3", "--port", "80"]
+    volumes:
+      - tei_model_cache:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
       start_period: 120s
 
   # ---------------------------------------------------------------------------
@@ -167,3 +208,4 @@ volumes:
   minio_data:
   postgres_data:
   huggingface_cache:
+  tei_model_cache:

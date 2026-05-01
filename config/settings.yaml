@@ -116,6 +116,47 @@ supervisor:
 # -------------------------------------------------------
 # OCR Pipeline
 # -------------------------------------------------------
+# -------------------------------------------------------
+# TEI (Text Embeddings Inference) remote services
+# -------------------------------------------------------
+tei:
+  embedding_url: http://localhost:8080
+  reranker_url: http://localhost:8081
+  timeout_seconds: 30
+  max_retries: 3
+
+# -------------------------------------------------------
+# RAG Pipelines
+# -------------------------------------------------------
+rag:
+  civil_law:
+    hyde_enabled: false
+    scope_chapter_threshold: 0.5
+    scope_section_threshold: 0.5
+
+# -------------------------------------------------------
+# OCR Pipeline
+# -------------------------------------------------------
+# -------------------------------------------------------
+# Case Reasoner
+# -------------------------------------------------------
+case_reasoner:
+  confidence:
+    weights:
+      unsupported_ratio: 0.25
+      disputed_ratio: 0.15
+      insufficient_ratio: 0.20
+      citation_failure_ratio: 0.15
+      logical_issues: 0.10
+      completeness_gap: 0.10
+      reconciliation_triggered: 0.05
+    thresholds:
+      high: 0.75
+      medium: 0.45
+
+# -------------------------------------------------------
+# OCR Pipeline
+# -------------------------------------------------------
 ocr:
   language: ar
   use_gpu: true
