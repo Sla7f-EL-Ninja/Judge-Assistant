@@ -22,16 +22,7 @@ _ENTITY_PATTERNS = [
     re.compile(r"(?:السيد|السيدة|الأستاذ|الشركة)\s+\S+"),        # named parties
 ]
 
-_DEPENDENCY_SYSTEM = """أنت محلل قانوني.
-فيما يلي عناوين وملخصات للمسائل القانونية المستخرجة من القضية.
-حدد أي علاقات تبعية منطقية بينها — أي مسألة يجب أن تُحسم قبل أخرى.
-مثال: يجب إثبات المسؤولية (مسألة 1) قبل تحديد التعويض (مسألة 2).
-إذا لم توجد تبعيات واضحة، أعد قائمة فارغة."""
-
-_DEPENDENCY_USER = """المسائل:
-{issues_summary}
-
-حدد علاقات التبعية بين المسائل إن وجدت."""
+from prompts import get_prompt
 
 
 def _extract_entities(text: str) -> set:
@@ -44,6 +35,7 @@ def _extract_entities(text: str) -> set:
 
 def aggregate_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
     from schemas import IssueDependencies
+    _AGGREGATION_DEPENDENCY_SYSTEM, _AGGREGATION_DEPENDENCY_USER = get_prompt("aggregation_dependency")
 
     issue_analyses: List[Dict] = state.get("issue_analyses") or []
     identified_issues: List[Dict] = state.get("identified_issues") or []
@@ -95,7 +87,7 @@ def aggregate_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
             f"[{iss['issue_id']}] {iss['issue_title']} — {iss.get('legal_domain', '')}"
             for iss in identified_issues
         )
-        prompt = f"{_DEPENDENCY_SYSTEM}\n\n{_DEPENDENCY_USER.format(issues_summary=issues_summary)}"
+        prompt = f"{_AGGREGATION_DEPENDENCY_SYSTEM}\n\n{_AGGREGATION_DEPENDENCY_USER.format(issues_summary=issues_summary)}"
         llm = get_llm("medium")
         structured_llm = llm.with_structured_output(IssueDependencies)
         dep_result: IssueDependencies = structured_llm.invoke(prompt)

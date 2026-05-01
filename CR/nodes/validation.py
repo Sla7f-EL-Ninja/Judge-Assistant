@@ -98,28 +98,13 @@ def _citation_check(state: Dict[str, Any]) -> Dict[str, Any]:
 # Sub-step 2: Logical Consistency Check
 # ---------------------------------------------------------------------------
 
-_CONSISTENCY_SYSTEM = """أنت مراجع قانوني محايد.
-افحص التحليل التالي بحثًا عن:
-1. تناقضات بين التحليل وتصنيفات الأدلة (مثلاً: تطبيق استنتاج على عنصر مصنف not_established)
-2. استنتاجات متعارضة حول نفس العنصر
-3. استنتاجات لا تتبع منطقيًا من مقدماتها
-4. لغة اتجاهية أو أحكام صريحة (مخالفة لمبدأ الحياد)
-لا تُعيد كتابة التحليل — فقط حدد المشكلات إن وجدت."""
-
-_CONSISTENCY_USER = """التحليل القانوني:
-{law_application}
-
-تصنيفات العناصر:
-{classifications_text}
-
-الحجج المقابلة:
-{counterarguments_text}
-
-هل يوجد تناقض منطقي؟"""
+from prompts import get_prompt
 
 
 def _logical_consistency_check(state: Dict[str, Any]) -> Dict[str, Any]:
     from schemas import LogicalConsistencyResult
+    _VALIDATION_CONSISTENCY_SYSTEM, _VALIDATION_CONSISTENCY_USER = get_prompt("validation_consistency")
+
 
     law_application = state.get("law_application") or ""
     classifications = state.get("element_classifications") or []
@@ -139,8 +124,8 @@ def _logical_consistency_check(state: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     prompt = (
-        f"{_CONSISTENCY_SYSTEM}\n\n"
-        f"{_CONSISTENCY_USER.format(law_application=law_application or 'غير متاح', classifications_text=classifications_text or 'غير متاح', counterarguments_text=counterarguments_text)}"
+        f"{_VALIDATION_CONSISTENCY_SYSTEM}\n\n"
+        f"{_VALIDATION_CONSISTENCY_USER.format(law_application=law_application or 'غير متاح', classifications_text=classifications_text or 'غير متاح', counterarguments_text=counterarguments_text)}"
     )
 
     llm = get_llm("low")

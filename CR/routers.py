@@ -40,8 +40,16 @@ def issue_dispatch_router(state: Dict[str, Any]) -> Union[str, List[Send]]:
                     "issue_title": issue["issue_title"],
                     "legal_domain": issue["legal_domain"],
                     "source_text": issue["source_text"],
-                    # Output fields — initialized empty
+                    
+                    # Decomposition
                     "required_elements": [],
+                    
+                    # --------------------------------
+                    "law_queries": [],
+                    "fact_queries": [],
+                    # --------------------------------
+                    
+                    # Output fields — initialized empty
                     "law_retrieval_result": {},
                     "retrieved_articles": [],
                     "fact_retrieval_result": {},

@@ -1,9 +1,11 @@
 """Graph builders for the Case Reasoner pipeline."""
 from langgraph.graph import StateGraph, START, END
 
+
 from state import CaseReasonerState, IssueAnalysisState
 from nodes.extraction import extract_issues_node
 from nodes.decomposition import decompose_issue_node
+from nodes.query_generation import generate_retrieval_queries_node
 from nodes.retrieval import retrieve_law_node, retrieve_facts_node
 from nodes.evidence import classify_evidence_node
 from nodes.application import apply_law_node
@@ -22,6 +24,7 @@ def build_issue_branch():
     branch = StateGraph(IssueAnalysisState)
 
     branch.add_node("decompose_issue", decompose_issue_node)
+    branch.add_node("generate_retrieval_queries", generate_retrieval_queries_node)
     branch.add_node("retrieve_law", retrieve_law_node)
     branch.add_node("retrieve_facts", retrieve_facts_node)
     branch.add_node("classify_evidence", classify_evidence_node)
@@ -30,8 +33,19 @@ def build_issue_branch():
     branch.add_node("validate_analysis", validate_analysis_node)
     branch.add_node("package_result", package_result_node)
 
+    # branch.add_edge(START, "decompose_issue")
+    # branch.add_edge("decompose_issue", "retrieve_law")
+    # branch.add_edge("retrieve_law", "retrieve_facts")
+    # branch.add_edge("retrieve_facts", "classify_evidence")
+    # branch.add_edge("classify_evidence", "apply_law")
+    # branch.add_edge("apply_law", "generate_counterarguments")
+    # branch.add_edge("generate_counterarguments", "validate_analysis")
+    # branch.add_edge("validate_analysis", "package_result")
+    # branch.add_edge("package_result", END)
+
     branch.add_edge(START, "decompose_issue")
-    branch.add_edge("decompose_issue", "retrieve_law")
+    branch.add_edge("decompose_issue", "generate_retrieval_queries")  # NEW
+    branch.add_edge("generate_retrieval_queries", "retrieve_law")     # was: decompose_issue → retrieve_law
     branch.add_edge("retrieve_law", "retrieve_facts")
     branch.add_edge("retrieve_facts", "classify_evidence")
     branch.add_edge("classify_evidence", "apply_law")

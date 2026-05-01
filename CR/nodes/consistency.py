@@ -13,34 +13,8 @@ from config import get_llm
 
 logger = logging.getLogger(__name__)
 
-_CONFLICT_SYSTEM = """أنت مراقب جودة قضائية محايد.
-افحص التحليلات التالية لعدة مسائل قانونية وحدد أي تناقضات بين المسائل.
-ركز على:
-1. تطبيقات متناقضة لنفس المادة القانونية
-2. تقييمات متناقضة لنفس الوقائع
-3. استنتاجات تحليلية متعارضة
-إذا لم توجد تناقضات، أعد قائمة فارغة."""
+from prompts import get_prompt
 
-_CONFLICT_USER = """تحليلات المسائل:
-{analyses_summary}
-
-العلاقات المكتشفة بين المسائل:
-{relationships_summary}
-
-حدد التناقضات الموجودة إن وجدت."""
-
-_RECONCILIATION_SYSTEM = """أنت محلل قانوني.
-اكتب فقرة توضيحية لكل تناقض تم رصده بين المسائل القانونية.
-اشرح سبب التناقض والمنهجية المقترحة لفهمه دون إصدار حكم.
-كن محايدًا ودقيقًا."""
-
-_RECONCILIATION_USER = """التناقض:
-{conflict_description}
-
-المسائل المتأثرة:
-{affected_analyses}
-
-اكتب فقرة توضيحية."""
 
 
 def _format_analyses_summary(issue_analyses: List[Dict]) -> str:
@@ -65,6 +39,8 @@ def _format_relationships(relationships: List[Dict]) -> str:
 
 def check_global_consistency_node(state: Dict[str, Any]) -> Dict[str, Any]:
     from schemas import ConsistencyCheckResult
+    _CONSISTENCY_CONFLICT_SYSTEM, _CONSISTENCY_CONFLICT_USER = get_prompt("consistency_conflict")
+    _CONSISTENCY_RECONCILIATION_SYSTEM, _CONSISTENCY_RECONCILIATION_USER = get_prompt("consistency_reconciliation")
 
     issue_analyses: List[Dict] = state.get("issue_analyses") or []
     relationships: List[Dict] = state.get("cross_issue_relationships") or []
@@ -79,8 +55,8 @@ def check_global_consistency_node(state: Dict[str, Any]) -> Dict[str, Any]:
     analyses_summary = _format_analyses_summary(issue_analyses)
     relationships_summary = _format_relationships(relationships)
     conflict_prompt = (
-        f"{_CONFLICT_SYSTEM}\n\n"
-        f"{_CONFLICT_USER.format(analyses_summary=analyses_summary, relationships_summary=relationships_summary)}"
+        f"{_CONSISTENCY_CONFLICT_SYSTEM}\n\n"
+        f"{_CONSISTENCY_CONFLICT_USER.format(analyses_summary=analyses_summary, relationships_summary=relationships_summary)}"
     )
 
     try:
@@ -112,8 +88,8 @@ def check_global_consistency_node(state: Dict[str, Any]) -> Dict[str, Any]:
                     for iid in conflict["issue_ids"]
                 ]
                 rec_prompt = (
-                    f"{_RECONCILIATION_SYSTEM}\n\n"
-                    f"{_RECONCILIATION_USER.format(conflict_description=conflict['description'], affected_analyses=chr(10).join(affected))}"
+                    f"{_CONSISTENCY_RECONCILIATION_SYSTEM}\n\n"
+                    f"{_CONSISTENCY_RECONCILIATION_USER.format(conflict_description=conflict['description'], affected_analyses=chr(10).join(affected))}"
                 )
                 paragraph = llm_high.invoke(rec_prompt).content
                 reconciliation_paragraphs.append(paragraph)

@@ -13,23 +13,7 @@ from config import get_llm
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """أنت محامٍ محايد ومحلل قانوني.
-لكل مسألة، اعرض أقوى الحجج الممكنة لصالح المدعي، ثم أقوى الحجج لصالح المدعى عليه.
-قواعد:
-1. لا تفاضل بين الطرفين ولا تحدد أيهما أقوى حجة.
-2. استند إلى الوقائع والقانون المسترد فقط.
-3. الحجج يجب أن تكون قانونية وموضوعية لا عاطفية."""
-
-_USER_TEMPLATE = """التحليل القانوني للمسألة:
-{law_application}
-
-تصنيف العناصر:
-{classifications_text}
-
-الوقائع المتاحة:
-{retrieved_facts}
-
-اعرض أقوى الحجج لكل طرف."""
+from prompts import get_prompt
 
 
 def _format_classifications(classifications: list) -> str:
@@ -47,6 +31,8 @@ def _format_classifications(classifications: list) -> str:
 
 def counterargument_node(state: Dict[str, Any]) -> Dict[str, Any]:
     from schemas import Counterarguments
+    _COUNTERARGUMENT_SYSTEM, _COUNTERARGUMENT_USER = get_prompt("counterargument")
+
 
     law_application: str = state.get("law_application") or ""
     classifications: list = state.get("element_classifications") or []
@@ -54,7 +40,7 @@ def counterargument_node(state: Dict[str, Any]) -> Dict[str, Any]:
     issue_title: str = state.get("issue_title", "")
 
     classifications_text = _format_classifications(classifications)
-    prompt = f"{_SYSTEM_PROMPT}\n\n{_USER_TEMPLATE.format(law_application=law_application or 'غير متاح', classifications_text=classifications_text or 'غير متاح', retrieved_facts=retrieved_facts or 'غير متاح')}"
+    prompt = f"{_COUNTERARGUMENT_SYSTEM}\n\n{_COUNTERARGUMENT_USER.format(law_application=law_application or 'غير متاح', classifications_text=classifications_text or 'غير متاح', retrieved_facts=retrieved_facts or 'غير متاح')}"
 
     llm = get_llm("high")
     structured_llm = llm.with_structured_output(Counterarguments)

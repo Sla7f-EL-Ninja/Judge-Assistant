@@ -93,6 +93,11 @@ class IssueAnalysisState(TypedDict):
     # Decomposition
     required_elements: List[Dict[str, Any]]    # [{element_id, description, element_type}]
 
+    # Added code from claude
+    # Query Generation (per-element queries for both RAG tools)
+    law_queries: List[Dict[str, Any]]   # [{element_id, query}]
+    fact_queries: List[Dict[str, Any]]  # [{element_id, query}] 
+
     # Law Retrieval
     law_retrieval_result: Dict[str, Any]
     retrieved_articles: List[Dict[str, Any]]   # [{article_number, article_text, title, book, ...}]

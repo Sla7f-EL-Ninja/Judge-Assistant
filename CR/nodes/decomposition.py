@@ -13,20 +13,12 @@ from config import get_llm
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """أنت محلل قانوني متخصص في القانون المدني المصري.
-حلّل المسألة القانونية التالية إلى عناصرها الأساسية التي يجب إثباتها أو تقييمها.
-اذكر لكل عنصر ما إذا كان واقعيًا (factual) أم قانونيًا (legal).
-استخدم معرفات مختصرة من نوع E1، E2، E3 للعناصر."""
-
-_USER_TEMPLATE = """المسألة القانونية: {issue_title}
-المجال القانوني: {legal_domain}
-النص المصدر من الملخص: {source_text}
-
-حلّل هذه المسألة إلى عناصرها الأساسية."""
-
+from prompts import get_prompt
 
 def decompose_issue_node(state: Dict[str, Any]) -> Dict[str, Any]:
     from schemas import DecomposedIssue
+    _DECOMPOSITION_SYSTEM, _DECOMPOSITION_USER = get_prompt("decomposition")
+
 
     issue_title = state.get("issue_title", "")
     legal_domain = state.get("legal_domain", "")
@@ -34,7 +26,7 @@ def decompose_issue_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     llm = get_llm("high")
     structured_llm = llm.with_structured_output(DecomposedIssue)
-    prompt = f"{_SYSTEM_PROMPT}\n\n{_USER_TEMPLATE.format(issue_title=issue_title, legal_domain=legal_domain, source_text=source_text)}"
+    prompt = f"{_DECOMPOSITION_SYSTEM}\n\n{_DECOMPOSITION_USER.format(issue_title=issue_title, legal_domain=legal_domain, source_text=source_text)}"
 
     try:
         result: DecomposedIssue = structured_llm.invoke(prompt)

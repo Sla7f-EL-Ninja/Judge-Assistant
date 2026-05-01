@@ -13,14 +13,7 @@ from config import get_llm
 
 logger = logging.getLogger(__name__)
 
-_JUSTIFICATION_SYSTEM = """أنت محلل قانوني. اكتب فقرة مختصرة باللغة العربية تبرر مستوى الثقة المحدد
-بناءً على الإشارات الكمية المعطاة. لا تحدد مستوى الثقة بنفسك — فقط اشرح لماذا المستوى المعطى مناسب."""
-
-_JUSTIFICATION_USER = """مستوى الثقة: {level}
-الإشارات:
-{signals_text}
-
-اكتب فقرة توضيحية مختصرة."""
+from prompts import get_prompt
 
 
 def _compute_issue_signals(analysis: Dict, conflict_issue_ids: set) -> Dict[str, float]:
@@ -67,6 +60,8 @@ def _arabic_level(level: str) -> str:
 
 def compute_confidence_node(state: Dict[str, Any]) -> Dict[str, Any]:
     from cr_config import CONFIDENCE_WEIGHTS, CONFIDENCE_THRESHOLDS
+    _CONFIDENCE_JUSTIFICATION_SYSTEM, _CONFIDENCE_JUSTIFICATION_USER = get_prompt("confidence_justification")
+
 
     issue_analyses: List[Dict] = state.get("issue_analyses") or []
     consistency_conflicts: List[Dict] = state.get("consistency_conflicts") or []
@@ -90,8 +85,8 @@ def compute_confidence_node(state: Dict[str, Any]) -> Dict[str, Any]:
         signals_text = "\n".join(f"- {k}: {v:.2f}" for k, v in signals.items())
         try:
             prompt = (
-                f"{_JUSTIFICATION_SYSTEM}\n\n"
-                f"{_JUSTIFICATION_USER.format(level=_arabic_level(level), signals_text=signals_text)}"
+                f"{_CONFIDENCE_JUSTIFICATION_SYSTEM}\n\n"
+                f"{_CONFIDENCE_JUSTIFICATION_USER.format(level=_arabic_level(level), signals_text=signals_text)}"
             )
             justification = llm.invoke(prompt).content
         except Exception as exc:
@@ -120,8 +115,8 @@ def compute_confidence_node(state: Dict[str, Any]) -> Dict[str, Any]:
             for pc in per_issue_confidence
         )
         case_prompt = (
-            f"{_JUSTIFICATION_SYSTEM}\n\n"
-            f"{_JUSTIFICATION_USER.format(level=_arabic_level(case_level), signals_text=signals_text)}"
+            f"{_CONFIDENCE_JUSTIFICATION_SYSTEM}\n\n"
+            f"{_CONFIDENCE_JUSTIFICATION_USER.format(level=_arabic_level(case_level), signals_text=signals_text)}"
         )
         case_justification = llm.invoke(case_prompt).content
     except Exception as exc:

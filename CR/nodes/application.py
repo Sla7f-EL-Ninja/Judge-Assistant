@@ -13,25 +13,7 @@ from config import get_llm
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """أنت محلل قانوني محايد متخصص في القانون المدني المصري.
-طبّق النصوص القانونية المسترداة على الوقائع المتاحة لكل عنصر.
-قواعد صارمة:
-1. لا تصدر حكمًا ولا تحدد أي طرف يجب أن يفوز.
-2. لا تستخدم لغة اتجاهية كـ "يثبت الحق" أو "يلزم المدعى عليه".
-3. كل استنتاج يجب أن يستند إلى نص قانوني محدد مع ذكر رقم المادة.
-4. تجاهل تمامًا العناصر المصنفة insufficient_evidence — لا تذكرها.
-5. التزم بالحياد التام في صياغة التحليل."""
-
-_USER_TEMPLATE = """العناصر المطلوب تحليلها (مستثنى منها: insufficient_evidence):
-{elements_text}
-
-الوقائع المتاحة من مستندات القضية:
-{retrieved_facts}
-
-النصوص القانونية المسترداة:
-{law_answer}
-
-طبّق القانون على كل عنصر بشكل مستقل مع الإشارة لأرقام المواد."""
+from prompts import get_prompt
 
 
 def _format_elements_with_classification(
@@ -49,6 +31,7 @@ def _format_elements_with_classification(
 
 def apply_law_node(state: Dict[str, Any]) -> Dict[str, Any]:
     from schemas import LawApplicationResult
+    _APPLICATION_SYSTEM, _APPLICATION_USER = get_prompt("application")
 
     required_elements: List[Dict] = state.get("required_elements") or []
     classifications: List[Dict] = state.get("element_classifications") or []
@@ -70,7 +53,7 @@ def apply_law_node(state: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     elements_text = _format_elements_with_classification(required_elements, classifications)
-    prompt = f"{_SYSTEM_PROMPT}\n\n{_USER_TEMPLATE.format(elements_text=elements_text, retrieved_facts=retrieved_facts or 'لا وقائع متاحة', law_answer=law_answer or 'لا نصوص قانونية متاحة')}"
+    prompt = f"{_APPLICATION_SYSTEM}\n\n{_APPLICATION_USER.format(elements_text=elements_text, retrieved_facts=retrieved_facts or 'لا وقائع متاحة', law_answer=law_answer or 'لا نصوص قانونية متاحة')}"
 
     llm = get_llm("high")
     structured_llm = llm.with_structured_output(LawApplicationResult)

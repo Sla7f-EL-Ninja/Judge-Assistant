@@ -29,6 +29,18 @@ class DecomposedIssue(BaseModel):
     elements: List[RequiredElement]
 
 
+# Added node from claude
+# ---------------------------------------------------------------------------
+# Retrieval Queries
+# ---------------------------------------------------------------------------
+class ElementQuery(BaseModel):
+    element_id: str
+    law_query: str = Field(description="Doctrinal Arabic question for civil_law_rag_tool — asks what the law says about this specific element")
+    fact_query: str = Field(description="Factual Arabic question for case_documents_rag_tool — asks what the case documents say about this specific element")
+ 
+class RetrievalQueries(BaseModel):
+    queries: List[ElementQuery]
+
 # ---------------------------------------------------------------------------
 # Evidence Sufficiency
 # ---------------------------------------------------------------------------

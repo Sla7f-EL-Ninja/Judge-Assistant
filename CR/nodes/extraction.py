@@ -13,24 +13,13 @@ from config import get_llm
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """أنت مساعد قضائي متخصص في القانون المدني المصري.
-مهمتك استخراج المسائل القانونية المستقلة من ملخص الدعوى.
-لا تطبق القانون ولا تصدر أحكامًا في هذه المرحلة.
-استخرج فقط المسائل التي تحتاج فصلاً قانونيًا مستقلاً.
-لكل مسألة، اقتبس النص الأصلي بالضبط من المصدر في حقل source_text.
-حدد المسائل غير المتداخلة والمستقلة عن بعضها."""
-
-_USER_TEMPLATE = """نقاط الخلاف الجوهرية:
-{key_disputes}
-
-الأسئلة القانونية المطروحة:
-{legal_questions}
-
-استخرج المسائل القانونية المستقلة التي يجب الفصل فيها."""
+from prompts import get_prompt
 
 
 def extract_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
     from schemas import ExtractedIssues
+    _EXTRACTION_SYSTEM, _EXTRACTION_USER = get_prompt("extraction")
+
 
     brief = state.get("case_brief") or {}
     legal_questions = brief.get("legal_questions", "")
@@ -38,7 +27,7 @@ def extract_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     llm = get_llm("high")
     structured_llm = llm.with_structured_output(ExtractedIssues)
-    prompt = f"{_SYSTEM_PROMPT}\n\n{_USER_TEMPLATE.format(key_disputes=key_disputes, legal_questions=legal_questions)}"
+    prompt = f"{_EXTRACTION_SYSTEM}\n\n{_EXTRACTION_USER.format(key_disputes=key_disputes, legal_questions=legal_questions)}"
 
     for attempt in range(2):
         try:

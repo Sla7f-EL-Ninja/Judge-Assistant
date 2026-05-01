@@ -13,38 +13,7 @@ from config import get_llm
 
 logger = logging.getLogger(__name__)
 
-_REPORT_SYSTEM = """أنت كاتب قضائي متخصص. أنشئ تقرير تحليل قانوني شامل باللغة العربية الفصحى.
-التقرير يجب أن يتضمن الأقسام الثمانية المحددة بالترتيب.
-قواعد صارمة واجبة التطبيق:
-1. لا تصدر أي حكم ولا توصِ بنتيجة لصالح أي طرف.
-2. لا تستخدم لغة اتجاهية كـ "يثبت الحق" أو "تُرفض الدعوى".
-3. لا تخترع مواد قانونية أو وقائع — كل ما تكتبه يجب أن يستند إلى البيانات المقدمة.
-4. القسم السادس (حالة الملف) يجب أن يكون محايدًا تمامًا بدون أي تركيب أو استنتاج.
-5. القسم الثامن (فقرات التوفيق) يُكتب فقط إذا وُجدت تناقضات."""
-
-_REPORT_USER = """البيانات:
-
-=== المسائل المحددة ===
-{issues_text}
-
-=== التحليلات ===
-{analyses_text}
-
-=== مستوى الثقة ===
-{confidence_text}
-
-=== التناقضات والتوفيق ===
-{reconciliation_text}
-
-أنشئ التقرير بالهيكل الآتي:
-# القسم الأول: المسائل القانونية المحددة
-# القسم الثاني: الإطار القانوني
-# القسم الثالث: التحليل عنصرًا بعنصر
-# القسم الرابع: جدول تصنيف الأدلة
-# القسم الخامس: الحجج المقابلة
-# القسم السادس: حالة الملف
-# القسم السابع: مستوى الثقة
-# القسم الثامن: فقرات التوفيق (إن وُجدت)"""
+from prompts import get_prompt
 
 
 def _format_issues(issues: List[Dict]) -> str:
@@ -98,6 +67,8 @@ def _build_fallback_report(state: Dict[str, Any]) -> str:
 
 
 def generate_report_node(state: Dict[str, Any]) -> Dict[str, Any]:
+    _REPORT_SYSTEM, _REPORT_USER = get_prompt("report")
+
     issues = state.get("identified_issues") or []
     issue_analyses = state.get("issue_analyses") or []
     per_issue_confidence = state.get("per_issue_confidence") or []
