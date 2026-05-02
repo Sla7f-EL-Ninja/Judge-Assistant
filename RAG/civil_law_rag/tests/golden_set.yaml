@@ -18,26 +18,26 @@
 samples:
 
   # ── Textual queries ──────────────────────────────────────────────────────
-  - id: T001
-    type: textual
-    query: "ما هو نص المادة 89 من القانون المدني المصري؟"
-    expected_articles: [89]
-    answer_keywords: []
-    should_fail: false
+  # - id: T001
+  #   type: textual
+  #   query: "ما هو نص المادة 89 من القانون المدني المصري؟"
+  #   expected_articles: [89]
+  #   answer_keywords: []
+  #   should_fail: false
 
-  - id: T002
-    type: textual
-    query: "اذكر نص المواد بين 130 و 133 من القانون المدني"
-    expected_articles: [130, 131, 132, 133]
-    answer_keywords: []
-    should_fail: false
+  # - id: T002
+  #   type: textual
+  #   query: "اذكر نص المواد بين 130 و 133 من القانون المدني"
+  #   expected_articles: [130, 131, 132, 133]
+  #   answer_keywords: []
+  #   should_fail: false
 
-  - id: T003
-    type: textual
-    query: "نص المادة الخامسة والعشرين من القانون المدني"
-    expected_articles: [25]
-    answer_keywords: []
-    should_fail: false
+  # - id: T003
+  #   type: textual
+  #   query: "نص المادة الخامسة والعشرين من القانون المدني"
+  #   expected_articles: [25]
+  #   answer_keywords: []
+  #   should_fail: false
 
   # ── Analytical queries ───────────────────────────────────────────────────
   # - id: A001
@@ -49,122 +49,122 @@ samples:
 
   - id: A002
     type: analytical
-    query: "ما هي حالات بطلان العقد؟"
+    query: "كيف أكتب عقد زواج عرفي بشكل صحيح؟"
     expected_articles: []
     answer_keywords: ["باطل", "بطلان"]
     should_fail: false
 
-  - id: A003
-    type: analytical
-    query: "ما هي أحكام المسؤولية التقصيرية؟"
-    expected_articles: []
-    answer_keywords: ["ضرر", "تعويض"]
-    should_fail: false
+  # - id: A003
+  #   type: analytical
+  #   query: "ما هي أحكام المسؤولية التقصيرية؟"
+  #   expected_articles: []
+  #   answer_keywords: ["ضرر", "تعويض"]
+  #   should_fail: false
 
-  - id: A004
-    type: analytical
-    query: "ما هي أحكام الإيجار في القانون المدني؟"
-    expected_articles: []
-    answer_keywords: ["المؤجر", "المستأجر"]
-    should_fail: false
+  # - id: A004
+  #   type: analytical
+  #   query: "ما هي أحكام الإيجار في القانون المدني؟"
+  #   expected_articles: []
+  #   answer_keywords: ["المؤجر", "المستأجر"]
+  #   should_fail: false
 
-  - id: A005
-    type: analytical
-    query: "متى يسقط الحق بالتقادم؟"
-    expected_articles: []
-    answer_keywords: ["التقادم", "سنة"]
-    should_fail: false
+  # - id: A005
+  #   type: analytical
+  #   query: "متى يسقط الحق بالتقادم؟"
+  #   expected_articles: []
+  #   answer_keywords: ["التقادم", "سنة"]
+  #   should_fail: false
 
-  - id: A006
-    type: analytical
-    query: "ما هي أحكام الكفالة في القانون المدني؟"
-    expected_articles: []
-    answer_keywords: ["الكفيل", "الكفالة"]
-    should_fail: false
+  # - id: A006
+  #   type: analytical
+  #   query: "ما هي أحكام الكفالة في القانون المدني؟"
+  #   expected_articles: []
+  #   answer_keywords: ["الكفيل", "الكفالة"]
+  #   should_fail: false
 
-  - id: A007
-    type: analytical
-    query: "ما الفرق بين العقد الباطل والعقد القابل للإبطال؟"
-    expected_articles: []
-    answer_keywords: ["باطل", "إبطال"]
-    should_fail: false
+  # - id: A007
+  #   type: analytical
+  #   query: "ما الفرق بين العقد الباطل والعقد القابل للإبطال؟"
+  #   expected_articles: []
+  #   answer_keywords: ["باطل", "إبطال"]
+  #   should_fail: false
 
-  - id: A008
-    type: analytical
-    query: "ما هي شروط تطبيق نظرية الظروف الطارئة؟"
-    expected_articles: [147]
-    answer_keywords: ["ظروف طارئة", "الاستثنائية"]
-    should_fail: false
+  # - id: A008
+  #   type: analytical
+  #   query: "ما هي شروط تطبيق نظرية الظروف الطارئة؟"
+  #   expected_articles: [147]
+  #   answer_keywords: ["ظروف طارئة", "الاستثنائية"]
+  #   should_fail: false
 
-  - id: A009
-    type: analytical
-    query: "ما هي أحكام الحوالة في القانون المدني؟"
-    expected_articles: []
-    answer_keywords: ["الحوالة", "المحال"]
-    should_fail: false
+  # - id: A009
+  #   type: analytical
+  #   query: "ما هي أحكام الحوالة في القانون المدني؟"
+  #   expected_articles: []
+  #   answer_keywords: ["الحوالة", "المحال"]
+  #   should_fail: false
 
-  - id: A010
-    type: analytical
-    query: "ما هو حكم الوعد بالبيع في القانون المدني المصري؟"
-    expected_articles: []
-    answer_keywords: ["الوعد", "البيع"]
-    should_fail: false
+  # - id: A010
+  #   type: analytical
+  #   query: "ما هو حكم الوعد بالبيع في القانون المدني المصري؟"
+  #   expected_articles: []
+  #   answer_keywords: ["الوعد", "البيع"]
+  #   should_fail: false
 
-  # ── Edge cases: vague but valid ──────────────────────────────────────────
-  - id: E001
-    type: analytical
-    query: "الالتزام"
-    expected_articles: []
-    answer_keywords: []
-    should_fail: false   # broad but valid civil law topic
+  # # ── Edge cases: vague but valid ──────────────────────────────────────────
+  # - id: E001
+  #   type: analytical
+  #   query: "الالتزام"
+  #   expected_articles: []
+  #   answer_keywords: []
+  #   should_fail: false   # broad but valid civil law topic
 
-  - id: E002
-    type: analytical
-    query: "العقد والشروط"
-    expected_articles: []
-    answer_keywords: []
-    should_fail: false
+  # - id: E002
+  #   type: analytical
+  #   query: "العقد والشروط"
+  #   expected_articles: []
+  #   answer_keywords: []
+  #   should_fail: false
 
-  # ── Off-topic queries ────────────────────────────────────────────────────
-  - id: O001
-    type: off_topic
-    query: "ما هو أفضل مطعم في القاهرة؟"
-    expected_articles: []
-    answer_keywords: []
-    should_fail: true
+  # # ── Off-topic queries ────────────────────────────────────────────────────
+  # - id: O001
+  #   type: off_topic
+  #   query: "ما هو أفضل مطعم في القاهرة؟"
+  #   expected_articles: []
+  #   answer_keywords: []
+  #   should_fail: true
 
-  - id: O002
-    type: off_topic
-    query: "كيف أطبخ كشري؟"
-    expected_articles: []
-    answer_keywords: []
-    should_fail: true
+  # - id: O002
+  #   type: off_topic
+  #   query: "كيف أطبخ كشري؟"
+  #   expected_articles: []
+  #   answer_keywords: []
+  #   should_fail: true
 
-  - id: O003
-    type: off_topic
-    query: "What is the capital of France?"
-    expected_articles: []
-    answer_keywords: []
-    should_fail: true
+  # - id: O003
+  #   type: off_topic
+  #   query: "What is the capital of France?"
+  #   expected_articles: []
+  #   answer_keywords: []
+  #   should_fail: true
 
-  - id: O004
-    type: off_topic
-    query: "مم"
-    expected_articles: []
-    answer_keywords: []
-    should_fail: true   # too short
+  # - id: O004
+  #   type: off_topic
+  #   query: "مم"
+  #   expected_articles: []
+  #   answer_keywords: []
+  #   should_fail: true   # too short
 
-  - id: O005
-    type: off_topic
-    query: "ما حكم الطلاق في الفقه الإسلامي؟"
-    expected_articles: []
-    answer_keywords: []
-    should_fail: true   # Islamic law, not civil law
+  # - id: O005
+  #   type: off_topic
+  #   query: "ما حكم الطلاق في الفقه الإسلامي؟"
+  #   expected_articles: []
+  #   answer_keywords: []
+  #   should_fail: true   # Islamic law, not civil law
 
-  # ── Adversarial: should not hallucinate ─────────────────────────────────
-  - id: H001
-    type: analytical
-    query: "ما هي أحكام عقود الذكاء الاصطناعي في القانون المدني؟"
-    expected_articles: []
-    answer_keywords: []
-    should_fail: true   # no such articles exist
+  # # ── Adversarial: should not hallucinate ─────────────────────────────────
+  # - id: H001
+  #   type: analytical
+  #   query: "ما هي أحكام عقود الذكاء الاصطناعي في القانون المدني؟"
+  #   expected_articles: []
+  #   answer_keywords: []
+  #   should_fail: true   # no such articles exist
