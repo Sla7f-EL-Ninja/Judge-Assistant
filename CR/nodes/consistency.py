@@ -1,20 +1,11 @@
 """Global Consistency Node — detects cross-issue conflicts and writes reconciliation."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 from typing import Any, Dict, List
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
-
-from prompts import get_prompt
-
 
 
 def _format_analyses_summary(issue_analyses: List[Dict]) -> str:
@@ -38,7 +29,7 @@ def _format_relationships(relationships: List[Dict]) -> str:
 
 
 def check_global_consistency_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    from schemas import ConsistencyCheckResult
+    from ..schemas import ConsistencyCheckResult
     _CONSISTENCY_CONFLICT_SYSTEM, _CONSISTENCY_CONFLICT_USER = get_prompt("consistency_conflict")
     _CONSISTENCY_RECONCILIATION_SYSTEM, _CONSISTENCY_RECONCILIATION_USER = get_prompt("consistency_reconciliation")
 
@@ -64,18 +55,13 @@ def check_global_consistency_node(state: Dict[str, Any]) -> Dict[str, Any]:
         structured_llm = llm.with_structured_output(ConsistencyCheckResult)
         conflict_result: ConsistencyCheckResult = structured_llm.invoke(conflict_prompt)
         conflicts = [
-            {
-                "issue_ids": c.issue_ids,
-                "conflict_type": c.conflict_type,
-                "description": c.description,
-            }
+            {"issue_ids": c.issue_ids, "conflict_type": c.conflict_type, "description": c.description}
             for c in conflict_result.conflicts
         ]
     except Exception as exc:
         logger.warning("global consistency conflict detection failed — assuming no conflicts: %s", exc)
         conflicts = []
 
-    # Reconciliation paragraphs for each conflict
     reconciliation_paragraphs: List[str] = []
     if conflicts:
         llm_high = get_llm("high")

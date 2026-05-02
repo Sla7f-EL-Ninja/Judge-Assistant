@@ -10,4 +10,9 @@ from Supervisor.telemetry import setup_telemetry as _setup_telemetry
 
 _setup_telemetry()
 
+from mcp_servers.lifecycle import start_mcp_servers as _start_mcp_servers
+
+
+_start_mcp_servers()
+
 from Supervisor.graph import get_app, get_app_persistent  # noqa: E402,F401

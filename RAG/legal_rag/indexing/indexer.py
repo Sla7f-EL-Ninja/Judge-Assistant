@@ -33,7 +33,7 @@ import os
 
 from langchain_community.document_loaders import TextLoader
 
-from RAG.legal_rag.config import BATCH_SIZE
+from config.legal_rag import BATCH_SIZE
 from RAG.legal_rag.corpus_config import CorpusConfig
 from RAG.legal_rag.indexing.splitter import split_legal_document
 from RAG.legal_rag.retrieval.vectorstore import (

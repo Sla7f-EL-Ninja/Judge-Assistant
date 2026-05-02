@@ -1,19 +1,11 @@
 """Confidence Scoring Node — rule-based signals + LLM justification text."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 from typing import Any, Dict, List
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
-
-from prompts import get_prompt
 
 
 def _compute_issue_signals(analysis: Dict, conflict_issue_ids: set) -> Dict[str, float]:
@@ -59,9 +51,8 @@ def _arabic_level(level: str) -> str:
 
 
 def compute_confidence_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    from cr_config import CONFIDENCE_WEIGHTS, CONFIDENCE_THRESHOLDS
+    from ..cr_config import CONFIDENCE_WEIGHTS, CONFIDENCE_THRESHOLDS
     _CONFIDENCE_JUSTIFICATION_SYSTEM, _CONFIDENCE_JUSTIFICATION_USER = get_prompt("confidence_justification")
-
 
     issue_analyses: List[Dict] = state.get("issue_analyses") or []
     consistency_conflicts: List[Dict] = state.get("consistency_conflicts") or []
@@ -81,7 +72,6 @@ def compute_confidence_node(state: Dict[str, Any]) -> Dict[str, Any]:
         level = _level_from_score(raw_score, CONFIDENCE_THRESHOLDS)
         raw_scores.append(raw_score)
 
-        # LLM justification (text only — level already determined)
         signals_text = "\n".join(f"- {k}: {v:.2f}" for k, v in signals.items())
         try:
             prompt = (
@@ -102,7 +92,6 @@ def compute_confidence_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "justification": justification,
         })
 
-    # Case-level aggregation: 70% min + 30% mean
     if raw_scores:
         case_score = 0.7 * min(raw_scores) + 0.3 * (sum(raw_scores) / len(raw_scores))
     else:

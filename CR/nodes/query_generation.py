@@ -1,24 +1,16 @@
 """Query Generation Node — produces per-element law and fact queries before retrieval."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 from typing import Any, Dict, List
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
 
-from prompts import get_prompt
 
 def generate_retrieval_queries_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    from schemas import RetrievalQueries
+    from ..schemas import RetrievalQueries
     _QUERY_GENERATION_SYSTEM, _QUERY_GENERATION_USER = get_prompt("query_generation")
-
 
     issue_title: str = state.get("issue_title", "")
     legal_domain: str = state.get("legal_domain", "")
@@ -48,10 +40,8 @@ def generate_retrieval_queries_node(state: Dict[str, Any]) -> Dict[str, Any]:
         result: RetrievalQueries = structured_llm.invoke(prompt)
         law_queries = [{"element_id": q.element_id, "query": q.law_query} for q in result.queries]
         fact_queries = [{"element_id": q.element_id, "query": q.fact_query} for q in result.queries]
-        logger.info(
-            "Query generation for '%s': %d law queries, %d fact queries",
-            issue_title, len(law_queries), len(fact_queries),
-        )
+        logger.info("Query generation for '%s': %d law queries, %d fact queries",
+                    issue_title, len(law_queries), len(fact_queries))
         return {
             "law_queries": law_queries,
             "fact_queries": fact_queries,
@@ -59,7 +49,6 @@ def generate_retrieval_queries_node(state: Dict[str, Any]) -> Dict[str, Any]:
         }
     except Exception as exc:
         logger.warning("generate_retrieval_queries_node failed for '%s': %s — using fallback", issue_title, exc)
-        # Fallback: one generic query per element using issue title + element description
         law_queries = [
             {"element_id": el["element_id"], "query": f"{legal_domain}: {el['description']} — {issue_title}"}
             for el in required_elements

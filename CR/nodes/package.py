@@ -1,11 +1,4 @@
 """Package Result Node — wraps branch state into a single dict for merge via operator.add."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 from typing import Any, Dict
 
 

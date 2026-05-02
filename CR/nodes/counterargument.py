@@ -1,19 +1,11 @@
 """Counterargument Node — surfaces strongest arguments for each party."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 from typing import Any, Dict
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
-
-from prompts import get_prompt
 
 
 def _format_classifications(classifications: list) -> str:
@@ -30,9 +22,8 @@ def _format_classifications(classifications: list) -> str:
 
 
 def counterargument_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    from schemas import Counterarguments
+    from ..schemas import Counterarguments
     _COUNTERARGUMENT_SYSTEM, _COUNTERARGUMENT_USER = get_prompt("counterargument")
-
 
     law_application: str = state.get("law_application") or ""
     classifications: list = state.get("element_classifications") or []

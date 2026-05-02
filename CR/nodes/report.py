@@ -1,19 +1,11 @@
 """Final Report Node — assembles the 8-section Arabic legal analysis report."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 from typing import Any, Dict, List
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
-
-from prompts import get_prompt
 
 
 def _format_issues(issues: List[Dict]) -> str:
@@ -47,7 +39,6 @@ def _format_confidence(per_issue: List[Dict], case_level: Dict) -> str:
 
 
 def _build_fallback_report(state: Dict[str, Any]) -> str:
-    """Minimal structured report from raw state when LLM fails."""
     issues = state.get("identified_issues") or []
     analyses = state.get("issue_analyses") or []
     confidence = state.get("case_level_confidence") or {}
@@ -73,7 +64,6 @@ def generate_report_node(state: Dict[str, Any]) -> Dict[str, Any]:
     issue_analyses = state.get("issue_analyses") or []
     per_issue_confidence = state.get("per_issue_confidence") or []
     case_level_confidence = state.get("case_level_confidence") or {}
-    consistency_conflicts = state.get("consistency_conflicts") or []
     reconciliation_paragraphs = state.get("reconciliation_paragraphs") or []
 
     issues_text = _format_issues(issues)

@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from RAG.legal_rag.cache import SemanticCache
-from RAG.legal_rag.config import LLM_MODEL, MAX_QUERY_LENGTH, MIN_ARABIC_RATIO, MIN_QUERY_LENGTH
+from config.legal_rag import LLM_MODEL, MAX_QUERY_LENGTH, MIN_ARABIC_RATIO, MIN_QUERY_LENGTH
 from RAG.legal_rag.corpus_config import CorpusConfig
 from RAG.legal_rag.errors import QueryValidationError
 from RAG.legal_rag.indexing.normalizer import normalize
