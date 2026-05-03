@@ -140,10 +140,9 @@ def ingest_files(
     list of dict
         One classification/storage result per file.
     """
-    from Supervisor.nodes.classify_and_store_document import _get_ingestor
+    from DocumentProcessor import process_document
 
-    ingestor = _get_ingestor()
-    return ingestor.ingest_files(file_paths, case_id=case_id)
+    return [process_document(fp, case_id=case_id) for fp in file_paths]
 
 
 def main() -> None:
