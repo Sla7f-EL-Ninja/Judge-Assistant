@@ -28,7 +28,7 @@ from langchain_core.documents import Document
 from qdrant_client.models import FieldCondition, Filter, MatchValue
 from langsmith import traceable
 
-from RAG.legal_rag.config import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT, cfg
+from config.legal_rag import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT, cfg
 from RAG.legal_rag.indexing.normalizer import normalize
 from RAG.legal_rag.prompts import HYDE_EXPANSION_PROMPT
 from RAG.legal_rag.retrieval.vectorstore import load_vectorstore, source_filter

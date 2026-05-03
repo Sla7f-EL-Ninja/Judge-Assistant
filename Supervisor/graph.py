@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 from Supervisor.nodes.audit_log import audit_log_node
 from Supervisor.nodes.classify_intent import classify_intent_node
-from Supervisor.nodes.classify_and_store_document import classify_and_store_document_node
 from Supervisor.nodes.dispatch_agents import dispatch_agents_node
 from Supervisor.nodes.enrich_context import enrich_context_node
 from Supervisor.nodes.fallback import fallback_response_node
@@ -65,51 +64,6 @@ def intent_router(state: SupervisorState) -> str:
         return "off_topic"
     return "dispatch"
 
-
-def post_dispatch_router(state: SupervisorState) -> str:
-    """Route after agent dispatch.
-
-    Returns ``"classify_document"`` when documents should be classified and
-    indexed — either because case_doc_rag ran (needs case document embedding)
-    or OCR ran (needs raw text classified and stored).  A6.2.1/A6.6.1: gate
-    on intent rather than blanket uploaded_files presence.
-    """
-    target_agents = state.get("target_agents", [])
-    uploaded_files = state.get("uploaded_files", [])
-
-    if uploaded_files and (
-        "case_doc_rag" in target_agents or "ocr" in target_agents
-    ):
-        return "classify_document"
-
-    return "merge"
-
-
-def post_classify_store_router(state: SupervisorState) -> str:
-    """Route after classify_and_store_document (A6.6.3).
-
-    For OCR-only turns where document storage is the primary deliverable,
-    route to fallback when ALL files failed classification.  In all other
-    cases — including partial success or non-OCR intents — continue to merge.
-    """
-    target_agents = state.get("target_agents", [])
-    agent_results = state.get("agent_results", {})
-    classifications = state.get("document_classifications", [])
-
-    # Only short-circuit for OCR-only turns (no other successful agents)
-    ocr_only = target_agents == ["ocr"] or (
-        "ocr" in target_agents and not agent_results
-    )
-    if ocr_only and classifications and all(
-        c.get("status") == "failed" for c in classifications
-    ):
-        logger.warning(
-            "OCR-only turn: all %d document(s) failed classification — routing to fallback",
-            len(classifications),
-        )
-        return "fallback"
-
-    return "merge"
 
 
 def validation_router(state: SupervisorState) -> str:
@@ -161,7 +115,6 @@ def _add_common_nodes_and_edges(workflow: StateGraph) -> None:
     workflow.add_node("enrich_context", enrich_context_node)
     workflow.add_node("dispatch_agents", dispatch_agents_node)
     workflow.add_node("prepare_retry", prepare_retry_node)
-    workflow.add_node("classify_and_store_document", classify_and_store_document_node)
     workflow.add_node("merge_responses", merge_responses_node)
     workflow.add_node("verify_citations", verify_citations_node)
     workflow.add_node("validate_output", validate_output_node)
@@ -198,25 +151,7 @@ def _add_common_nodes_and_edges(workflow: StateGraph) -> None:
 
     workflow.add_edge("enrich_context", "dispatch_agents")
 
-    # After dispatch, classify documents if OCR ran or files were uploaded,
-    # otherwise go straight to merge.
-    workflow.add_conditional_edges(
-        "dispatch_agents",
-        post_dispatch_router,
-        {
-            "classify_document": "classify_and_store_document",
-            "merge": "merge_responses",
-        },
-    )
-
-    workflow.add_conditional_edges(
-        "classify_and_store_document",
-        post_classify_store_router,
-        {
-            "merge": "merge_responses",
-            "fallback": "fallback_response",
-        },
-    )
+    workflow.add_edge("dispatch_agents", "merge_responses")
     workflow.add_edge("merge_responses", "verify_citations")
     workflow.add_edge("verify_citations", "validate_output")
 

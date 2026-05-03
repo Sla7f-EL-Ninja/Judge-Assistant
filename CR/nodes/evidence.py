@@ -1,19 +1,11 @@
 """Evidence Sufficiency Node — classifies each element against retrieved evidence."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 from typing import Any, Dict, List
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
-
-from prompts import get_prompt
 
 
 def _format_elements(elements: List[Dict]) -> str:
@@ -21,9 +13,8 @@ def _format_elements(elements: List[Dict]) -> str:
 
 
 def classify_evidence_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    from schemas import EvidenceSufficiencyResult
+    from ..schemas import EvidenceSufficiencyResult
     _EVIDENCE_SYSTEM, _EVIDENCE_USER = get_prompt("evidence")
-
 
     required_elements: List[Dict] = state.get("required_elements") or []
     retrieved_facts: str = state.get("retrieved_facts") or ""
@@ -44,12 +35,7 @@ def classify_evidence_node(state: Dict[str, Any]) -> Dict[str, Any]:
     try:
         result: EvidenceSufficiencyResult = structured_llm.invoke(prompt)
         classifications = [
-            {
-                "element_id": c.element_id,
-                "status": c.status,
-                "evidence_summary": c.evidence_summary,
-                "notes": c.notes,
-            }
+            {"element_id": c.element_id, "status": c.status, "evidence_summary": c.evidence_summary, "notes": c.notes}
             for c in result.classifications
         ]
         logger.info("Evidence classification: %d elements classified", len(classifications))
@@ -59,7 +45,6 @@ def classify_evidence_node(state: Dict[str, Any]) -> Dict[str, Any]:
         }
     except Exception as exc:
         logger.warning("classify_evidence_node failed — defaulting all to 'disputed': %s", exc)
-        # Safest default: disputed (analyzed but not asserted)
         fallback = [
             {"element_id": el["element_id"], "status": "disputed",
              "evidence_summary": "تعذّر التصنيف التلقائي", "notes": str(exc)}

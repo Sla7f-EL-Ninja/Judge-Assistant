@@ -1,23 +1,13 @@
 """Validation Node — three sequential sub-steps: citation, consistency, completeness."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 import re
 import unicodedata
 from typing import Any, Dict, List, Set
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Arabic digit normalization and citation extraction
-# ---------------------------------------------------------------------------
 
 _AR_DIGIT_TABLE = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 _DIACRITIC_RE = re.compile(r"[\u0610-\u061A\u064B-\u065F\u0670]")
@@ -50,12 +40,8 @@ def _available_article_numbers(retrieved_articles: List[Dict]) -> Set[int]:
     return {a["article_number"] for a in retrieved_articles if isinstance(a.get("article_number"), int)}
 
 
-# ---------------------------------------------------------------------------
-# Sub-step 1: Citation Check
-# ---------------------------------------------------------------------------
-
 def _citation_check(state: Dict[str, Any]) -> Dict[str, Any]:
-    from tools import civil_law_rag_tool
+    from CR.tools import civil_law_rag_tool
 
     law_application: str = state.get("law_application") or ""
     applied_elements: List[Dict] = state.get("applied_elements") or []
@@ -65,13 +51,11 @@ def _citation_check(state: Dict[str, Any]) -> Dict[str, Any]:
     available = _available_article_numbers(retrieved_articles)
     missing = cited - available
 
-    # Retry missing articles once each
     retried_results = []
     for article_num in list(missing):
         try:
             result = civil_law_rag_tool(f"المادة {article_num}")
             if result.get("answer") and result["answer"].strip():
-                # Article found on retry — add to available
                 available.add(article_num)
                 missing.discard(article_num)
                 retried_results.append({"article": article_num, "retried": True, "found": True})
@@ -81,9 +65,7 @@ def _citation_check(state: Dict[str, Any]) -> Dict[str, Any]:
             logger.warning("citation retry for article %d failed: %s", article_num, exc)
             retried_results.append({"article": article_num, "retried": True, "found": False, "error": str(exc)})
 
-    # Elements with no cited articles
     uncited_elements = [el["element_id"] for el in applied_elements if not el.get("cited_articles")]
-
     passed = len(missing) == 0 and len(uncited_elements) == 0
     return {
         "passed": passed,
@@ -94,17 +76,9 @@ def _citation_check(state: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-# ---------------------------------------------------------------------------
-# Sub-step 2: Logical Consistency Check
-# ---------------------------------------------------------------------------
-
-from prompts import get_prompt
-
-
 def _logical_consistency_check(state: Dict[str, Any]) -> Dict[str, Any]:
-    from schemas import LogicalConsistencyResult
+    from ..schemas import LogicalConsistencyResult
     _VALIDATION_CONSISTENCY_SYSTEM, _VALIDATION_CONSISTENCY_USER = get_prompt("validation_consistency")
-
 
     law_application = state.get("law_application") or ""
     classifications = state.get("element_classifications") or []
@@ -133,19 +107,11 @@ def _logical_consistency_check(state: Dict[str, Any]) -> Dict[str, Any]:
 
     try:
         result: LogicalConsistencyResult = structured_llm.invoke(prompt)
-        return {
-            "passed": result.passed,
-            "issues_found": result.issues_found,
-            "severity": result.severity,
-        }
+        return {"passed": result.passed, "issues_found": result.issues_found, "severity": result.severity}
     except Exception as exc:
         logger.warning("logical_consistency_check failed — marking passed: %s", exc)
         return {"passed": True, "issues_found": [], "severity": "none", "note": str(exc)}
 
-
-# ---------------------------------------------------------------------------
-# Sub-step 3: Completeness Check
-# ---------------------------------------------------------------------------
 
 def _completeness_check(state: Dict[str, Any]) -> Dict[str, Any]:
     required_elements: List[Dict] = state.get("required_elements") or []
@@ -167,10 +133,6 @@ def _completeness_check(state: Dict[str, Any]) -> Dict[str, Any]:
         "coverage_ratio": round(coverage_ratio, 3),
     }
 
-
-# ---------------------------------------------------------------------------
-# Main validation node
-# ---------------------------------------------------------------------------
 
 def validate_analysis_node(state: Dict[str, Any]) -> Dict[str, Any]:
     issue_title = state.get("issue_title", "")

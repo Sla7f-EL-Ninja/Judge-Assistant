@@ -1,47 +1,24 @@
 """
 document_service.py
 
-Orchestrates document ingestion by wrapping the existing
-``Supervisor.services.file_ingestor.FileIngestor``.
-
-Because ``FileIngestor`` uses synchronous pymongo and blocking I/O,
-calls are wrapped with ``asyncio.to_thread`` to avoid blocking the
-event loop.
+Orchestrates document ingestion via DocumentProcessor.process_document.
 """
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from config.api import Settings
 from api.db.collections import FILES
 from api.services.case_service import add_document_to_case
 
 logger = logging.getLogger(__name__)
 
 
-def _get_ingestor(settings: Settings):
-    """Lazily import and construct the synchronous FileIngestor."""
-    from Supervisor.services.file_ingestor import FileIngestor
-
-    return FileIngestor(
-        mongo_uri=settings.mongo_uri,
-        mongo_db=settings.mongo_db,
-        mongo_collection=settings.mongo_collection,
-        embedding_model=settings.embedding_model,
-        qdrant_host=settings.qdrant_host,
-        qdrant_port=settings.qdrant_port,
-        qdrant_grpc_port=settings.qdrant_grpc_port,
-        qdrant_prefer_grpc=settings.qdrant_prefer_grpc,
-        qdrant_collection=settings.qdrant_collection,
-    )
-
-
 async def ingest_files(
     db: AsyncIOMotorDatabase,
-    settings: Settings,
+    settings,
     case_id: str,
     file_ids: List[str],
 ) -> Dict[str, List[Dict[str, Any]]]:
@@ -49,11 +26,11 @@ async def ingest_files(
 
     Returns ``{"ingested": [...], "errors": [...]}``.
     """
+    from DocumentProcessor import process_document
+
     ingested: List[Dict[str, Any]] = []
     errors: List[Dict[str, Any]] = []
 
-    ingestor = _get_ingestor(settings)
-    # Resolve file records
     for file_id in file_ids:
         file_rec = await db[FILES].find_one({"_id": file_id})
         if file_rec is None:
@@ -66,25 +43,18 @@ async def ingest_files(
             continue
 
         try:
-            # Run blocking ingestor in a thread
-            result = await asyncio.to_thread(ingestor.ingest_file, disk_path, case_id)
+            result = await asyncio.to_thread(process_document, disk_path, case_id)
 
-            classification = ""
-            doc_type = ""
-            if isinstance(result, dict):
-                classification = result.get("classification", "")
-                doc_type = result.get("doc_type", "")
+            classification = result.get("classification", {})
+            doc_type = classification.get("final_type", "")
 
-            ingested.append(
-                {
-                    "file_id": file_id,
-                    "doc_type": doc_type,
-                    "classification": classification,
-                    "status": "success",
-                }
-            )
+            ingested.append({
+                "file_id": file_id,
+                "doc_type": doc_type,
+                "classification": classification,
+                "status": "success",
+            })
 
-            # Add document reference to the case
             from datetime import datetime, timezone
 
             await add_document_to_case(

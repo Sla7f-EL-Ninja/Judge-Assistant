@@ -1,25 +1,16 @@
 """Issue Extraction Node — parses discrete legal issues from the CaseBrief."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 from typing import Any, Dict
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
 
-from prompts import get_prompt
-
 
 def extract_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    from schemas import ExtractedIssues
+    from ..schemas import ExtractedIssues
     _EXTRACTION_SYSTEM, _EXTRACTION_USER = get_prompt("extraction")
-
 
     brief = state.get("case_brief") or {}
     legal_questions = brief.get("legal_questions", "")
@@ -33,12 +24,8 @@ def extract_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
         try:
             result: ExtractedIssues = structured_llm.invoke(prompt)
             issues = [
-                {
-                    "issue_id": iss.issue_id,
-                    "issue_title": iss.issue_title,
-                    "legal_domain": iss.legal_domain,
-                    "source_text": iss.source_text,
-                }
+                {"issue_id": iss.issue_id, "issue_title": iss.issue_title,
+                 "legal_domain": iss.legal_domain, "source_text": iss.source_text}
                 for iss in result.issues
             ]
             logger.info("Issue extraction: found %d issues", len(issues))
