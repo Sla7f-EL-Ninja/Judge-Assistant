@@ -178,7 +178,7 @@ def source_filter(
 
     Args:
         source_value:      Value of metadata.source, e.g. "civil_law" or
-                           "evidence_law".  Comes from CorpusConfig.
+                           "evidence_law" or "procedures_law".  Comes from CorpusConfig.
         extra_conditions:  Additional FieldCondition objects (type, chapter…).
     """
     must = [

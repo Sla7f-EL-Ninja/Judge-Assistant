@@ -58,7 +58,7 @@ class TestSendPayloadIsolation:
         sends = issue_dispatch_router(state)
 
         ids = [id(s.arg) for s in sends]
-        assert len(set(ids)) == len(ids)  # all unique
+        assert len(set(ids)) == len(ids)
 
     def test_send_payloads_have_separate_reducer_lists(self):
         """issue_analyses, intermediate_steps, error_log are separate list instances."""
@@ -68,7 +68,6 @@ class TestSendPayloadIsolation:
         p0 = sends[0].arg
         p1 = sends[1].arg
 
-        # Append to one — should not affect the other
         p0["issue_analyses"].append("test")
         assert len(p1["issue_analyses"]) == 0
 
@@ -97,6 +96,30 @@ class TestSendPayloadIsolation:
         dispatched_ids = {s.arg["issue_id"] for s in sends}
         expected_ids = {1, 2, 3}
         assert dispatched_ids == expected_ids
+
+    def test_send_payload_query_fields_initialized_empty(self):
+        """law_queries and fact_queries are initialized as empty lists in each payload."""
+        state = {"identified_issues": _make_issues(2), "case_id": "test-001"}
+        sends = issue_dispatch_router(state)
+
+        for send in sends:
+            payload = send.arg
+            assert payload["law_queries"] == []
+            assert payload["fact_queries"] == []
+
+    def test_query_fields_are_separate_list_instances_per_payload(self):
+        """law_queries and fact_queries lists are not shared between payloads."""
+        state = {"identified_issues": _make_issues(2), "case_id": "test-001"}
+        sends = issue_dispatch_router(state)
+
+        p0 = sends[0].arg
+        p1 = sends[1].arg
+
+        p0["law_queries"].append({"element_id": "E1", "query": "سؤال"})
+        assert len(p1["law_queries"]) == 0
+
+        p0["fact_queries"].append({"element_id": "E1", "query": "سؤال"})
+        assert len(p1["fact_queries"]) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +190,30 @@ class TestNoStateMutation:
 
         assert state == original
 
+    def test_query_generation_node_does_not_mutate_input(self):
+        """T-ISOLATION-02: generate_retrieval_queries_node does not mutate input state."""
+        from nodes.query_generation import generate_retrieval_queries_node
+        from schemas import ElementQuery, RetrievalQueries
+
+        state = {
+            "issue_title": "مسألة", "legal_domain": "عقود", "source_text": "نص",
+            "required_elements": [
+                {"element_id": "E1", "description": "عنصر", "element_type": "legal"},
+            ],
+        }
+        original = copy.deepcopy(state)
+
+        mock_result = RetrievalQueries(queries=[
+            ElementQuery(element_id="E1", law_query="سؤال قانوني", fact_query="سؤال وقائعي"),
+        ])
+        llm = MagicMock()
+        llm.with_structured_output.return_value.invoke.return_value = mock_result
+
+        with patch("nodes.query_generation.get_llm", return_value=llm):
+            generate_retrieval_queries_node(state)
+
+        assert state == original
+
 
 # ---------------------------------------------------------------------------
 # Reducer merge behavior
@@ -196,7 +243,6 @@ class TestReducerMerge:
             branch_output = package_result_node(payload)
             results.append(branch_output["issue_analyses"])
 
-        # Simulate operator.add reduction (as LangGraph does for Annotated fields)
         merged = []
         for r in results:
             merged = operator.add(merged, r)
@@ -206,8 +252,6 @@ class TestReducerMerge:
         assert ids == {1, 2, 3}
 
     def test_intermediate_steps_accumulate(self):
-        """Steps from all branches accumulate via operator.add."""
-        from nodes.extraction import extract_issues_node
         steps_per_branch = ["خطوة من الفرع 1", "خطوة من الفرع 2", "خطوة من الفرع 3"]
 
         merged = []
@@ -219,7 +263,6 @@ class TestReducerMerge:
         assert "خطوة من الفرع 3" in merged
 
     def test_error_log_accumulates_from_all_branches(self):
-        """Error from one branch appears alongside successes from others."""
         errors_branch1 = ["خطأ في الفرع 1"]
         errors_branch2 = []
         errors_branch3 = ["خطأ في الفرع 3"]
@@ -234,7 +277,6 @@ class TestReducerMerge:
         assert len(merged) == 2
 
     def test_each_branch_result_identifies_own_issue(self):
-        """After merge, each entry carries its own issue_id."""
         payloads = []
         for i in range(1, 4):
             state = {
@@ -259,7 +301,6 @@ class TestReducerMerge:
             assert entry["issue_id"] == i + 1
 
     def test_branch_isolation_modifying_one_does_not_affect_others(self):
-        """After packaging, modifying one result dict does not corrupt others."""
         states = []
         for i in range(1, 3):
             state = {
@@ -278,7 +319,5 @@ class TestReducerMerge:
         result1 = package_result_node(states[0])["issue_analyses"][0]
         result2 = package_result_node(states[1])["issue_analyses"][0]
 
-        # Mutate result1
         result1["issue_title"] = "معدّل"
-        # result2 should be unaffected
         assert result2["issue_title"] == "مسألة 2"

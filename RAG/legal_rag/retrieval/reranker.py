@@ -34,10 +34,10 @@ logger = get_logger(__name__)
 _reranker_lock = threading.Lock()
 _reranker_available: bool | None = None  # None = not yet probed
 
-# In-process CrossEncoder fallback
-_cross_encoder = None
-_cross_encoder_lock = threading.Lock()
-_RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"
+# In-process CrossEncoder is intentionally disabled.
+# Loading ~1 GB weights in-process blocks the event loop and exhausts
+# virtual memory on Windows. When TEI is unavailable the pipeline falls
+# back to original retrieval order via _rerank_inprocess().
 
 
 # ---------------------------------------------------------------------------
@@ -75,55 +75,25 @@ def _probe_reranker() -> bool:
 # In-process CrossEncoder fallback
 # ---------------------------------------------------------------------------
 
-def _get_cross_encoder():
-    """Return the shared CrossEncoder instance, loading it once."""
-    global _cross_encoder
-    if _cross_encoder is not None:
-        return _cross_encoder
-
-    with _cross_encoder_lock:
-        if _cross_encoder is not None:
-            return _cross_encoder
-        try:
-            from sentence_transformers import CrossEncoder
-            log_event(logger, "reranker_inprocess_loading", model=_RERANKER_MODEL)
-            _cross_encoder = CrossEncoder(_RERANKER_MODEL)
-            log_event(logger, "reranker_inprocess_ready", model=_RERANKER_MODEL)
-        except Exception as exc:
-            log_event(
-                logger, "reranker_inprocess_failed",
-                error=str(exc),
-                level=logging.ERROR,
-            )
-            _cross_encoder = None
-
-    return _cross_encoder
-
 
 def _rerank_inprocess(
     query: str,
     docs: List[Document],
     top_k: int,
 ) -> List[Document]:
-    """Rerank using in-process CrossEncoder."""
-    encoder = _get_cross_encoder()
-    if encoder is None:
-        log_event(logger, "rerank_skipped", reason="cross_encoder_unavailable")
-        return docs[:top_k]
+    """Rerank using in-process CrossEncoder.
 
-    pairs = [(query, d.page_content) for d in docs]
-    scores = encoder.predict(pairs)
-
-    ranked = sorted(zip(scores, docs), key=lambda x: x[0], reverse=True)
-    result = [doc for _, doc in ranked[:top_k]]
-
+    Skipped entirely when TEI is unavailable — loading a ~1 GB model
+    in-process blocks the event loop, exhausts virtual memory on Windows,
+    and is not acceptable in a dev environment without a GPU.
+    Falls back to original retrieval order instead.
+    """
     log_event(
-        logger, "rerank_inprocess",
-        input_docs=len(docs),
-        output_docs=len(result),
-        top_score=float(ranked[0][0]) if ranked else None,
+        logger, "rerank_skipped",
+        reason="tei_unavailable_inprocess_disabled",
+        level=logging.WARNING,
     )
-    return result
+    return docs[:top_k]
 
 
 # ---------------------------------------------------------------------------

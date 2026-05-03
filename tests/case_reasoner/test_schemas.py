@@ -1,5 +1,5 @@
 """
-test_schemas.py — Pydantic schema validation for all 9 Case Reasoner models.
+test_schemas.py — Pydantic schema validation for all Case Reasoner models.
 
 Tests:
     T-SCHEMA-01: LegalIssue / ExtractedIssues
@@ -10,6 +10,7 @@ Tests:
     T-SCHEMA-06: LogicalConsistencyResult
     T-SCHEMA-07: IssueDependency / IssueDependencies
     T-SCHEMA-08: ConsistencyConflict / ConsistencyCheckResult
+    T-SCHEMA-09: ElementQuery / RetrievalQueries  ← NEW
 """
 
 import pathlib
@@ -29,6 +30,7 @@ from schemas import (
     ConsistencyConflict,
     DecomposedIssue,
     ElementClassification,
+    ElementQuery,
     EvidenceSufficiencyResult,
     ExtractedIssues,
     IssueDependencies,
@@ -37,6 +39,7 @@ from schemas import (
     LegalIssue,
     LogicalConsistencyResult,
     RequiredElement,
+    RetrievalQueries,
 )
 
 
@@ -71,7 +74,7 @@ class TestLegalIssueSchema:
 
     def test_legal_issue_requires_all_fields(self):
         with pytest.raises(ValidationError):
-            LegalIssue(issue_id=1, issue_title="عنوان")  # missing fields
+            LegalIssue(issue_id=1, issue_title="عنوان")
 
 
 # ---------------------------------------------------------------------------
@@ -287,3 +290,91 @@ class TestConsistencyCheckResultSchema:
         result = ConsistencyCheckResult(conflicts=[], has_conflicts=False)
         assert not result.has_conflicts
         assert result.conflicts == []
+
+
+# ---------------------------------------------------------------------------
+# T-SCHEMA-09: ElementQuery / RetrievalQueries  ← NEW
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestElementQuerySchema:
+    """T-SCHEMA-09: ElementQuery validates per-element law and fact queries."""
+
+    def test_valid_element_query(self):
+        eq = ElementQuery(
+            element_id="E1",
+            law_query="ما هي أحكام القانون المدني المصري المتعلقة بوجود العقد الصحيح؟",
+            fact_query="ما الوقائع المتعلقة بتوقيع العقد في مستندات القضية؟",
+        )
+        assert eq.element_id == "E1"
+        assert len(eq.law_query) > 0
+        assert len(eq.fact_query) > 0
+
+    def test_law_query_and_fact_query_are_separate_fields(self):
+        eq = ElementQuery(
+            element_id="E2",
+            law_query="سؤال عن القانون",
+            fact_query="سؤال عن الوقائع",
+        )
+        assert eq.law_query != eq.fact_query
+
+    def test_element_id_preserved(self):
+        eq = ElementQuery(element_id="E42", law_query="سؤال", fact_query="سؤال")
+        assert eq.element_id == "E42"
+
+    def test_requires_all_three_fields(self):
+        with pytest.raises(ValidationError):
+            ElementQuery(element_id="E1", law_query="سؤال")  # missing fact_query
+
+    def test_requires_element_id(self):
+        with pytest.raises(ValidationError):
+            ElementQuery(law_query="سؤال", fact_query="سؤال")  # missing element_id
+
+    def test_arabic_strings_accepted(self):
+        eq = ElementQuery(
+            element_id="E1",
+            law_query="ما هي أحكام المادة 148 من القانون المدني؟",
+            fact_query="هل أبرم الطرفان عقداً موثقاً وفق المستندات؟",
+        )
+        assert "المادة" in eq.law_query
+        assert "المستندات" in eq.fact_query
+
+
+@pytest.mark.unit
+class TestRetrievalQueriesSchema:
+    """T-SCHEMA-09: RetrievalQueries wraps a list of ElementQuery."""
+
+    def test_valid_retrieval_queries(self):
+        rq = RetrievalQueries(queries=[
+            ElementQuery(element_id="E1", law_query="سؤال قانوني 1", fact_query="سؤال وقائعي 1"),
+            ElementQuery(element_id="E2", law_query="سؤال قانوني 2", fact_query="سؤال وقائعي 2"),
+        ])
+        assert len(rq.queries) == 2
+
+    def test_empty_queries_allowed(self):
+        rq = RetrievalQueries(queries=[])
+        assert rq.queries == []
+
+    def test_element_ids_accessible_from_queries(self):
+        rq = RetrievalQueries(queries=[
+            ElementQuery(element_id="E1", law_query="سؤال", fact_query="سؤال"),
+            ElementQuery(element_id="E3", law_query="سؤال", fact_query="سؤال"),
+        ])
+        ids = {q.element_id for q in rq.queries}
+        assert ids == {"E1", "E3"}
+
+    def test_queries_list_preserves_order(self):
+        ordered_ids = ["E1", "E2", "E3", "E4"]
+        rq = RetrievalQueries(queries=[
+            ElementQuery(element_id=eid, law_query="سؤال", fact_query="سؤال")
+            for eid in ordered_ids
+        ])
+        assert [q.element_id for q in rq.queries] == ordered_ids
+
+    def test_single_query(self):
+        rq = RetrievalQueries(queries=[
+            ElementQuery(element_id="E1", law_query="سؤال قانوني", fact_query="سؤال وقائعي"),
+        ])
+        assert rq.queries[0].element_id == "E1"
+        assert rq.queries[0].law_query == "سؤال قانوني"
+        assert rq.queries[0].fact_query == "سؤال وقائعي"

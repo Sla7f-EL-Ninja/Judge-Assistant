@@ -1,0 +1,156 @@
+# golden_set.yaml
+# ----------------
+# Curated Q&A pairs for evaluating the Legal RAG pipeline.
+# Each entry includes:
+# - id: Unique identifier for the test case.
+# - type: "analytical" for reasoning-based questions, "textual" for direct
+#   retrieval, and "off_topic" for irrelevant queries that should be rejected.
+# - expected_corpus: The specific legal corpus (e.g., "civil", "evidence", "procedures")
+#   that the question pertains to, or "none" for off-topic cases.
+# - query: The question or prompt to be evaluated.
+# - expected_articles: List of article numbers that should be retrieved to answer the query.
+# - answer_keywords: Key legal terms that should appear in the answer, used for
+#   additional validation of relevance and correctness.
+# - should_fail: Boolean indicating whether the query is expected to fail (e.g., off
+#
+samples:
+
+  # ─────────────────────────────────────────────
+  # CIVIL LAW (قانون مدني) - HARD CASES
+  # ─────────────────────────────────────────────
+
+  - id: C101
+    type: analytical
+    expected_corpus: civil
+    query: "ما الفرق بين الفسخ والانفساخ في العقود، وما أثر كل منهما على الالتزامات المتبادلة؟"
+    expected_articles: [157]
+    answer_keywords: ["الفسخ", "الانفساخ", "العقد", "الالتزام"]
+    should_fail: false
+
+  - id: C102
+    type: analytical
+    expected_corpus: civil
+    query: "متى يجوز للقاضي تعديل العقد وفقاً لنظرية الظروف الطارئة وما شروط ذلك؟"
+    expected_articles: [147]
+    answer_keywords: ["ظروف طارئة", "إرهاق", "القاضي", "التوازن العقدي"]
+    should_fail: false
+
+  - id: C103
+    type: textual
+    expected_corpus: civil
+    query: "ما نص المادة المتعلقة بالمسؤولية التقصيرية عن الفعل الضار؟"
+    expected_articles: [163]
+    answer_keywords: []
+    should_fail: false
+
+  # ─────────────────────────────────────────────
+  # EVIDENCE LAW (الإثبات) - HARD CASES
+  # ─────────────────────────────────────────────
+
+  - id: EV101
+    type: analytical
+    expected_corpus: evidence
+    query: "هل يجوز الإثبات بالشهادة فيما يخالف دليلًا كتابيًا قائمًا؟ وما الاستثناءات التي يقررها القانون؟"
+    expected_articles: [61, 62, 63]
+    answer_keywords: ["مبدأ الثبوت", "مانع أدبي", "مانع مادي", "دليل كتابي"]
+    should_fail: false
+
+  - id: EV102
+    type: analytical
+    expected_corpus: evidence
+    query: "متى يعتبر مبدأ الثبوت بالكتابة قائمًا، وما أثره على عبء الإثبات؟"
+    expected_articles: [62]
+    answer_keywords: ["كتابة", "قريب الاحتمال", "مبدأ ثبوت"]
+    should_fail: false
+
+  - id: EV103
+    type: analytical
+    expected_corpus: evidence
+    query: "ما سلطة المحكمة في توجيه الإثبات بشهادة الشهود من تلقاء نفسها؟"
+    expected_articles: [70]
+    answer_keywords: ["من تلقاء نفسها", "فائدة الحقيقة", "شهادة الشهود"]
+    should_fail: false
+
+  - id: EV104
+    type: textual
+    expected_corpus: evidence
+    query: "ما نص المادة التي تنظم فقد السند الكتابي بسبب أجنبي؟"
+    expected_articles: [63]
+    answer_keywords: []
+    should_fail: false
+
+  # ─────────────────────────────────────────────
+  # PROCEDURES LAW (المرافعات) - HARD CASES
+  # ─────────────────────────────────────────────
+
+  - id: PR101
+    type: analytical
+    expected_corpus: procedures
+    query: "ما الجزاء المترتب على عدم إبداء الدفوع الإجرائية في الميعاد، وهل يختلف بحسب مرحلة الدعوى؟"
+    expected_articles: [108]
+    answer_keywords: ["سقوط الحق", "الدفع", "الإجراءات"]
+    should_fail: false
+
+  - id: PR102
+    type: analytical
+    expected_corpus: procedures
+    query: "ما الفرق بين الدفع بعدم القبول والدفع بعدم الاختصاص الولائي من حيث القابلية للإثارة أمام المحكمة؟"
+    expected_articles: [109, 115]
+    answer_keywords: ["في أي حالة", "من تلقاء نفسها", "الدعوى"]
+    should_fail: false
+
+  - id: PR103
+    type: analytical
+    expected_corpus: procedures
+    query: "متى يجوز للمحكمة إحالة الدعوى إلى محكمة أخرى، وما أثر الإحالة على نظر الدعوى؟"
+    expected_articles: [110, 113]
+    answer_keywords: ["الإحالة", "المحكمة المختصة", "تلتزم"]
+    should_fail: false
+
+  # ─────────────────────────────────────────────
+  # CROSS-LAW DISTINCTION (VERY HARD / TRICK)
+  # ─────────────────────────────────────────────
+
+  - id: MIX101
+    type: analytical
+    expected_corpus: evidence
+    query: "هل يعتبر الدفع بعدم وجود دليل كتابي دفعًا إجرائيًا أم موضوعيًا، وكيف ينعكس ذلك على عبء الإثبات؟"
+    expected_articles: [60, 61]
+    answer_keywords: ["عبء الإثبات", "دليل كتابي", "شهادة الشهود"]
+    should_fail: false
+
+  - id: MIX102
+    type: analytical
+    expected_corpus: procedures
+    query: "إذا تم الدفع ببطلان الإعلان لأول مرة أمام الاستئناف، هل يسقط الحق فيه؟"
+    expected_articles: [108, 114]
+    answer_keywords: ["سقوط الحق", "البطلان", "الإعلان"]
+    should_fail: false
+
+  # ─────────────────────────────────────────────
+  # OFF-TOPIC (STRICT REJECTION)
+  # ─────────────────────────────────────────────
+
+  - id: O101
+    type: off_topic
+    expected_corpus: none
+    query: "كيف أكتب عقد زواج عرفي بشكل صحيح؟"
+    expected_articles: []
+    answer_keywords: []
+    should_fail: true
+
+  - id: O102
+    type: off_topic
+    expected_corpus: none
+    query: "ما هو حكم الزنا في الشريعة الإسلامية؟"
+    expected_articles: []
+    answer_keywords: []
+    should_fail: true
+
+  - id: O103
+    type: off_topic
+    expected_corpus: none
+    query: "أفضل محامي أحوال شخصية في مصر مين؟"
+    expected_articles: []
+    answer_keywords: []
+    should_fail: true
