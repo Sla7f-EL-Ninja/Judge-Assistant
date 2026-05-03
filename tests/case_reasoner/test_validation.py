@@ -43,7 +43,7 @@ def _make_state(**kwargs):
             "defendant_arguments": ["حجة المدعى عليه"],
         },
         "required_elements": [
-            {"element_id": "E1", "description": "وجود عقد", "element_type": "legal"},
+            {"element_id": "E1", "description": "وجود عقد", "element_type": "civil_law"},
         ],
         "skipped_elements": [],
     }

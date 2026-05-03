@@ -17,6 +17,7 @@ if str(_CR_DIR) not in sys.path:
 
 from nodes.extraction import extract_issues_node
 from nodes.decomposition import decompose_issue_node
+from nodes.query_generation import generate_retrieval_queries_node
 from nodes.retrieval import retrieve_law_node, retrieve_facts_node
 from nodes.evidence import classify_evidence_node
 from nodes.application import apply_law_node
@@ -28,6 +29,7 @@ from nodes.consistency import check_global_consistency_node
 from nodes.confidence import compute_confidence_node
 from schemas import (
     ExtractedIssues, LegalIssue, DecomposedIssue, RequiredElement,
+    ElementQuery, RetrievalQueries,
     EvidenceSufficiencyResult, ElementClassification,
     LawApplicationResult, AppliedElement,
     Counterarguments, LogicalConsistencyResult,
@@ -60,7 +62,7 @@ class TestExtractionOutputContract:
 
 @pytest.mark.unit
 class TestDecompositionOutputContract:
-    """T-CONTRACT-02: decompose_issue_node output satisfies downstream nodes."""
+    """T-CONTRACT-02: decompose_issue_node output satisfies query_generation_node input."""
 
     def test_decomposition_output_has_required_elements_key(self):
         mock_result = DecomposedIssue(elements=[
@@ -78,12 +80,99 @@ class TestDecompositionOutputContract:
         el = output["required_elements"][0]
         assert {"element_id", "description", "element_type"}.issubset(el.keys())
 
+    def test_decomposition_output_satisfies_query_generation_input(self):
+        """T-CONTRACT-02b: required_elements from decomposition consumed by query generation."""
+        query_generation_reads = {"required_elements"}
+        mock_result = DecomposedIssue(elements=[
+            RequiredElement(element_id="E1", description="عنصر", element_type="legal"),
+        ])
+        llm = MagicMock()
+        llm.with_structured_output.return_value.invoke.return_value = mock_result
+
+        with patch("nodes.decomposition.get_llm", return_value=llm):
+            output = decompose_issue_node({
+                "issue_title": "مسألة", "legal_domain": "عقود", "source_text": "نص",
+            })
+
+        assert query_generation_reads.issubset(output.keys())
+
+
+@pytest.mark.unit
+class TestQueryGenerationOutputContract:
+    """T-CONTRACT-03: generate_retrieval_queries_node output satisfies retrieval nodes."""
+
+    def test_output_has_law_queries_key(self):
+        mock_result = RetrievalQueries(queries=[
+            ElementQuery(element_id="E1", law_query="سؤال قانوني", fact_query="سؤال وقائعي"),
+        ])
+        llm = MagicMock()
+        llm.with_structured_output.return_value.invoke.return_value = mock_result
+
+        with patch("nodes.query_generation.get_llm", return_value=llm):
+            output = generate_retrieval_queries_node({
+                "issue_title": "مسألة", "legal_domain": "عقود", "source_text": "نص",
+                "required_elements": [{"element_id": "E1", "description": "عنصر", "element_type": "legal"}],
+            })
+
+        assert "law_queries" in output
+
+    def test_output_has_fact_queries_key(self):
+        mock_result = RetrievalQueries(queries=[
+            ElementQuery(element_id="E1", law_query="سؤال قانوني", fact_query="سؤال وقائعي"),
+        ])
+        llm = MagicMock()
+        llm.with_structured_output.return_value.invoke.return_value = mock_result
+
+        with patch("nodes.query_generation.get_llm", return_value=llm):
+            output = generate_retrieval_queries_node({
+                "issue_title": "مسألة", "legal_domain": "عقود", "source_text": "نص",
+                "required_elements": [{"element_id": "E1", "description": "عنصر", "element_type": "legal"}],
+            })
+
+        assert "fact_queries" in output
+
+    def test_law_queries_is_list_of_dicts_with_element_id_and_query(self):
+        """retrieve_law_node reads law_queries as list of {element_id, query}."""
+        mock_result = RetrievalQueries(queries=[
+            ElementQuery(element_id="E1", law_query="سؤال قانوني", fact_query="سؤال وقائعي"),
+        ])
+        llm = MagicMock()
+        llm.with_structured_output.return_value.invoke.return_value = mock_result
+
+        with patch("nodes.query_generation.get_llm", return_value=llm):
+            output = generate_retrieval_queries_node({
+                "issue_title": "مسألة", "legal_domain": "عقود", "source_text": "نص",
+                "required_elements": [{"element_id": "E1", "description": "عنصر", "element_type": "legal"}],
+            })
+
+        assert isinstance(output["law_queries"], list)
+        for lq in output["law_queries"]:
+            assert "element_id" in lq
+            assert "query" in lq
+
+    def test_fact_queries_is_list_of_dicts_with_element_id_and_query(self):
+        """retrieve_facts_node reads fact_queries as list of {element_id, query}."""
+        mock_result = RetrievalQueries(queries=[
+            ElementQuery(element_id="E1", law_query="سؤال قانوني", fact_query="سؤال وقائعي"),
+        ])
+        llm = MagicMock()
+        llm.with_structured_output.return_value.invoke.return_value = mock_result
+
+        with patch("nodes.query_generation.get_llm", return_value=llm):
+            output = generate_retrieval_queries_node({
+                "issue_title": "مسألة", "legal_domain": "عقود", "source_text": "نص",
+                "required_elements": [{"element_id": "E1", "description": "عنصر", "element_type": "legal"}],
+            })
+
+        assert isinstance(output["fact_queries"], list)
+        for fq in output["fact_queries"]:
+            assert "element_id" in fq
+            assert "query" in fq
+
 
 @pytest.mark.unit
 class TestRetrievalOutputContract:
-    """T-CONTRACT-03: retrieval node outputs satisfy evidence node input."""
-
-    # Evidence node reads: required_elements (from branch state), retrieved_facts, law_retrieval_result["answer"]
+    """T-CONTRACT-04: retrieval node outputs satisfy evidence node input."""
 
     def test_retrieve_law_output_satisfies_evidence_input(self):
         evidence_reads = {"law_retrieval_result", "retrieved_articles"}
@@ -92,7 +181,10 @@ class TestRetrievalOutputContract:
             "classification": "", "retrieval_confidence": 0, "citation_integrity": 0,
             "from_cache": False, "error": None,
         }):
-            output = retrieve_law_node({"issue_title": "مسألة", "source_text": "نص", "case_id": "001"})
+            output = retrieve_law_node({
+                "issue_title": "مسألة", "source_text": "نص", "case_id": "001",
+                "law_queries": [{"element_id": "E1", "query": "سؤال قانوني"}],
+            })
 
         assert evidence_reads.issubset(output.keys())
 
@@ -101,24 +193,41 @@ class TestRetrievalOutputContract:
         with patch("tools.case_documents_rag_tool", return_value={
             "final_answer": "وقائع", "sub_answers": [], "error": None,
         }):
-            output = retrieve_facts_node({"issue_title": "مسألة", "source_text": "نص", "case_id": "001"})
+            output = retrieve_facts_node({
+                "issue_title": "مسألة", "source_text": "نص", "case_id": "001",
+                "fact_queries": [{"element_id": "E1", "query": "سؤال وقائعي"}],
+            })
 
         assert evidence_reads.issubset(output.keys())
 
     def test_law_retrieval_result_has_answer_key(self):
-        """Evidence node accesses law_retrieval_result['answer'] specifically."""
         with patch("tools.civil_law_rag_tool", return_value={
             "answer": "نص قانوني", "sources": [], "classification": "",
             "retrieval_confidence": 0, "citation_integrity": 0, "from_cache": False, "error": None,
         }):
-            output = retrieve_law_node({"issue_title": "مسألة", "source_text": "نص", "case_id": "001"})
+            output = retrieve_law_node({
+                "issue_title": "مسألة", "source_text": "نص", "case_id": "001",
+                "law_queries": [{"element_id": "E1", "query": "سؤال"}],
+            })
 
         assert "answer" in output["law_retrieval_result"]
+
+    def test_retrieved_facts_is_string(self):
+        """Evidence node reads retrieved_facts as a plain string."""
+        with patch("tools.case_documents_rag_tool", return_value={
+            "final_answer": "وقائع", "sub_answers": [], "error": None,
+        }):
+            output = retrieve_facts_node({
+                "issue_title": "مسألة", "source_text": "نص", "case_id": "001",
+                "fact_queries": [{"element_id": "E1", "query": "سؤال"}],
+            })
+
+        assert isinstance(output["retrieved_facts"], str)
 
 
 @pytest.mark.unit
 class TestEvidenceOutputContract:
-    """T-CONTRACT-04: classify_evidence_node output satisfies apply_law_node input."""
+    """T-CONTRACT-05: classify_evidence_node output satisfies apply_law_node input."""
 
     def test_classifications_have_element_id_and_status(self):
         application_required_keys = {"element_id", "status"}
@@ -142,7 +251,7 @@ class TestEvidenceOutputContract:
 
 @pytest.mark.unit
 class TestApplicationOutputContract:
-    """T-CONTRACT-05: apply_law_node output satisfies counterargument_node input."""
+    """T-CONTRACT-06: apply_law_node output satisfies counterargument_node input."""
 
     def test_application_output_has_counterargument_required_keys(self):
         counterarg_reads = {"law_application", "applied_elements", "skipped_elements"}
@@ -166,7 +275,7 @@ class TestApplicationOutputContract:
 
 @pytest.mark.unit
 class TestCounterargumentOutputContract:
-    """T-CONTRACT-06: counterargument_node output satisfies validate_analysis_node input."""
+    """T-CONTRACT-07: counterargument_node output satisfies validate_analysis_node input."""
 
     def test_counterarguments_has_required_structure(self):
         validation_reads_from_counterargs = {"plaintiff_arguments", "defendant_arguments"}
@@ -190,7 +299,7 @@ class TestCounterargumentOutputContract:
 
 @pytest.mark.unit
 class TestValidationOutputContract:
-    """T-CONTRACT-07: validate_analysis_node output satisfies package_result_node input."""
+    """T-CONTRACT-08: validate_analysis_node output satisfies package_result_node input."""
 
     def test_validation_output_has_all_check_keys(self):
         package_required_keys = {
@@ -218,7 +327,7 @@ class TestValidationOutputContract:
 
 @pytest.mark.unit
 class TestPackageOutputContract:
-    """T-CONTRACT-08: package_result_node output satisfies aggregate_issues_node input."""
+    """T-CONTRACT-09: package_result_node output satisfies aggregate_issues_node input."""
 
     _AGGREGATION_READS_FROM_PACKAGE = {
         "issue_id", "applied_elements", "retrieved_facts",
@@ -250,7 +359,7 @@ class TestPackageOutputContract:
 
 @pytest.mark.unit
 class TestBranchToAggregationContract:
-    """T-CONTRACT-09: Branch results satisfy aggregation input contract."""
+    """T-CONTRACT-10: Branch results satisfy aggregation input contract."""
 
     def test_issue_analyses_entry_has_aggregation_keys(self, make_branch_result):
         analysis = make_branch_result()
@@ -263,7 +372,7 @@ class TestBranchToAggregationContract:
 
 @pytest.mark.unit
 class TestAggregationToConsistencyContract:
-    """T-CONTRACT-10: aggregate output satisfies consistency input."""
+    """T-CONTRACT-11: aggregate output satisfies consistency input."""
 
     def test_aggregation_output_has_cross_issue_relationships(self):
         mock_result = IssueDependencies(dependencies=[])
@@ -282,7 +391,7 @@ class TestAggregationToConsistencyContract:
 
 @pytest.mark.unit
 class TestConsistencyToConfidenceContract:
-    """T-CONTRACT-11: consistency output satisfies confidence input."""
+    """T-CONTRACT-12: consistency output satisfies confidence input."""
 
     def test_consistency_output_has_conflicts_key(self):
         no_conflict = ConsistencyCheckResult(conflicts=[], has_conflicts=False)
@@ -306,7 +415,7 @@ class TestConsistencyToConfidenceContract:
 
 @pytest.mark.unit
 class TestConfidenceToReportContract:
-    """T-CONTRACT-12: confidence output satisfies report input."""
+    """T-CONTRACT-13: confidence output satisfies report input."""
 
     def test_confidence_output_has_report_required_keys(self):
         analysis = {
@@ -335,3 +444,66 @@ class TestConfidenceToReportContract:
         assert {"issue_id", "level", "raw_score", "justification"}.issubset(pc.keys())
         cc = output["case_level_confidence"]
         assert {"level", "raw_score", "justification"}.issubset(cc.keys())
+
+
+# ---------------------------------------------------------------------------
+# Full chain: decomposition → query generation → retrieval
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestDecompositionToRetrievalChain:
+    """T-CONTRACT-14: decomposition → query generation → retrieval full chain."""
+
+    def test_decomposition_output_feeds_query_generation_feeds_retrieval(self):
+        """End-to-end data flow: required_elements → law_queries → civil_law_rag_tool."""
+        # Step 1: decomposition
+        decomp_result = DecomposedIssue(elements=[
+            RequiredElement(element_id="E1", description="وجود عقد صحيح", element_type="legal"),
+        ])
+        decomp_llm = MagicMock()
+        decomp_llm.with_structured_output.return_value.invoke.return_value = decomp_result
+
+        with patch("nodes.decomposition.get_llm", return_value=decomp_llm):
+            decomp_output = decompose_issue_node({
+                "issue_title": "مسألة", "legal_domain": "عقود", "source_text": "نص",
+            })
+
+        # Step 2: query generation consumes required_elements from decomposition
+        qgen_result = RetrievalQueries(queries=[
+            ElementQuery(
+                element_id="E1",
+                law_query="ما هي أحكام العقد الصحيح في القانون المدني المصري؟",
+                fact_query="ما الوقائع المتعلقة بالعقد في ملف القضية؟",
+            ),
+        ])
+        qgen_llm = MagicMock()
+        qgen_llm.with_structured_output.return_value.invoke.return_value = qgen_result
+
+        with patch("nodes.query_generation.get_llm", return_value=qgen_llm):
+            qgen_output = generate_retrieval_queries_node({
+                "issue_title": "مسألة",
+                "legal_domain": "عقود",
+                "source_text": "نص",
+                "required_elements": decomp_output["required_elements"],
+            })
+
+        # Step 3: retrieval consumes law_queries from query generation
+        civil_law_result = {
+            "answer": "نص المادة 89", "sources": [{"article": 89, "content": "نص"}],
+            "classification": "", "retrieval_confidence": 0.9,
+            "citation_integrity": 0.9, "from_cache": False, "error": None,
+        }
+        with patch("tools.civil_law_rag_tool", return_value=civil_law_result) as mock_tool:
+            retrieval_output = retrieve_law_node({
+                "issue_title": "مسألة",
+                "source_text": "نص",
+                "case_id": "test-001",
+                "law_queries": qgen_output["law_queries"],
+            })
+
+        # Verify full chain
+        assert len(decomp_output["required_elements"]) == 1
+        assert len(qgen_output["law_queries"]) == 1
+        assert qgen_output["law_queries"][0]["query"] == "ما هي أحكام العقد الصحيح في القانون المدني المصري؟"
+        assert mock_tool.call_count == 1
+        assert 89 in {a["article_number"] for a in retrieval_output["retrieved_articles"]}
