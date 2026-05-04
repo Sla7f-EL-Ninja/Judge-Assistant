@@ -18,6 +18,8 @@ import logging
 from mcp.server.fastmcp import FastMCP
 
 from RAG.legal_rag.civil_law_rag.corpus import CIVIL_LAW_CORPUS
+from RAG.legal_rag.evidence_rag.corpus import EVIDENCE_CORPUS
+from RAG.legal_rag.procedures_rag.corpus import PROCEDURES_CORPUS
 from RAG.legal_rag.errors import (
     GenerationError,
     LLMBudgetExceededError,
@@ -28,7 +30,7 @@ from RAG.legal_rag.errors import (
 from RAG.legal_rag.graph import build_graph
 from RAG.legal_rag.retrieval.embeddings import get_client as _get_embeddings
 from RAG.legal_rag.retrieval.vectorstore import load_vectorstore as _load_vectorstore
-from RAG.legal_rag.retrieval.reranker import _probe_reranker, _get_cross_encoder
+from RAG.legal_rag.retrieval.reranker import _probe_reranker
 from mcp_servers.errors import ErrorCode, raise_tool_error
 from dotenv import load_dotenv
 load_dotenv(override=True)
@@ -43,13 +45,15 @@ mcp = FastMCP("legal-rag-server")
 # ensures the compiled graph is resident before the first tool call.
 # ---------------------------------------------------------------------------
 
-_REGISTERED_CORPORA = [CIVIL_LAW_CORPUS]
+_REGISTERED_CORPORA = [CIVIL_LAW_CORPUS, EVIDENCE_CORPUS, PROCEDURES_CORPUS]
 _CORPUS_MAP = {}
 
 for _c in _REGISTERED_CORPORA:
     _CORPUS_MAP[_c.name] = _c
-    build_graph(_c)
-    logger.info("Warmed legal_rag graph: corpus=%s", _c.name)
+
+# Call build_graph once (it's a singleton now)
+build_graph() 
+logger.info("Warmed unified legal_rag graph")
 
 _get_embeddings()
 logger.info("Embedding client ready")
@@ -59,7 +63,6 @@ for _c in _REGISTERED_CORPORA:
     logger.info("Warmed vectorstore: corpus=%s", _c.name)
 
 _probe_reranker()
-_get_cross_encoder()
 logger.info("Reranker ready")
 
 _SERVICE_ERROR_PREFIXES = ("حدث خطأ", "تعذّر", "تعذر", "لم يتمكن", "خطأ في")
@@ -83,7 +86,7 @@ async def search_legal_corpus(query: str, corpus: str) -> str:
     try:
         from RAG.legal_rag.service import ask_question
         result = await anyio.to_thread.run_sync(
-            lambda: ask_question(query, corpus_config),
+            lambda: ask_question(query),
             abandon_on_cancel=True,
         )
     except QueryValidationError as e:
