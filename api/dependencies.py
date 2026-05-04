@@ -71,9 +71,4 @@ def get_redis_client():
     return get_redis()
 
 
-async def get_pg_session() -> AsyncGenerator:
-    """Yield a PostgreSQL async session."""
-    from api.db.postgres import get_async_session
 
-    async for session in get_async_session():
-        yield session

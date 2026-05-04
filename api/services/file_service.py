@@ -60,6 +60,8 @@ async def save_upload(
     Raises ``ValueError`` for invalid MIME type or oversized files.
     """
     # Validate MIME type
+    logger.info("Received mime_type: '%s'", mime_type)  # ADD THIS
+    logger.info("Allowed types: %s", settings.allowed_mime_type_list)  # ADD THIS
     if mime_type not in settings.allowed_mime_type_list:
         raise ValueError(
             f"MIME type '{mime_type}' is not allowed. "
@@ -128,3 +130,37 @@ async def get_file_record(
 ) -> Optional[dict]:
     """Fetch file metadata from MongoDB."""
     return await db[FILES].find_one({"_id": file_id})
+
+
+async def delete_file(
+    db: AsyncIOMotorDatabase,
+    file_id: str,
+    user_id: str,
+) -> bool:
+    """Delete a file from storage and MongoDB. Returns True if found+deleted."""
+    file_rec = await db[FILES].find_one({"_id": file_id})
+    if file_rec is None:
+        return False
+
+    # Delete from MinIO
+    if file_rec.get("storage_backend") == "minio" and file_rec.get("minio_object"):
+        try:
+            from api.db.minio_client import get_minio, get_bucket
+            minio_client = get_minio()
+            if minio_client:
+                bucket = get_bucket()
+                await asyncio.to_thread(
+                    minio_client.remove_object, bucket, file_rec["minio_object"]
+                )
+        except Exception as exc:
+            logger.warning("MinIO delete failed for %s: %s", file_rec.get("minio_object"), exc)
+
+    # Delete from local disk
+    if file_rec.get("disk_path") and os.path.exists(file_rec["disk_path"]):
+        try:
+            await asyncio.to_thread(os.remove, file_rec["disk_path"])
+        except Exception as exc:
+            logger.warning("Local disk delete failed for %s: %s", file_rec.get("disk_path"), exc)
+
+    await db[FILES].delete_one({"_id": file_id})
+    return True
