@@ -56,7 +56,7 @@ def _upsert_summary(
         return False
 
     mongo_uri  = cfg.mongodb.get("uri", "mongodb://localhost:27017/")
-    db_name    = cfg.mongodb.get("database", "Rag")
+    db_name    = cfg.mongodb.get("database", "TESTING")
     collection = "summaries"
     timeout_ms = cfg.mongodb.get("server_selection_timeout_ms", 5000)
 
