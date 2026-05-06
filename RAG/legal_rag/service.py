@@ -309,6 +309,9 @@ def _extract_sources(result_state: dict) -> List[dict]:
 # Main entry point
 # ---------------------------------------------------------------------------
 
+from langsmith import traceable
+
+@traceable(name="Legal RAG Pipeline")
 def ask_question(query: str) -> LegalRAGResult:
     """Process a query through the unified legal_rag pipeline.
 
