@@ -1,9 +1,8 @@
 """
 conftest.py — Shared fixtures for the Hakim Summarizer test suite.
 
-Path setup ensures all Summerize package nodes and schemas are importable
-without installing the package. Both the project root and the Summerize
-directory are added to sys.path here.
+Path setup ensures the project root is on sys.path so that the summarize
+package is importable without installing it.
 """
 
 import pathlib
@@ -14,14 +13,12 @@ from unittest.mock import MagicMock
 import pytest
 
 # ---------------------------------------------------------------------------
-# Path setup — must come before any Summerize imports
+# Path setup — project root must be on sys.path
 # ---------------------------------------------------------------------------
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-_SUMMARIZE_DIR = _REPO_ROOT / "Summerize"
 
-for _p in [str(_REPO_ROOT), str(_SUMMARIZE_DIR)]:
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 
 # ---------------------------------------------------------------------------
@@ -258,41 +255,41 @@ def make_role_theme_summaries(make_theme_summary):
 
 @pytest.fixture()
 def node0(mock_llm):
-    from node_0 import Node0_DocumentIntake
+    from summarize.nodes.intake import Node0_DocumentIntake
     return Node0_DocumentIntake(mock_llm)
 
 
 @pytest.fixture()
 def node1(mock_llm):
-    from node_1 import Node1_RoleClassifier
+    from summarize.nodes.classifier import Node1_RoleClassifier
     return Node1_RoleClassifier(mock_llm)
 
 
 @pytest.fixture()
 def node2(mock_llm):
-    from node_2 import Node2_BulletExtractor
+    from summarize.nodes.extractor import Node2_BulletExtractor
     return Node2_BulletExtractor(mock_llm)
 
 
 @pytest.fixture()
 def node3(mock_llm):
-    from node_3 import Node3_Aggregator
+    from summarize.nodes.aggregator import Node3_Aggregator
     return Node3_Aggregator(mock_llm)
 
 
 @pytest.fixture()
 def node4a(mock_llm):
-    from node_4a import Node4A_ThematicClustering
+    from summarize.nodes.clustering import Node4A_ThematicClustering
     return Node4A_ThematicClustering(mock_llm)
 
 
 @pytest.fixture()
 def node4b(mock_llm):
-    from node_4b import Node4B_ThemeSynthesis
+    from summarize.nodes.synthesis import Node4B_ThemeSynthesis
     return Node4B_ThemeSynthesis(mock_llm)
 
 
 @pytest.fixture()
 def node5(mock_llm):
-    from node_5 import Node5_BriefGenerator
+    from summarize.nodes.brief import Node5_BriefGenerator
     return Node5_BriefGenerator(mock_llm)

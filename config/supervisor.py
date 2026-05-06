@@ -19,7 +19,8 @@ LLM_TEMPERATURE: float = cfg.llm.get("high", {}).get("temperature", 0.0)
 # ---------------------------------------------------------------------------
 # Retry / validation
 # ---------------------------------------------------------------------------
-MAX_RETRIES: int = cfg.supervisor.get("max_retries", 2)
+MAX_RETRIES: int = cfg.supervisor.get("max_retries", 3)
+MAX_QUERY_CHARS = 4000
 
 # ---------------------------------------------------------------------------
 # Conversation memory
@@ -30,8 +31,6 @@ MAX_CONVERSATION_TURNS: int = cfg.supervisor.get("max_conversation_turns", 20)
 # Agent registry -- canonical names used in target_agents lists
 # ---------------------------------------------------------------------------
 AGENT_NAMES = cfg.supervisor.get("agent_names", [
-    "ocr",
-    "summarize",
     "civil_law_rag",
     "case_doc_rag",
     "reason",
@@ -64,3 +63,30 @@ QDRANT_COLLECTION_CASE: str = cfg.qdrant.get("case_collection", "case_docs")
 # Legacy aliases for backward compatibility
 CHROMA_COLLECTION: str = QDRANT_COLLECTION
 CHROMA_PERSIST_DIR: str = ""
+
+# ---------------------------------------------------------------------------
+# P1.10 — Observability constants
+# ---------------------------------------------------------------------------
+import os as _os
+
+SENTRY_DSN: str = _os.getenv("SENTRY_DSN", "")
+LANGSMITH_PROJECT: str = cfg.supervisor.get("langsmith_project", "hakim-supervisor")
+LOG_FORMAT: str = cfg.supervisor.get("log_format", "text")          # "text" | "json"
+PROMETHEUS_ENABLED: bool = cfg.supervisor.get("prometheus_enabled", True)
+
+# ---------------------------------------------------------------------------
+# P1.6.1 — Configurable external-module directories (env var overrides)
+# ---------------------------------------------------------------------------
+HAKIM_OCR_DIR: str = _os.getenv("HAKIM_OCR_DIR", "")
+HAKIM_REASONER_DIR: str = _os.getenv("HAKIM_REASONER_DIR", "")
+
+# ---------------------------------------------------------------------------
+# Memory subsystem
+# ---------------------------------------------------------------------------
+CHECKPOINT_COLL: str = cfg.supervisor.get("checkpoint_collection", "supervisor_checkpoints")
+STORE_COLL: str = cfg.supervisor.get("memory_store_collection", "supervisor_memory_store")
+SHORT_TERM_KEEP_TURNS: int = int(cfg.supervisor.get("short_term_keep_turns", 6))
+SUMMARIZE_TRIGGER_TOKENS: int = int(cfg.supervisor.get("summarize_trigger_tokens", 4000))
+EPISODIC_REFLECT_DELAY_S: int = int(cfg.supervisor.get("episodic_reflect_delay_s", 300))
+SEMANTIC_FACTS_TOP_K: int = int(cfg.supervisor.get("semantic_facts_top_k", 8))
+PROCEDURAL_INJECT_MAX_CHARS: int = int(cfg.supervisor.get("procedural_inject_max_chars", 800))

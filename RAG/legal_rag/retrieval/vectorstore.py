@@ -29,7 +29,7 @@ from qdrant_client.models import (
     VectorParams,
 )
 
-from RAG.legal_rag.config import cfg
+from config.legal_rag import cfg
 from RAG.legal_rag.retrieval.embeddings import get_client as get_embeddings
 from RAG.legal_rag.telemetry import get_logger, log_event
 

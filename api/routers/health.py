@@ -120,3 +120,17 @@ async def health_check(
         "version": settings.app_version,
         "dependencies": deps,
     }
+
+
+@router.get(
+    "/ready",
+    summary="Liveness probe",
+    description=(
+        "Lightweight liveness check — returns 200 immediately if the process is running. "
+        "Does NOT check database connectivity. Use /health for readiness. "
+        "No authentication required."
+    ),
+)
+async def liveness_check():
+    """Return 200 if the process is alive (no dependency checks)."""
+    return {"status": "alive"}

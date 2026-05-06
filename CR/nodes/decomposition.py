@@ -1,24 +1,16 @@
 """Issue Decomposition Node — breaks each legal issue into required elements."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 from typing import Any, Dict
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
 
-from prompts import get_prompt
 
 def decompose_issue_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    from schemas import DecomposedIssue
+    from ..schemas import DecomposedIssue
     _DECOMPOSITION_SYSTEM, _DECOMPOSITION_USER = get_prompt("decomposition")
-
 
     issue_title = state.get("issue_title", "")
     legal_domain = state.get("legal_domain", "")
@@ -31,11 +23,7 @@ def decompose_issue_node(state: Dict[str, Any]) -> Dict[str, Any]:
     try:
         result: DecomposedIssue = structured_llm.invoke(prompt)
         elements = [
-            {
-                "element_id": el.element_id,
-                "description": el.description,
-                "element_type": el.element_type,
-            }
+            {"element_id": el.element_id, "description": el.description, "element_type": el.element_type}
             for el in result.elements
         ]
         logger.info("Decomposed issue '%s' into %d elements", issue_title, len(elements))

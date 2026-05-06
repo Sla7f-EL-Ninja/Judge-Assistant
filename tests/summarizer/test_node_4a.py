@@ -17,11 +17,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-_SUMMARIZE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "Summerize"
-if str(_SUMMARIZE_DIR) not in sys.path:
-    sys.path.insert(0, str(_SUMMARIZE_DIR))
 
-from node_4a import ClusteringResultLLM, Node4A_ThematicClustering, ThemeAssignmentLLM
+from summarize.nodes.clustering import ClusteringResultLLM, Node4A_ThematicClustering, ThemeAssignmentLLM
 
 
 def make_role_agg(

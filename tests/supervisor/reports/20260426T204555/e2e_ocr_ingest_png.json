@@ -1,0 +1,20 @@
+{
+  "test": "e2e_ocr_ingest_png",
+  "timestamp": "2026-04-26T21:18:56.190408+00:00",
+  "latency_s": 0.0,
+  "intent": "case_doc_rag",
+  "target_agents": [
+    "case_doc_rag"
+  ],
+  "retry_count": 0,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\تقرير_الطب_الشرعي.txt:chunk_0",
+    "unknown:chunk_?",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_1"
+  ],
+  "judge_query": "اقرأ وحلل المستند المرفق",
+  "final_response_excerpt": "المعلومات القانونية الأساسية والجوهرية الواردة في المستندات المرفقة هي كالتالي:\n\n**من تقرير مصلحة الطب الشرعي رقم 471 لسنة 2023:**\n*   موضوع التقرير هو فحص التوقيع المنسوب للسيد / أحمد محمد عبد الله على عقد البيع المؤرخ 15/04/2022.\n*   المواد المقدمة للفحص شملت عقد البيع الابتدائي الأصلي (المطعون في",
+  "correlation_id": "test-cid-eaba0e95-1dda-41c8-87cf-5fc74adf18f6"
+}

@@ -19,11 +19,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-_SUMMARIZE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "Summerize"
-if str(_SUMMARIZE_DIR) not in sys.path:
-    sys.path.insert(0, str(_SUMMARIZE_DIR))
 
-from node_3 import (
+from summarize.nodes.aggregator import (
     AgreedItemLLM,
     DisputedItemLLM,
     DisputeSideLLM,
@@ -192,7 +189,7 @@ class TestProcessRole:
         llm.with_structured_output.return_value = parser
 
         node = Node3_Aggregator(llm)
-        max_b = node.MAX_BULLETS_PER_CALL  # 50
+        max_b = node.MAX_BULLETS_PER_CALL  
 
         # 75 bullets from 2 parties (so LLM is called)
         bullets = []
@@ -224,8 +221,9 @@ class TestProcessRole:
         lookup = {b["bullet_id"]: b for b in bullets}
         node.process_role("الوقائع", bullets, lookup)
 
-        # Should have been called twice: ceil(75/50) = 2
-        assert parser.invoke.call_count == 2
+        import math
+        expected_batches = math.ceil(len(bullets) / node.MAX_BULLETS_PER_CALL)
+        assert parser.invoke.call_count == expected_batches
 
     def test_llm_exception_uses_fallback(self):
         """T-NODE3-07: LLM raises → all bullets go to party_specific."""

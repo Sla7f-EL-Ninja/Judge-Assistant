@@ -7,7 +7,7 @@ Tokens are issued by the Express backend and validated here using a
 shared secret.
 """
 
-from jose import JWTError, jwt
+import jwt as pyjwt
 
 from typing import Optional
 
@@ -27,7 +27,7 @@ def decode_token(token: str, settings: Settings) -> dict:
     Raises ``AuthError`` on any failure.
     """
     try:
-        payload = jwt.decode(
+        payload = pyjwt.decode(
             token,
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
@@ -36,5 +36,5 @@ def decode_token(token: str, settings: Settings) -> dict:
         if user_id is None:
             raise AuthError("Token payload missing user_id")
         return payload
-    except JWTError as exc:
+    except pyjwt.PyJWTError as exc:
         raise AuthError(f"Invalid token: {exc}") from exc

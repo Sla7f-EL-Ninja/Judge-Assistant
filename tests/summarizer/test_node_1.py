@@ -18,11 +18,8 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import HumanMessage, SystemMessage
 
-_SUMMARIZE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "Summerize"
-if str(_SUMMARIZE_DIR) not in sys.path:
-    sys.path.insert(0, str(_SUMMARIZE_DIR))
 
-from node_1 import BatchClassificationResult, ClassificationItem, Node1_RoleClassifier
+from summarize.nodes.classifier import BatchClassificationResult, ClassificationItem, Node1_RoleClassifier
 
 
 def make_chunk(
@@ -213,7 +210,7 @@ class TestProcess:
     def test_all_roles_can_appear_in_output(self):
         """T-NODE1-06: All 7 LegalRoleEnum values can appear as output roles."""
         from typing import get_args
-        from schemas import LegalRoleEnum
+        from summarize.schemas import LegalRoleEnum
         all_roles = list(get_args(LegalRoleEnum))
 
         # Build 7 chunks, one per role

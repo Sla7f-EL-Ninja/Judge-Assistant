@@ -1,0 +1,22 @@
+{
+  "test": "e2e_multi_turn_3",
+  "timestamp": "2026-04-26T23:39:58.032646+00:00",
+  "latency_s": 0.0,
+  "intent": "reason",
+  "target_agents": [
+    "reason"
+  ],
+  "retry_count": 0,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\مذكرة_بدفاع_المدعى_عليها_الثانية.txt:chunk_0",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_0",
+    "D:\\FUCK!!\\Grad\\Backup\\1st Iteration\\1\\Docs\\صحيفة_دعوى.txt:chunk_7",
+    "civil_law"
+  ],
+  "judge_query": "ما رأيك في دفاع المدعى عليه الثاني؟",
+  "final_response_excerpt": "الرأي القانوني في دفاع المدعى عليه الثاني (شركة العقارات الحديثة) في القضية الحالية يتأسس على عدة نقاط جوهرية، مدعومة بأحكام القانون المدني المصري، خاصة فيما يتعلق بالمسؤولية التقصيرية وأسباب انتفائها. \n\n**دفاعات المدعى عليه الثاني:**\nتتمثل دفاعات المدعى عليها الثانية (شركة العقارات الحديثة) في الآت",
+  "correlation_id": "test-cid-eb0d07f2-30da-4f9a-96cb-987b9baf7b48-t3",
+  "turns": 3
+}

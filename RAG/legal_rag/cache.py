@@ -23,7 +23,7 @@ from typing import List, Optional
 
 import numpy as np
 
-from RAG.legal_rag.config import (
+from config.legal_rag import (
     CACHE_SIMILARITY_THRESHOLD,
     MAX_CACHE_SIZE,
 )

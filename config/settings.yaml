@@ -18,14 +18,17 @@ llm:
     provider: google            # groq | google
     model: gemini-2.5-flash
     temperature: 0.0
+    timeout_seconds: 1300
   medium:
     provider: google
     model: gemini-2.5-flash
     temperature: 0.0
+    timeout_seconds: 1300
   low:
     provider: google
     model: gemini-2.5-flash-lite
     temperature: 0.0
+    timeout_seconds: 1300
 
 # -------------------------------------------------------
 # Embedding Model
@@ -51,7 +54,7 @@ qdrant:
   host: localhost
   port: 6333
   grpc_port: 6334
-  collection: judicial_docs
+  collection: civil_law_docs
   case_collection: case_docs
   vector_size: 1024
   prefer_grpc: true
@@ -92,8 +95,8 @@ api:
   app_name: Judge Assistant API
   app_version: 0.1.0
   debug: false
-  cors_origins: "*"
-  jwt_secret: 123456
+  cors_origins: "http://localhost:3000"   # restrict to actual frontend origin in production
+  jwt_secret: CHANGE_ME_IN_PRODUCTION     # override via JA_API_JWT_SECRET env var — never commit real value
   jwt_algorithm: HS256
   max_upload_bytes: 20971520
   allowed_mime_types: application/pdf,image/png,image/jpeg,image/tiff,image/bmp,image/webp
@@ -107,7 +110,6 @@ supervisor:
   max_retries: 3
   max_conversation_turns: 20
   agent_names:
-    - ocr
     - summarize
     - civil_law_rag
     - case_doc_rag
@@ -137,29 +139,9 @@ rag:
 # -------------------------------------------------------
 # OCR Pipeline
 # -------------------------------------------------------
-# -------------------------------------------------------
-# Case Reasoner
-# -------------------------------------------------------
-case_reasoner:
-  confidence:
-    weights:
-      unsupported_ratio: 0.25
-      disputed_ratio: 0.15
-      insufficient_ratio: 0.20
-      citation_failure_ratio: 0.15
-      logical_issues: 0.10
-      completeness_gap: 0.10
-      reconciliation_triggered: 0.05
-    thresholds:
-      high: 0.75
-      medium: 0.45
-
-# -------------------------------------------------------
-# OCR Pipeline
-# -------------------------------------------------------
 ocr:
   language: ar
-  use_gpu: true
+  use_gpu: false
   preprocessing:
     enable_resolution_check: true
     min_dpi: 150

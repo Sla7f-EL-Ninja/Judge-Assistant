@@ -1,0 +1,21 @@
+{
+  "test": "e2e_reason",
+  "timestamp": "2026-04-26T15:42:40.925171+00:00",
+  "latency_s": 157.307,
+  "intent": "reason",
+  "target_agents": [
+    "reason"
+  ],
+  "retry_count": 0,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [
+    "unknown:chunk_?",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\مذكرة_بدفاع_المدعى_عليها_الثانية.txt:chunk_0",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\مذكرة_بدفاع_المدعى_عليه_الأول.txt:chunk_0",
+    "civil_law"
+  ],
+  "judge_query": "بناءً على ملف القضية، هل تتحقق المسؤولية التضامنية للمدعى عليهم؟",
+  "final_response_excerpt": "بناءً على وقائع ملف القضية وأحكام القانون المدني المصري، تتوافر أركان وشروط تحقق المسؤولية التضامنية للمدعى عليهم (المتبوع) عن أفعال تابعيهم (الموظفين) وفقاً للمادة (174) من القانون المدني، وذلك بالشروط التالية:\n\n1.  أن يكون الضرر قد حدث بفعل غير مشروع من التابع.\n2.  أن يكون هذا الفعل قد وقع من التا",
+  "correlation_id": "test-cid-16988ba5-3b56-4a07-8501-9c9fe43f36f3"
+}

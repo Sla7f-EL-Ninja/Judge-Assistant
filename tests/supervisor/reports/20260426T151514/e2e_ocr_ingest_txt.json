@@ -1,0 +1,19 @@
+{
+  "test": "e2e_ocr_ingest_txt",
+  "timestamp": "2026-04-26T15:32:50.518809+00:00",
+  "latency_s": 0.0,
+  "intent": "case_doc_rag",
+  "target_agents": [
+    "case_doc_rag"
+  ],
+  "retry_count": 0,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_1",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_0"
+  ],
+  "judge_query": "لخص المستندات المرفقة",
+  "final_response_excerpt": "ملخص محتوى صحيفة الدعوى رقم 2847 لسنة 2024، المقدمة إلى محكمة جنوب القاهرة الابتدائية – الدائرة المدنية، يتضمن ما يلي:\n\n**أولاً: أطراف الدعوى**\n*   **المدعي:** السيد / أحمد محمد عبد الله، المقيم في شارع الخليفة المأمون، حي المعادي الجديدة، محافظة القاهرة، بطاقة رقمية رقم 25801234567.\n*   **المدعى عل",
+  "correlation_id": "test-cid-367f9c37-d0ac-4488-b18f-997992b32016"
+}

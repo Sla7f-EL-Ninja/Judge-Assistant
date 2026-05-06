@@ -22,7 +22,7 @@ from typing import List
 
 import httpx
 
-from RAG.legal_rag.config import (
+from config.legal_rag import (
     EMBEDDING_MODEL,
     TEI_EMBEDDING_URL,
 )

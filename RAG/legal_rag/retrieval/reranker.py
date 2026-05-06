@@ -26,7 +26,7 @@ from typing import List
 import httpx
 from langchain_core.documents import Document
 
-from RAG.legal_rag.config import TEI_RERANKER_URL
+from config.legal_rag import TEI_RERANKER_URL
 from RAG.legal_rag.telemetry import get_logger, log_event
 
 logger = get_logger(__name__)

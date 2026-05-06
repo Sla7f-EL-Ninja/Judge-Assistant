@@ -15,7 +15,7 @@ load_dotenv()
 
 from langsmith import traceable
 
-from RAG.legal_rag.config import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT
+from config.legal_rag import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT
 from RAG.legal_rag.prompts import UNIFIED_REFINE_PROMPT
 from RAG.legal_rag.indexing.normalizer import normalize
 from RAG.legal_rag.telemetry import get_logger, log_event

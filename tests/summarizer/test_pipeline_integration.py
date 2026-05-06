@@ -17,10 +17,6 @@ import time
 import pytest
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
-_SUMMARIZE_DIR = _REPO_ROOT / "Summerize"
-for _p in [str(_REPO_ROOT), str(_SUMMARIZE_DIR)]:
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
 
 FIXTURE_DIR = _REPO_ROOT / "tests" / "CASE_RAG" / "fixtures"
 
@@ -44,7 +40,7 @@ def real_llm():
 @pytest.fixture(scope="session")
 def full_pipeline(real_llm):
     """Compiled summarization pipeline."""
-    from graph import create_pipeline
+    from summarize.graph import create_pipeline
     return create_pipeline(real_llm)
 
 

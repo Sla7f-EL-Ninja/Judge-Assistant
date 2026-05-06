@@ -1,0 +1,18 @@
+{
+  "test": "all_agents_fail",
+  "timestamp": "2026-04-26T15:43:14.469272+00:00",
+  "latency_s": 0.0,
+  "intent": "civil_law_rag",
+  "target_agents": [
+    "civil_law_rag"
+  ],
+  "retry_count": 3,
+  "validation_status": "fallback",
+  "agent_errors": {
+    "civil_law_rag": "Simulated failure for civil_law_rag"
+  },
+  "sources": [],
+  "judge_query": "ما المادة 163؟",
+  "final_response_excerpt": "لم يتمكن النظام من تقديم إجابة موثوقة بالكامل على هذا السؤال بعد عدة محاولات. يرجى إعادة صياغة السؤال أو تقسيمه إلى أسئلة أصغر.\n\nملاحظات التحقق: No response was generated to validate.",
+  "correlation_id": "test-cid-5b31384c-ee08-44e5-9b4a-105814af45ae"
+}

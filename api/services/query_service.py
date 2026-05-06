@@ -41,6 +41,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, List, Optional
 
@@ -116,6 +117,10 @@ def _build_initial_state(
         "merged_response": "",
         "final_response": "",
         "sources": [],
+        "correlation_id": str(uuid.uuid4()),
+        "classification_error": None,
+        "case_summary": None,
+        "case_doc_titles": [],
     }
 
 
@@ -127,13 +132,10 @@ def _stream_graph_sync(state: dict) -> list:
     """Run the graph in streaming mode (synchronous) and collect events.
 
     Returns a list of node-event dicts as yielded by LangGraph's stream().
-
-    A new graph instance is compiled on each call so there is no shared
-    mutable state between concurrent requests.
     """
-    from Supervisor.graph import build_supervisor_graph
+    from Supervisor.graph import get_app
 
-    graph = build_supervisor_graph()
+    graph = get_app()
 
     events: list = []
     for event in graph.stream(state):
@@ -252,6 +254,10 @@ async def run_query_sse(
         turn_count=turn_count,
     )
 
+    logger.info(
+        "Supervisor turn starting: correlation_id=%s case_id=%s",
+        state["correlation_id"], case_id,
+    )
     yield _format_sse("progress", {"step": "starting", "status": "running"})
 
     try:
@@ -335,20 +341,5 @@ async def run_query_sse(
         "timestamp": now,
     }
     await append_turn(db, conversation_id, turn)
-
-    # If summarize agent was used, store the summary
-    if "summarize" in agents_used and final_response:
-        await db[SUMMARIES].update_one(
-            {"case_id": case_id},
-            {
-                "$set": {
-                    "case_id": case_id,
-                    "summary": final_response,
-                    "generated_at": now,
-                    "sources": sources,
-                }
-            },
-            upsert=True,
-        )
 
     yield _format_sse("done", {})

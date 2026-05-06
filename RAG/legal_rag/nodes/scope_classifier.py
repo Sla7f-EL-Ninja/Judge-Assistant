@@ -28,7 +28,7 @@ from langsmith import traceable
 
 load_dotenv()
 
-from RAG.legal_rag.config import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT, cfg
+from config.legal_rag import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT, cfg
 from RAG.legal_rag.indexing.toc import load_toc
 from RAG.legal_rag.prompts import CHAPTER_CLASSIFIER_PROMPT, SECTION_CLASSIFIER_PROMPT
 from RAG.legal_rag.telemetry import get_logger, log_event

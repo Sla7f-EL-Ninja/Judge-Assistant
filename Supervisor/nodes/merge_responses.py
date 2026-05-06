@@ -9,12 +9,18 @@ it simply passes the response through.
 """
 
 import logging
+import unicodedata
 from typing import Any, Dict, List
 
 from config import get_llm
+from Supervisor.llm_utils import llm_invoke
 from Supervisor.prompts import (
     MERGE_RESPONSES_SYSTEM_PROMPT,
     MERGE_RESPONSES_USER_TEMPLATE,
+    RUNNING_SUMMARY_SECTION_TEMPLATE,
+    RUNNING_SUMMARY_SECTION_EMPTY,
+    SEMANTIC_FACTS_SECTION_TEMPLATE,
+    SEMANTIC_FACTS_SECTION_EMPTY,
 )
 from Supervisor.state import SupervisorState
 
@@ -30,27 +36,32 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
     agent_errors = state.get("agent_errors", {})
 
     if not agent_results:
-        # All agents failed -- nothing to merge
+        # All agents failed -- nothing to merge; validate_output will set validation_status
         error_summary = "; ".join(
             f"{k}: {v}" for k, v in agent_errors.items()
         )
+        logger.warning("All agents failed: %s", error_summary)
         return {
             "merged_response": "",
             "sources": [],
-            "validation_status": "fail_completeness",
             "validation_feedback": f"All agents failed: {error_summary}",
         }
 
-    # Collect sources from every agent
+    # Collect, unicode-normalize, and deduplicate sources (P1.6.8)
     all_sources: List[str] = []
     for result in agent_results.values():
-        all_sources.extend(result.get("sources", []))
-    # Deduplicate while preserving order
-    seen = set()
+        for src in result.get("sources", []):
+            if src:
+                normalized = unicodedata.normalize("NFKC", str(src)).strip()
+                if normalized:
+                    all_sources.append(normalized)
+    # Deduplicate while preserving insertion order (case-insensitive key)
+    seen: set = set()
     unique_sources = []
     for src in all_sources:
-        if src not in seen:
-            seen.add(src)
+        key = src.lower()
+        if key not in seen:
+            seen.add(key)
             unique_sources.append(src)
 
     # Single agent -- pass through directly
@@ -61,6 +72,21 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
             "sources": unique_sources,
         }
 
+    # A6.8.3: partial-success disclosure when some agents failed
+    agent_errors = state.get("agent_errors", {})
+    partial_disclosure = ""
+    if agent_errors:
+        failed_names = ", ".join(agent_errors.keys())
+        partial_disclosure = (
+            "\n\n---\n"
+            f"**ملاحظة:** لم تتمكن بعض المصادر ({failed_names}) من تقديم بيانات كاملة. "
+            "الإجابة مبنية على المعلومات المتاحة فقط."
+        )
+        logger.warning(
+            "Partial-success merge: %d agent(s) succeeded, %d failed: %s",
+            len(agent_results), len(agent_errors), list(agent_errors.keys()),
+        )
+
     # Multiple agents -- use LLM to merge
     judge_query = state.get("classified_query", state.get("judge_query", ""))
 
@@ -70,8 +96,27 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
         agent_output_parts.append(f"--- {agent_name} ---\n{response}")
     agent_outputs_text = "\n\n".join(agent_output_parts)
 
+    running_summary = state.get("running_summary") or ""
+    running_summary_section = (
+        RUNNING_SUMMARY_SECTION_TEMPLATE.format(running_summary=running_summary)
+        if running_summary
+        else RUNNING_SUMMARY_SECTION_EMPTY
+    )
+
+    raw_semantic_facts = state.get("semantic_facts") or []
+    if raw_semantic_facts:
+        facts_text = "\n".join(
+            f"- {f.get('content', str(f))}" if isinstance(f, dict) else f"- {f}"
+            for f in raw_semantic_facts
+        )
+        semantic_facts_section = SEMANTIC_FACTS_SECTION_TEMPLATE.format(semantic_facts=facts_text)
+    else:
+        semantic_facts_section = SEMANTIC_FACTS_SECTION_EMPTY
+
     user_prompt = MERGE_RESPONSES_USER_TEMPLATE.format(
         judge_query=judge_query,
+        running_summary_section=running_summary_section,
+        semantic_facts_section=semantic_facts_section,
         agent_outputs=agent_outputs_text,
     )
 
@@ -81,11 +126,13 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
             {"role": "system", "content": MERGE_RESPONSES_SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ]
-        response = llm.invoke(messages)
+        response = llm_invoke(llm.invoke, messages)
+        if response is None:
+            raise ValueError("LLM returned None for merge_responses")
         merged = response.content if hasattr(response, "content") else str(response)
 
         return {
-            "merged_response": merged,
+            "merged_response": merged + partial_disclosure,
             "sources": unique_sources,
         }
 
@@ -97,6 +144,6 @@ def merge_responses_node(state: SupervisorState) -> Dict[str, Any]:
             for name, r in agent_results.items()
         )
         return {
-            "merged_response": fallback,
+            "merged_response": fallback + partial_disclosure,
             "sources": unique_sources,
         }

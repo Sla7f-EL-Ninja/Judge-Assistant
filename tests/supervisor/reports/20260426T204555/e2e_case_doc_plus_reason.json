@@ -1,0 +1,24 @@
+{
+  "test": "e2e_case_doc_plus_reason",
+  "timestamp": "2026-04-26T20:56:36.329234+00:00",
+  "latency_s": 135.665,
+  "intent": "multi",
+  "target_agents": [
+    "case_doc_rag",
+    "reason"
+  ],
+  "retry_count": 0,
+  "validation_status": "pass",
+  "agent_errors": {},
+  "sources": [
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_0",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\صحيفة_دعوى.txt:chunk_1",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\مذكرة_بدفاع_المدعى_عليه_الأول.txt:chunk_0",
+    "D:\\FUCK!!\\Grad\\Code\\tests\\CASE_RAG\\fixtures\\مذكرة_بدفاع_المدعى_عليها_الثانية.txt:chunk_0",
+    "unknown:chunk_?",
+    "civil_law"
+  ],
+  "judge_query": "بناءً على ملف القضية، حلل الموقف القانوني للمدعى عليهم",
+  "final_response_excerpt": "إلى السيد القاضي،\n\nتحية طيبة وبعد،\n\nبناءً على طلبكم بتحليل الموقف القانوني للمدعى عليهم بالاستناد إلى مستندات ملف القضية ونتائج الوكلاء، نقدم لكم التحليل التالي:\n\n**مقدمة:**\nيتمركز الموقف القانوني للمدعى عليهم حول مدى صحة عقد البيع الابتدائي المؤرخ في 15/04/2022، والذي يدعي المدعي تزوير توقيعه عليه،",
+  "correlation_id": "test-cid-71a1d5a5-c7ec-48c0-9eba-4fdc331b36c5"
+}

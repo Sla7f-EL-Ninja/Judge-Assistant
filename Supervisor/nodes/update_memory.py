@@ -30,62 +30,43 @@ it doesn't own, regardless of how the caller constructed the state.  We
 also ensure each appended dict is a new object (not aliased from elsewhere).
 """
 
+import copy
 import logging
 from typing import Any, Dict, List
 
-from config.supervisor import MAX_CONVERSATION_TURNS
 from Supervisor.state import SupervisorState
 
 logger = logging.getLogger(__name__)
 
 
 def update_memory_node(state: SupervisorState) -> Dict[str, Any]:
-    """Append the latest exchange to conversation history and trim.
-
-    Updates state keys: ``conversation_history``, ``turn_count``.
-    """
-    # Build a fully independent copy of the incoming history so that
-    # appending to it never mutates the caller's original list or any
-    # intermediate state objects held by LangGraph.
-    # Each item is also copied (dict()) so callers who pass dicts from
-    # external sources cannot be affected by later mutations.
-    incoming: List[dict] = state.get("conversation_history") or []
-    conversation_history: List[dict] = [dict(entry) for entry in incoming]
-
-    turn_count = state.get("turn_count", 0)
-
+    """Append the latest exchange to conversation history."""
+    
     judge_query = state.get("judge_query", "")
     final_response = state.get("final_response", "")
 
-    # Append the user turn
+    new_messages = []
     if judge_query:
-        conversation_history.append({
-            "role": "user",
-            "content": judge_query,
-        })
+        new_messages.append({"role": "user", "content": judge_query})
+        if final_response:
+            new_messages.append({"role": "assistant", "content": final_response})
+    elif final_response:
+        logger.warning("Skipping assistant turn: no judge_query present")
 
-    # Append the assistant turn -- store only the final response string,
-    # never agent_results or other large intermediate objects.
-    if final_response:
-        conversation_history.append({
-            "role": "assistant",
-            "content": final_response,
-        })
-
-    turn_count += 1
-
-    # Trim to the configured maximum (each turn = 2 messages)
-    max_messages = MAX_CONVERSATION_TURNS * 2
-    if len(conversation_history) > max_messages:
-        conversation_history = conversation_history[-max_messages:]
+    turn_count = state.get("turn_count", 0) + 1
+    messages_since_last_summary = state.get("messages_since_last_summary", 0) + len(new_messages)
 
     logger.info(
-        "Memory updated: turn=%d, history_len=%d",
+        "Memory updated: turn=%d, new_messages_added=%d, messages_since_last_summary=%d",
         turn_count,
-        len(conversation_history),
+        len(new_messages),
+        messages_since_last_summary,
     )
 
     return {
-        "conversation_history": conversation_history,
+        # ONLY return the delta; the `operator.add` reducer in state.py will append it
+        "conversation_history": new_messages, 
         "turn_count": turn_count,
+        "case_id": state.get("case_id", ""),
+        "messages_since_last_summary": messages_since_last_summary,
     }

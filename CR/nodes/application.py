@@ -1,19 +1,11 @@
 """Law Application Node — applies retrieved law to facts for each non-skipped element."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 from typing import Any, Dict, List
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
-
-from prompts import get_prompt
 
 
 def _format_elements_with_classification(
@@ -30,7 +22,7 @@ def _format_elements_with_classification(
 
 
 def apply_law_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    from schemas import LawApplicationResult
+    from ..schemas import LawApplicationResult
     _APPLICATION_SYSTEM, _APPLICATION_USER = get_prompt("application")
 
     required_elements: List[Dict] = state.get("required_elements") or []
@@ -39,7 +31,6 @@ def apply_law_node(state: Dict[str, Any]) -> Dict[str, Any]:
     law_result: Dict = state.get("law_retrieval_result") or {}
     law_answer: str = law_result.get("answer") or ""
 
-    # Identify elements to skip
     skipped = [c["element_id"] for c in classifications if c.get("status") == "insufficient_evidence"]
     active_ids = {el["element_id"] for el in required_elements if el["element_id"] not in skipped}
 
@@ -61,11 +52,7 @@ def apply_law_node(state: Dict[str, Any]) -> Dict[str, Any]:
     try:
         result: LawApplicationResult = structured_llm.invoke(prompt)
         applied = [
-            {
-                "element_id": el.element_id,
-                "reasoning": el.reasoning,
-                "cited_articles": el.cited_articles,
-            }
+            {"element_id": el.element_id, "reasoning": el.reasoning, "cited_articles": el.cited_articles}
             for el in result.elements
         ]
         logger.info("Law application: %d elements analyzed, %d skipped", len(applied), len(skipped))

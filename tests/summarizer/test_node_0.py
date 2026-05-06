@@ -24,12 +24,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-_SUMMARIZE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "Summerize"
-if str(_SUMMARIZE_DIR) not in sys.path:
-    sys.path.insert(0, str(_SUMMARIZE_DIR))
 
-from node_0 import Node0_DocumentIntake, PAGE_SIZE_ESTIMATE
-from schemas import DocumentMetadata
+from summarize.nodes.intake import Node0_DocumentIntake, PAGE_SIZE_ESTIMATE
+from summarize.schemas import DocumentMetadata
 
 
 # ---------------------------------------------------------------------------

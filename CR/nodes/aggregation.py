@@ -1,28 +1,19 @@
 """Aggregation Node — detects cross-issue relationships after all branches merge."""
-import os
-import sys
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 import logging
 import re
 from collections import defaultdict
 from typing import Any, Dict, List
 
 from config import get_llm
+from ..prompts import get_prompt
 
 logger = logging.getLogger(__name__)
 
-# Simple named-entity patterns for shared-fact detection
 _ENTITY_PATTERNS = [
-    re.compile(r"\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}"),           # dates
-    re.compile(r"\d[\d,.]* (?:جنيه|دولار|يورو)"),               # monetary amounts
-    re.compile(r"(?:السيد|السيدة|الأستاذ|الشركة)\s+\S+"),        # named parties
+    re.compile(r"\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}"),
+    re.compile(r"\d[\d,.]* (?:جنيه|دولار|يورو)"),
+    re.compile(r"(?:السيد|السيدة|الأستاذ|الشركة)\s+\S+"),
 ]
-
-from prompts import get_prompt
 
 
 def _extract_entities(text: str) -> set:
@@ -34,7 +25,7 @@ def _extract_entities(text: str) -> set:
 
 
 def aggregate_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
-    from schemas import IssueDependencies
+    from ..schemas import IssueDependencies
     _AGGREGATION_DEPENDENCY_SYSTEM, _AGGREGATION_DEPENDENCY_USER = get_prompt("aggregation_dependency")
 
     issue_analyses: List[Dict] = state.get("issue_analyses") or []
@@ -47,7 +38,6 @@ def aggregate_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "intermediate_steps": ["التجميع: لا مسائل للتحليل"],
         }
 
-    # --- Shared articles (rule-based) ---
     article_to_issues: Dict[int, List[int]] = defaultdict(list)
     for analysis in issue_analyses:
         issue_id = analysis.get("issue_id")
@@ -56,7 +46,7 @@ def aggregate_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 article_to_issues[int(article_num)].append(issue_id)
 
     for article_num, issue_ids in article_to_issues.items():
-        unique_ids = list(dict.fromkeys(issue_ids))  # preserve order, deduplicate
+        unique_ids = list(dict.fromkeys(issue_ids))
         if len(unique_ids) > 1:
             relationships.append({
                 "type": "shared_article",
@@ -64,7 +54,6 @@ def aggregate_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 "issue_ids": unique_ids,
             })
 
-    # --- Shared facts (entity overlap, rule-based) ---
     issue_entities: Dict[int, set] = {}
     for analysis in issue_analyses:
         issue_id = analysis.get("issue_id")
@@ -81,7 +70,6 @@ def aggregate_issues_node(state: Dict[str, Any]) -> Dict[str, Any]:
                     "issue_ids": [id_a, id_b],
                 })
 
-    # --- Issue dependencies (LLM-assisted) ---
     try:
         issues_summary = "\n".join(
             f"[{iss['issue_id']}] {iss['issue_title']} — {iss.get('legal_domain', '')}"

@@ -1,0 +1,16 @@
+{
+  "test": "validator_flapping",
+  "timestamp": "2026-04-26T16:03:53.025984+00:00",
+  "latency_s": 0.0,
+  "intent": "civil_law_rag",
+  "target_agents": [
+    "civil_law_rag"
+  ],
+  "retry_count": 3,
+  "validation_status": "fallback",
+  "agent_errors": {},
+  "sources": [],
+  "judge_query": "ما المادة 163؟",
+  "final_response_excerpt": "لم يتمكن النظام من تقديم إجابة موثوقة بالكامل على هذا السؤال بعد عدة محاولات. يرجى إعادة صياغة السؤال أو تقسيمه إلى أسئلة أصغر.\n\nملاحظات التحقق: Validator unavailable: validator flap",
+  "correlation_id": "test-cid-7460fb69-e139-44bf-8a21-9634103348c7"
+}

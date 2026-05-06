@@ -19,11 +19,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-_SUMMARIZE_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "Summerize"
-if str(_SUMMARIZE_DIR) not in sys.path:
-    sys.path.insert(0, str(_SUMMARIZE_DIR))
 
-from node_4b import Node4B_ThemeSynthesis, SynthesisResultLLM
+from summarize.nodes.synthesis import Node4B_ThemeSynthesis, SynthesisResultLLM
 
 
 def make_theme_cluster(
@@ -117,6 +114,7 @@ class TestSynthesizeTheme:
         llm_result = SynthesisResultLLM(
             summary="ملخص قانوني وافٍ بالموضوع",
             key_disputes=["نقطة خلاف أولى"],
+            sentences=[],
         )
         node = make_node4b(parser_result=llm_result)
         cluster = make_theme_cluster(theme_name="موضوع العقد")
@@ -127,7 +125,7 @@ class TestSynthesizeTheme:
 
     def test_empty_summary_triggers_fallback(self):
         """T-NODE4B-03: LLM returns empty string → fallback summary used."""
-        llm_result = SynthesisResultLLM(summary="", key_disputes=[])
+        llm_result = SynthesisResultLLM(summary="", key_disputes=[], sentences=[])
         node = make_node4b(parser_result=llm_result)
         cluster = make_theme_cluster(
             theme_name="موضوع",
@@ -141,6 +139,7 @@ class TestSynthesizeTheme:
         llm_result = SynthesisResultLLM(
             summary="ملخص",
             key_disputes=[],  # empty
+            sentences=[]
         )
         node = make_node4b(parser_result=llm_result)
         cluster = make_theme_cluster(
@@ -168,7 +167,7 @@ class TestSynthesizeTheme:
 
     def test_output_has_required_keys(self):
         """Output dict has: theme, summary, key_disputes, sources."""
-        llm_result = SynthesisResultLLM(summary="ملخص", key_disputes=[])
+        llm_result = SynthesisResultLLM(summary="ملخص", key_disputes=[], sentences=[])
         node = make_node4b(parser_result=llm_result)
         result = node.synthesize_theme(make_theme_cluster(), "الوقائع")
         assert "theme" in result
