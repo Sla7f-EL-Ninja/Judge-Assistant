@@ -1,81 +1,50 @@
-# -- Web framework -----------------------------------------------------------
-fastapi>=0.115
-uvicorn[standard]>=0.30
-python-multipart>=0.0.9
-
-# -- Data validation ---------------------------------------------------------
-pydantic>=2.7
-pydantic-settings>=2.3
-
-# -- Auth --------------------------------------------------------------------
-# PyJWT is the production auth library (api/services/auth.py)
-PyJWT>=2.8
-# python-jose retained for test helpers only; has known CVEs (CVE-2024-33663/33664)
-# TODO: migrate all test imports from jose to PyJWT then remove this line
-python-jose[cryptography]>=3.3
-
-# -- Async MongoDB -----------------------------------------------------------
-motor>=3.5
-
-# -- Sync MongoDB (Supervisor/services/file_ingestor.py) --------------------
-pymongo>=4.7
-
-# -- Vector store (Qdrant - replaces ChromaDB) -------------------------------
-qdrant-client>=1.9
-langchain-qdrant>=0.1
-
-# -- Redis (caching, rate limiting, sessions) --------------------------------
-redis[hiredis]>=5.0
-
-# -- MinIO (S3-compatible object storage) ------------------------------------
-minio>=7.2
-
-# -- PostgreSQL (user management, RBAC, audit logging) -----------------------
-sqlalchemy[asyncio]>=2.0
-asyncpg>=0.29
-psycopg[binary]>=3.1
-
-# -- LLM / LangChain --------------------------------------------------------
-langchain>=0.2
-langchain-core>=0.2
-langchain-community>=0.3.0,<0.4  # CVE-2024-8309/CVE-2024-2965 fixed in 0.2.38+; pin to 0.3.x
-langchain-groq>=0.1
-langchain-google-genai>=1.0
-langchain-huggingface>=0.0.3
-langgraph>=0.2
-langsmith>=0.1
-
-# -- Embeddings --------------------------------------------------------------
-sentence-transformers>=3.0
-
-# -- OCR (Surya, NOT EasyOCR) -----------------------------------------------
-surya-ocr>=0.6
-
-# -- PDF extraction ----------------------------------------------------------
-pypdf>=4.0
-
-# -- Image processing --------------------------------------------------------
-Pillow>=10.0
-numpy>=1.26
-opencv-python-headless>=4.9
-
-# -- Configuration -----------------------------------------------------------
-PyYAML>=6.0
-
-# -- Environment variables ---------------------------------------------------
-python-dotenv>=1.0
-
-# -- Database migrations (PostgreSQL schema management) ----------------------
-alembic>=1.13
-
-# -- Production server -------------------------------------------------------
-gunicorn>=22.0
-
-# -- Rate limiting -----------------------------------------------------------
-slowapi>=0.1.9
-
-# -- Observability -----------------------------------------------------------
-prometheus-client>=0.20
-prometheus-fastapi-instrumentator>=7.0
-sentry-sdk[fastapi]>=2.0
-structlog>=24.0
+anyio==4.11.0
+certifi==2025.11.12
+datasets==4.4.0
+fastapi==0.136.1
+fpdf==1.7.2
+httpx==0.28.1
+langchain==1.2.17
+langchain_community==0.4.1
+langchain_core==1.3.3
+langchain_google_genai==4.2.2
+langchain_groq==1.1.2
+langchain_huggingface==1.2.2
+langchain_qdrant==1.1.0
+langchain_text_splitters==1.1.2
+langgraph==1.1.10
+langmem==0.0.30
+langsmith==0.8.1
+locustio==0.999
+mcp==1.27.0
+motor==3.7.1
+numpy==2.4.4
+opencv_contrib_python==4.10.0.84
+opencv_python_headless==4.13.0.92
+pdf2image==1.17.0
+Pillow==12.2.0
+prometheus_client==0.24.1
+prometheus_fastapi_instrumentator==7.1.0
+pydantic==2.13.3
+pydantic_settings==2.14.0
+PyJWT==2.12.1
+pymongo==4.17.0
+pypdf==6.10.2
+pytest==9.0.2
+pytest_asyncio==1.3.0
+python-dotenv==1.2.2
+python_jose==3.5.0
+python_json_logger==4.0.0
+PyYAML==6.0.2
+PyYAML==6.0.3
+qdrant_client==1.17.1
+qwen_vl_utils==0.0.14
+ragas==0.4.3
+Requests==2.33.1
+sentence_transformers==5.1.2
+sentry_sdk==2.55.0
+streamlit==1.55.0
+structlog==25.5.0
+torch==2.6.0+cu124
+transformers==4.57.6
+typing_extensions==4.15.0
