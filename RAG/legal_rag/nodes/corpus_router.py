@@ -269,7 +269,7 @@ def _get_registry() -> dict:
 @traceable(name="Corpus Router Node")
 def corpus_router_node(state: dict) -> dict:
     """Score the query against all corpora and inject the winning CorpusConfig."""
-    query = state.get("last_query", "").strip()
+    query = (state.get("last_query") or "").strip()
 
     # ── Fast off-topic gate ───────────────────────────────────────────────
     if _fast_off_topic(query):
