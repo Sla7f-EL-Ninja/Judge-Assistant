@@ -45,7 +45,7 @@ VALID_INTENTS = AGENT_NAMES + ["multi", "off_topic"]
 # MongoDB configuration
 # ---------------------------------------------------------------------------
 MONGO_URI: str = cfg.mongodb.get("uri", "mongodb://localhost:27017/")
-MONGO_DB: str = cfg.mongodb.get("database", "Rag")
+MONGO_DB: str = cfg.mongodb.get("database", "TESTING")
 MONGO_COLLECTION: str = cfg.mongodb.get("collection", "Document Storage")
 
 # ---------------------------------------------------------------------------

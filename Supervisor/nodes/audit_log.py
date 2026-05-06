@@ -31,7 +31,7 @@ def audit_log_node(state: SupervisorState) -> Dict[str, Any]:
         mongo_uri = cfg.get("mongodb", {}).get("uri", "mongodb://localhost:27017/")
         mongo_db = (
             os.getenv("JA_MONGODB_DATABASE")
-            or cfg.get("mongodb", {}).get("db", "judge_assistant")
+            or cfg.get("mongodb", {}).get("database", "TESTING")
         )
         client = pymongo.MongoClient(mongo_uri, serverSelectionTimeoutMS=3000)
         db = client[mongo_db]

@@ -3,13 +3,16 @@ DocumentProcessor.pipeline
 ---------------------------
 Unified document processing: detect type → extract text → classify → store.
 
-Public API: process_document(file_path, case_id="") -> dict
-"""
+Public API:
+    process_document(file_path, case_id="", file_id=None) -> dict
+    reindex_document(mongo_id, new_text, doc_meta) -> int
+""" 
 
 import logging
 import os
 import re
 import threading
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from pymongo import MongoClient
@@ -216,6 +219,7 @@ def _store_in_mongo(
     confidence: int,
     explanation: str,
     file_type: str,
+    file_id: Optional[str] = None,
 ) -> Optional[Any]:
     source_file = source_file.replace("\\", "/")
     doc_record = {
@@ -227,8 +231,11 @@ def _store_in_mongo(
         "classification_confidence": confidence,
         "classification_explanation": explanation,
         "file_type": file_type,
+        "file_id": file_id,
         "storage_backend": "local",
         "minio_object": None,
+        "created_at": datetime.now(timezone.utc),
+        "corrected": False,
     }
     try:
         col = _get_mongo_collection()
@@ -297,6 +304,7 @@ def _index_in_vectorstore(
     case_id: str,
     source_file: str,
     mongo_id: str,
+    file_id: Optional[str] = None,
 ) -> int:
     """Chunk and index text. Returns number of chunks indexed."""
     try:
@@ -322,6 +330,7 @@ def _index_in_vectorstore(
             "case_id": case_id,
             "source_file": source_file,
             "mongo_id": mongo_id,
+            "file_id": file_id,
             "chunk_index": i,
         }
         for i in range(len(chunks))
@@ -338,11 +347,46 @@ def _index_in_vectorstore(
         return 0
 
 
+def _delete_qdrant_chunks_by_mongo_id(mongo_id: str) -> None:
+    """Delete all Qdrant points where metadata.mongo_id == mongo_id."""
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    vs = _get_vectorstore()
+    client = vs.client
+    collection = vs.collection_name
+    filt = Filter(
+        must=[FieldCondition(key="metadata.mongo_id", match=MatchValue(value=mongo_id))]
+    )
+    client.delete(collection_name=collection, points_selector=filt)
+    logger.info("Deleted Qdrant chunks for mongo_id=%s", mongo_id)
+
+
+def reindex_document(mongo_id: str, new_text: str, doc_meta: Dict[str, Any]) -> int:
+    """Delete existing Qdrant chunks for mongo_id and re-index new_text.
+
+    doc_meta must contain: title, doc_type, case_id, source_file. Optional: file_id.
+    Returns number of new chunks indexed.
+    """
+    _delete_qdrant_chunks_by_mongo_id(mongo_id)
+    return _index_in_vectorstore(
+        text=new_text,
+        title=doc_meta.get("title", ""),
+        doc_type=doc_meta.get("doc_type", ""),
+        case_id=doc_meta.get("case_id", ""),
+        source_file=doc_meta.get("source_file", ""),
+        mongo_id=mongo_id,
+        file_id=doc_meta.get("file_id"),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
+def process_document(
+    file_path: str,
+    case_id: str = "",
+    file_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """Process a single document end-to-end.
 
     Returns
@@ -351,7 +395,7 @@ def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
         text          -- extracted text content
         file_type     -- 'text' | 'pdf' | 'image' | 'unknown'
         classification -- {final_type, confidence, explanation}
-        metadata      -- {mongo_id, minio_object, qdrant_chunks, case_id, source_file}
+        metadata      -- {mongo_id, minio_object, qdrant_chunks, case_id, source_file, file_id}
     """
     file_type = detect_file_type(file_path)
 
@@ -373,11 +417,12 @@ def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
                 "qdrant_chunks": 0,
                 "case_id": case_id,
                 "source_file": file_path,
+                "file_id": file_id,
             },
         }
 
     classification = classify_document(text)
-    doc_type = classification.get("final_type", "مستند غير معروف")
+    doc_type = classification.get("final_type") or "مستند غير معروف"
     confidence = classification.get("confidence", 0)
     explanation = classification.get("explanation", "")
     title = doc_type
@@ -391,6 +436,7 @@ def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
         confidence=confidence,
         explanation=explanation,
         file_type=file_type,
+        file_id=file_id,
     )
 
     minio_object = None
@@ -416,6 +462,7 @@ def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
         case_id=case_id,
         source_file=file_path,
         mongo_id=str(mongo_id) if mongo_id else "",
+        file_id=file_id,
     )
 
     logger.info(
@@ -433,5 +480,6 @@ def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
             "qdrant_chunks": qdrant_chunks,
             "case_id": case_id,
             "source_file": file_path,
+            "file_id": file_id,
         },
     }

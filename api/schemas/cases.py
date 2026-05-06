@@ -7,7 +7,7 @@ Schemas for case management CRUD endpoints.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class CaseDocumentRef(BaseModel):
@@ -15,8 +15,16 @@ class CaseDocumentRef(BaseModel):
 
     file_id: str
     filename: str
-    classification: str = ""
+    classification: Dict[str, Any] = Field(default_factory=dict)
     ingested_at: Optional[datetime] = None
+    # Add this validator block:
+    @field_validator("classification", mode="before")
+    @classmethod
+    def handle_legacy_strings(cls, v):
+        if isinstance(v, str):
+            # If the DB returns a string (like ""), convert it to an empty dict
+            return {} 
+        return v
 
 
 class CaseCreate(BaseModel):

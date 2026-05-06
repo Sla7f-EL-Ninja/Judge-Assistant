@@ -49,8 +49,11 @@ class Settings(BaseSettings):
     # -- File Uploads ---------------------------------------------------------
     max_upload_bytes: int = cfg.api.get("max_upload_bytes", 20_971_520)
     allowed_mime_types: str = cfg.api.get(
-        "allowed_mime_types",
-        "application/pdf,image/png,image/jpeg,image/tiff,image/bmp,image/webp",
+    "allowed_mime_types",
+    "application/pdf,"
+    "text/plain,text/markdown,"
+    "image/png,image/jpeg,image/tiff,image/bmp,image/webp,"
+    "image/heic,image/heif,"
     )
 
     @property
@@ -66,7 +69,7 @@ class Settings(BaseSettings):
 
     # -- MongoDB --------------------------------------------------------------
     mongo_uri: str = cfg.mongodb.get("uri", "mongodb://localhost:27017/")
-    mongo_db: str = cfg.mongodb.get("database", "Rag")
+    mongo_db: str = cfg.mongodb.get("database", "TESTING")
     mongo_collection: str = cfg.mongodb.get("collection", "Document Storage")
     mongo_min_pool_size: int = cfg.mongodb.get("min_pool_size", 5)
     mongo_max_pool_size: int = cfg.mongodb.get("max_pool_size", 50)

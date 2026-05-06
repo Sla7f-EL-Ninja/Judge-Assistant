@@ -9,9 +9,10 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from config.api import Settings
 from api.dependencies import get_current_user, get_db, get_settings
-from api.schemas.common import ErrorEnvelope
+from api.errors import FILE_NOT_FOUND
+from api.schemas.common import ErrorEnvelope, MessageResponse
 from api.schemas.files import FileUploadResponse
-from api.services.file_service import save_upload
+from api.services.file_service import save_upload, delete_file
 
 router = APIRouter(prefix="/api/v1/files", tags=["Files"])
 
@@ -64,3 +65,26 @@ async def upload_file(
         mime_type=doc["mime_type"],
         uploaded_at=doc["uploaded_at"],
     )
+
+
+@router.delete(
+    "/{file_id}",
+    response_model=MessageResponse,
+    summary="Delete an uploaded file",
+    responses={
+        401: {"model": ErrorEnvelope},
+        404: {"model": ErrorEnvelope, "description": "File not found"},
+    },
+)
+async def delete_file_endpoint(
+    file_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    found = await delete_file(db, file_id, user_id)
+    if not found:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": FILE_NOT_FOUND, "message": "File not found"},
+        )
+    return MessageResponse(message="File deleted")

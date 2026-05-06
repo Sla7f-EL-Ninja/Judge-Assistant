@@ -103,9 +103,19 @@ class _MongoMemoryStore:
             upsert=True,
         )
 
-    def get(self, namespace: Tuple[str, ...], key: str) -> Optional[Dict[str, Any]]:
+    def get(self, namespace: Tuple[str, ...], key: str) -> Optional[Any]:
         doc = self._col.find_one({"namespace": self._ns(namespace), "key": key})
-        return doc["value"] if doc else None
+        if doc:
+            _, Item, _ = _import_base_store()
+            # Return an Item object instead of just doc["value"]
+            return Item(
+                namespace=tuple(doc["namespace"].split("/")),
+                key=doc["key"],
+                value=doc["value"],
+                created_at=None,
+                updated_at=doc.get("updated_at")
+            )
+        return None
 
     def search(
         self,
@@ -114,14 +124,25 @@ class _MongoMemoryStore:
         query: Optional[str] = None,
         limit: int = SEMANTIC_FACTS_TOP_K,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
-        """Return up to *limit* items from namespace. No vector search — full scan."""
+    ) -> List[Any]:
         docs = (
             self._col.find({"namespace": self._ns(namespace)})
             .skip(offset)
             .limit(limit)
         )
-        return [{"key": d["key"], "value": d["value"]} for d in docs]
+        _, _, SearchItem = _import_base_store()
+        
+        # Return SearchItem objects instead of dictionaries
+        return [
+            SearchItem(
+                namespace=tuple(d["namespace"].split("/")),
+                key=d["key"],
+                value=d["value"],
+                score=1.0, # Default score for full-scan search
+                created_at=None,
+                updated_at=d.get("updated_at")
+            ) for d in docs
+        ]
 
     def delete(self, namespace: Tuple[str, ...], key: str) -> None:
         self._col.delete_one({"namespace": self._ns(namespace), "key": key})
@@ -232,7 +253,7 @@ _store: Any = _UNSET
 _reflection_executor: Any = _UNSET
 
 _MONGO_TIMEOUT_MS = 3000   # serverSelection + connect + socket
-_INIT_TIMEOUT_S   = 5      # hard wall-clock limit for any singleton init
+_INIT_TIMEOUT_S   = 10    # hard wall-clock limit for any singleton init
 
 
 def _get_mongo_client() -> Optional[MongoClient]:
@@ -404,3 +425,16 @@ def get_procedural_manager(user_id: str) -> Any:
     except Exception as exc:
         logger.warning("memory: procedural manager init failed — %s; using noop", exc)
         return _NoopManager()
+
+# ---------------------------------------------------------------------------
+# Eager init — call at import time so the client is cached before any node
+# calls get_store() or get_checkpointer() in a nested thread.
+# ---------------------------------------------------------------------------
+def _eager_init() -> None:
+    """Pre-warm the MongoDB client in the background at module import time."""
+    def _run():
+        _get_mongo_client()  # populates _mongo_client singleton
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+
+_eager_init()

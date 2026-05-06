@@ -59,7 +59,14 @@ def write_long_term_memory_node(state: SupervisorState) -> Dict[str, Any]:
         try:
             manager = get_semantic_manager(case_id)
             valid_facts = [f for f in semantic_facts if isinstance(f.get("content"), str)]
-            manager.invoke({"messages": messages, "existing": valid_facts})
+            try:
+                manager.invoke({"messages": messages, "existing": valid_facts})
+            except Exception as exc:
+                # langmem extraction returned invalid Memory objects — log and skip
+                logger.warning(
+                    "write_long_term_memory: memory extraction produced invalid entry "
+                    "(likely empty/null content from LLM) — %s", exc
+                )
             logger.info("write_long_term_memory: semantic facts updated for case %s", case_id)
         except Exception as exc:
             logger.warning("write_long_term_memory: semantic write failed — %s", exc)
