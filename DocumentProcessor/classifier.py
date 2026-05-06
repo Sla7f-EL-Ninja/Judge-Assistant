@@ -129,6 +129,11 @@ def llm_classifier_node(state: ClassifierState) -> ClassifierState:
                 content = content[:-3]
             content = content.strip()
 
+        # Strip control characters that are illegal in JSON
+        # (keeps \x09 tab, \x0a newline, \x0d carriage-return which are valid)
+        import re
+        content = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', content)
+
         parsed = json.loads(content)
         state["final_type"] = parsed.get("doc_type", "مستند غير معروف")
         state["confidence"] = parsed.get("confidence", 80)

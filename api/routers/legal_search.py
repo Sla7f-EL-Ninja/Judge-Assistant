@@ -11,10 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from api.dependencies import get_current_user
 from api.errors import MCP_UNAVAILABLE, INVALID_CORPUS, VALIDATION_ERROR
 from api.schemas.common import ErrorEnvelope
-from api.schemas.legal_search import LegalSearchResponse
-from api.services.legal_search_service import search_articles, VALID_CORPORA
-from api.schemas.legal_search import LegalArticleLookupResponse
-from api.services.legal_search_service import lookup_articles
+from api.schemas.legal_search import LegalSearchResponse, LegalArticleLookupResponse, LegalCorpusTreeResponse
+from api.services.legal_search_service import search_articles, VALID_CORPORA, lookup_articles, get_corpus_tree
 
 logger = logging.getLogger("hakim.api.legal_search")
 
@@ -104,3 +102,29 @@ async def legal_article_lookup(
             detail={"code": VALIDATION_ERROR, "message": str(exc)},
         )
     return LegalArticleLookupResponse(**result)
+
+
+@router.get(
+    "/corpus/tree",
+    response_model=LegalCorpusTreeResponse,
+    summary="Return the full legal corpus as a structured tree",
+    description=(
+        "Returns all articles nested as book → part → chapter → section → article. "
+        "Intended for building a legal dictionary / table of contents UI."
+    ),
+    responses={
+        400: {"model": ErrorEnvelope},
+        401: {"model": ErrorEnvelope},
+    },
+)
+async def legal_corpus_tree(
+    corpus: str = Query("civil", description="Corpus: civil"),
+    user_id: str = Depends(get_current_user),
+) -> LegalCorpusTreeResponse:
+    if corpus not in VALID_CORPORA:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": INVALID_CORPUS, "message": f"Invalid corpus '{corpus}'"},
+        )
+    result = await get_corpus_tree(corpus=corpus)
+    return LegalCorpusTreeResponse(**result)

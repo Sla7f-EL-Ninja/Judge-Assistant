@@ -95,22 +95,6 @@ async def health_check(
         logger.warning("MinIO health check failed: %s", exc)
         deps["minio"] = "disconnected"
 
-    # PostgreSQL
-    try:
-        from api.db.postgres import _engine
-
-        if _engine is not None:
-            async with _engine.connect() as conn:
-                from sqlalchemy import text
-
-                await conn.execute(text("SELECT 1"))
-            deps["postgresql"] = "connected"
-        else:
-            deps["postgresql"] = "disconnected"
-    except Exception as exc:
-        logger.warning("PostgreSQL health check failed: %s", exc)
-        deps["postgresql"] = "disconnected"
-
     # Core services are MongoDB and Qdrant; others degrade gracefully
     core_healthy = deps.get("mongodb") == "connected" and deps.get("qdrant") == "connected"
     overall = "healthy" if core_healthy else "degraded"

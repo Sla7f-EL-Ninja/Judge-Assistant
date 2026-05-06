@@ -43,7 +43,7 @@ class JudgeAssistantClient:
         json: Any = None,
         files: Any = None,
         params: Any = None,
-        timeout: int = 120,
+        timeout: int = 700,
     ) -> tuple[int, dict, float]:
         """Execute a request and return (status, body, elapsed_ms)."""
         headers = dict(self.session.headers)
@@ -114,7 +114,7 @@ class JudgeAssistantClient:
             "POST",
             f"/api/v1/cases/{case_id}/documents",
             json={"file_ids": file_ids},
-            timeout=180,
+            timeout=700,
         )
 
     def list_documents(self, case_id: str) -> tuple[int, dict, float]:
@@ -204,7 +204,7 @@ class JudgeAssistantClient:
         return self._request("GET", f"/api/v1/cases/{case_id}/summary")
 
     def generate_summary(self, case_id: str) -> tuple[int, dict, float]:
-        return self._request("POST", f"/api/v1/cases/{case_id}/summary/generate", timeout=180)
+        return self._request("POST", f"/api/v1/cases/{case_id}/summary/generate", timeout=800)
 
     def get_case_brief(self, case_id: str) -> tuple[int, dict, float]:
         return self._request("GET", f"/api/v1/cases/{case_id}/case-brief")
@@ -249,3 +249,7 @@ class JudgeAssistantClient:
         if section is not None:
             params["section"] = section
         return self._request("GET", "/api/v1/legal/article", params=params)
+
+    def legal_corpus_tree(self, corpus: str = "civil") -> tuple[int, dict, float]:
+        """Fetch the full legal corpus as a book→part→chapter→section→article tree."""
+        return self._request("GET", "/api/v1/legal/corpus/tree", params={"corpus": corpus})
