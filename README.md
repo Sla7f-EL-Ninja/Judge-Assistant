@@ -33,7 +33,7 @@ An AI-powered legal assistant built for Egyptian judicial workflows. It combines
 
 | Feature | Description |
 |---|---|
-| **Arabic OCR** | Surya OCR with Arabic preprocessing: deskew, contrast enhancement, dictionary correction (max Levenshtein distance 2), Arabic-Indic digit normalization, confidence tiers (high ≥0.85 / medium ≥0.60 / low) |
+| **Arabic OCR** | QARI OCR (`NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct` — Qwen2VL-based VLM) with two preprocessing stages: (1) CLAHE contrast normalization on LAB L-channel; (2) perspective correction via Canny edge-contour detection with adaptive-threshold fallback and safety guards. Confidence derived from token softmax probabilities (page-level + per-word). Arabic-Indic digit normalization applied post-inference. |
 | **Civil Law RAG** | Unified multi-corpus retrieval across Egyptian Civil Law, Evidence Law, and Civil Procedure Law. Corpus is auto-selected per query via LLM scoring. Optional HyDE expansion. TEI-powered BAAI/bge-m3 embeddings + reranker |
 | **Case Document RAG** | Per-case document retrieval with parallel sub-question fan-out, three document selection modes (retrieve_specific / restrict_to / search_all), and automatic rephrase-retry loop |
 | **Case Reasoner** | Per-issue legal analysis pipeline: issue extraction → law + fact retrieval → evidence classification → legal application → counterarguments → validation → global consistency check → confidence scoring |
@@ -121,7 +121,7 @@ Judge (HTTP Client)
 | **Case Doc RAG** | `case_doc_rag` | MCP (subprocess stdio) | `mcp_servers.case_doc_server` → `RAG/case_doc_rag/graph.py` |
 | **Chat Reasoner** | `reason` | Direct invocation | `chat_reasoner/graph.py` |
 | **Summarizer** | `summarize` | Direct invocation | `summarize/graph.py` |
-| **OCR** | `ocr` | Direct invocation | `OCR/ocr_pipeline.py` |
+| **OCR** | `ocr` | Direct invocation | `DocumentProcessor/OCR/ocr_pipeline.py` |
 
 ### Civil Law RAG
 
@@ -803,20 +803,25 @@ Code/
 │                                 #   application, counterargument, validation, package,
 │                                 #   aggregation, consistency, confidence, report
 │
-├── OCR/                          # Arabic OCR pipeline
-│   ├── ocr_pipeline.py           #   full pipeline orchestration
-│   ├── engine.py                 #   Surya OCR wrapper
-│   ├── preprocessor.py           #   deskew, denoise, contrast, resolution check
-│   ├── postprocessor.py          #   dict correction, digit normalization
-│   └── schemas.py
+├── DocumentProcessor/            # Document processing subsystem
+│   ├── pipeline.py               #   top-level orchestration
+│   ├── classifier.py             #   document type classifier
+│   └── OCR/                      #   QARI OCR pipeline
+│       ├── ocr_pipeline.py       #     run_ocr() — main orchestrator
+│       ├── ocr_engine.py         #     QARIEngine (Qwen2VL, 8-bit quantized, singleton)
+│       ├── ingestion.py          #     PDF→PIL pages (400 DPI) + image loading + validation
+│       ├── restoration.py        #     CLAHE contrast normalization on LAB L-channel
+│       ├── perspective_correction.py  # Canny edge-contour + adaptive-threshold dewarp
+│       ├── text_reconstruction.py     # normalize_numerals() — Arabic-Indic digit conversion
+│       ├── confidence.py         #     page-level + per-word token probability scoring
+│       └── models.py             #     OCRPageResult, OCRDocumentResult (Pydantic)
 │
 ├── config/                       # Centralized configuration
 │   ├── settings.yaml             #   committed defaults
 │   ├── __init__.py               #   AppConfig singleton, get_llm() factory
 │   ├── api.py                    #   FastAPI Settings (Pydantic)
 │   ├── supervisor.py             #   supervisor constants
-│   ├── legal_rag.py              #   RAG constants
-│   └── ocr.py                    #   OCR constants
+│   └── legal_rag.py              #   RAG constants
 │
 ├── tests/                        # Full test suite
 │   ├── supervisor/
@@ -904,11 +909,15 @@ docker run -d -p 6333:6333 -p 6334:6334 qdrant/qdrant
 
 Ensure Motor is version 3.x and that `bson` is installed from the `pymongo` package, not the standalone `bson` package (they conflict).
 
-### OCR confidence always low
+### OCR confidence always low or CUDA OOM
 
-- Minimum DPI is 150 (configurable via `JA_OCR_PREPROCESSING_MIN_DPI`)
-- Enable GPU: `JA_OCR_USE_GPU=true` (requires CUDA toolkit)
-- Check `surya_batch_size` — reduce to 1 if GPU OOM errors appear
+The OCR engine is QARI (`NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct`), a Qwen2VL vision-language model loaded in 8-bit quantization. It requires a CUDA GPU — CPU inference works but is extremely slow.
+
+- **CUDA OOM:** the engine catches `torch.cuda.OutOfMemoryError`, flushes the cache, and returns an error entry for that page. Reduce `max_new_tokens` (default 4000) or switch to 4-bit quantization by passing `config={"quantization": "4bit"}` to `run_ocr()`.
+- **Low confidence:** confidence is computed from token softmax probabilities. Blurry or low-contrast images produce lower scores. The pipeline applies CLAHE contrast normalization automatically, but very degraded scans may still score low.
+- **Perspective correction skipped:** if the Canny edge-contour detector and the adaptive-threshold fallback both fail to find a valid page quad — or the safety guards reject the detected quad (output too small, crop ratio < 0.65, area < 35% of original) — the original image is passed through unchanged. Check logs for "Safety guard triggered" or "No page boundary detected".
+- **PDF DPI:** PDFs are rendered at 400 DPI by default. If images are too large for GPU VRAM, lower `pdf_dpi` in config.
+- **No dictionary correction:** the OCR prompt instructs the model to transcribe exactly as written. Spelling normalization is intentionally absent — do not expect it.
 
 ### `validator_error` in every response
 
