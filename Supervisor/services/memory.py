@@ -393,6 +393,11 @@ def get_semantic_manager(case_id: str) -> Any:
             _get_default_model(),
             store=get_store(),
             namespace=("case", case_id, "facts"),
+            instructions=(
+                "استخرج الحقائق القانونية الجوهرية من المحادثة كنصوص مستقلة. "
+                "يجب أن يكون حقل 'content' دائماً سلسلة نصية عادية فقط — "
+                "لا تستخدم كائنات JSON أو قواميس أو هياكل متداخلة كقيمة لهذا الحقل."
+            ),
         )
     except Exception as exc:
         logger.warning("memory: semantic manager init failed — %s; using noop", exc)
@@ -407,6 +412,11 @@ def get_episodic_manager(case_id: str) -> Any:
             _get_default_model(),
             store=get_store(),
             namespace=("case", case_id, "episodes"),
+            instructions=(
+                "لخِّص الأحداث والوقائع الرئيسية لهذه الجلسة القضائية كنص سردي. "
+                "يجب أن يكون حقل 'content' دائماً سلسلة نصية عادية فقط — "
+                "لا تستخدم كائنات JSON أو قواميس أو هياكل متداخلة كقيمة لهذا الحقل."
+            ),
         )
     except Exception as exc:
         logger.warning("memory: episodic manager init failed — %s; using noop", exc)
@@ -421,6 +431,11 @@ def get_procedural_manager(user_id: str) -> Any:
             _get_default_model(),
             store=get_store(),
             namespace=("user", user_id, "prefs"),
+            instructions=(
+                "استخرج تفضيلات القاضي وأنماط سلوكه الملاحظة في المحادثة كنصوص مستقلة. "
+                "يجب أن يكون حقل 'content' دائماً سلسلة نصية عادية فقط — "
+                "لا تستخدم كائنات JSON أو قواميس أو هياكل متداخلة كقيمة لهذا الحقل."
+            ),
         )
     except Exception as exc:
         logger.warning("memory: procedural manager init failed — %s; using noop", exc)
