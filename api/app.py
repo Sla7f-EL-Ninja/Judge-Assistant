@@ -10,7 +10,8 @@ structured error handlers, and all routers mounted.
 import logging
 import os
 from contextlib import asynccontextmanager
-
+import time
+import uuid
 import structlog
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -324,6 +325,7 @@ def create_app() -> FastAPI:
                 content=envelope.model_dump(),
             )
         return await call_next(request)
+    
 
     # -- Error handlers -------------------------------------------------------
     @app.exception_handler(HTTPException)

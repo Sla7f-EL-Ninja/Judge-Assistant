@@ -16,7 +16,7 @@ from api.errors import FILE_NOT_FOUND
 from api.schemas.common import ErrorEnvelope, MessageResponse
 from api.schemas.files import FileUploadResponse
 from api.services.file_service import save_upload, delete_file, open_file_stream
-
+from urllib.parse import quote
 router = APIRouter(prefix="/api/v1/files", tags=["Files"])
 
 
@@ -99,7 +99,11 @@ async def get_file(
     stream, meta = result
     disposition = "attachment" if download else "inline"
     headers = {
-        "Content-Disposition": f'{disposition}; filename="{meta["filename"]}"',
+        "Content-Disposition": (
+        f"{disposition}; "
+        f'filename="{meta["filename"].encode("ascii", "replace").decode()}"; '
+        f"filename*=UTF-8''{quote(meta['filename'])}"
+    ),
         "Content-Length": str(meta["size_bytes"]),
     }
     return StreamingResponse(

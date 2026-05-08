@@ -23,6 +23,7 @@ from api.schemas.documents import (
     IngestRequest, IngestResponse, DocumentListResponse,
     DocumentDetailResponse, ClassificationDetail,
     OCRTextResponse, OCRCorrectionRequest,
+    BulkOCRCorrectionRequest, BulkOCRCorrectionResponse, BulkOCRCorrectionResultItem,
 )
 from api.services import case_service, document_service
 
@@ -91,6 +92,83 @@ async def list_documents(
 
     docs = await document_service.list_documents(db=db, case_id=case_id)
     return DocumentListResponse(documents=docs, total=len(docs))
+
+
+@router.post(
+    "/{case_id}/documents/ocr/bulk",
+    response_model=BulkOCRCorrectionResponse,
+    status_code=207,
+    summary="Bulk-correct OCR text for multiple documents",
+    responses={
+        401: {"model": ErrorEnvelope},
+        404: {"model": ErrorEnvelope, "description": "Case not found"},
+        422: {"model": ErrorEnvelope},
+    },
+)
+async def correct_ocr_text_bulk(
+    case_id: str,
+    body: BulkOCRCorrectionRequest,
+    user_id: str = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Apply OCR corrections to multiple documents in one request.
+
+    Each item is processed independently — one failure does not abort the rest.
+    Always returns 207; check per-item ``status`` for individual outcomes.
+
+    Warning: if a document's Mongo text update succeeds but Qdrant reindex fails,
+    the corrected text is persisted but the search index is stale. This matches
+    single-PATCH semantics and requires a manual reindex to recover.
+    """
+    case = await case_service.get_case(db, case_id, user_id)
+    if case is None:
+        _case_not_found()
+
+    raw_results = await document_service.bulk_correct_document_ocr(
+        db=db,
+        case_id=case_id,
+        items=[item.model_dump() for item in body.corrections],
+        default_corrected_by=body.corrected_by,
+    )
+
+    results = []
+    for r in raw_results:
+        doc = r.get("result")
+        ocr_response = None
+        if doc is not None:
+            file_ids = doc.get("file_ids") or ([doc["file_id"]] if doc.get("file_id") else [])
+            source_files = doc.get("source_files") or ([doc["source_file"]] if doc.get("source_file") else [])
+            classification_raw = {
+                "final_type": doc.get("doc_type", ""),
+                "confidence": doc.get("classification_confidence", 0.0),
+                "explanation": doc.get("classification_explanation", ""),
+            }
+            ocr_response = OCRTextResponse(
+                doc_id=doc["id"],
+                file_ids=file_ids,
+                file_id=file_ids[0] if file_ids else None,
+                file_type=doc.get("file_type"),
+                source_file=doc.get("source_file", ""),
+                source_files=source_files,
+                text=doc.get("text", ""),
+                classification=ClassificationDetail(**classification_raw),
+                corrected=doc.get("corrected", False),
+                corrected_at=doc.get("corrected_at"),
+                original_text=doc.get("original_text"),
+            )
+        results.append(BulkOCRCorrectionResultItem(
+            doc_id=r["doc_id"],
+            status=r["status"],
+            result=ocr_response,
+            error=r.get("error"),
+        ))
+
+    succeeded = sum(1 for r in results if r.status == "success")
+    return BulkOCRCorrectionResponse(
+        results=results,
+        succeeded=succeeded,
+        failed=len(results) - succeeded,
+    )
 
 
 @router.get(
