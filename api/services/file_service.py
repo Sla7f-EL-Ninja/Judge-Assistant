@@ -12,7 +12,7 @@ import uuid
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Optional
+from typing import AsyncIterator, Optional, Tuple
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -130,6 +130,57 @@ async def get_file_record(
 ) -> Optional[dict]:
     """Fetch file metadata from MongoDB."""
     return await db[FILES].find_one({"_id": file_id})
+
+
+def _disk_chunk_generator(path: str, chunk_size: int = 8192):
+    """Sync generator that reads a local file in chunks."""
+    with open(path, "rb") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
+
+
+async def open_file_stream(
+    db: AsyncIOMotorDatabase,
+    file_id: str,
+) -> Optional[Tuple[AsyncIterator[bytes], dict]]:
+    """Return a streaming iterator and file metadata, or None if not found.
+
+    Caller is responsible for setting Content-Type / Content-Length headers
+    from the returned metadata dict.
+    """
+    from starlette.concurrency import iterate_in_threadpool
+
+    file_rec = await db[FILES].find_one({"_id": file_id})
+    if file_rec is None:
+        return None
+
+    meta = {
+        "mime_type": file_rec.get("mime_type", "application/octet-stream"),
+        "filename": file_rec.get("filename", "file"),
+        "size_bytes": file_rec.get("size_bytes", 0),
+    }
+
+    if file_rec.get("storage_backend") == "minio" and file_rec.get("minio_object"):
+        try:
+            from api.db.minio_client import get_minio, get_bucket, stream_file
+
+            minio_client = get_minio()
+            if minio_client is not None:
+                bucket = get_bucket()
+                sync_gen = stream_file(file_rec["minio_object"])
+                return iterate_in_threadpool(sync_gen), meta
+        except Exception as exc:
+            logger.warning("MinIO stream failed for %s: %s — trying local disk", file_id, exc)
+
+    disk_path = file_rec.get("disk_path", "")
+    if disk_path and os.path.exists(disk_path):
+        sync_gen = _disk_chunk_generator(disk_path)
+        return iterate_in_threadpool(sync_gen), meta
+
+    return None
 
 
 async def delete_file(

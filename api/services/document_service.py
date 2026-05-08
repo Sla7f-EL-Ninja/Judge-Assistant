@@ -9,7 +9,7 @@ import logging
 import os
 import tempfile
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -25,66 +25,130 @@ def _str_id(doc: dict) -> dict:
     return doc
 
 
+async def _resolve_file_path(
+    db: AsyncIOMotorDatabase, file_id: str
+) -> tuple:
+    """Return (file_rec, resolved_path, tmp_file_or_None).
+
+    Caller must delete tmp_file.name when done (if tmp_file is not None).
+    Returns (None, "", None) when file not found in DB.
+    Returns (file_rec, "", None) when file exists in DB but not on disk/MinIO.
+    """
+    file_rec = await db[FILES].find_one({"_id": file_id})
+    if file_rec is None:
+        return None, "", None
+
+    resolved_path = ""
+    tmp_file = None
+
+    if file_rec.get("storage_backend") == "minio" and file_rec.get("minio_object"):
+        try:
+            from api.db.minio_client import get_minio, get_bucket
+
+            minio_client = get_minio()
+            if minio_client:
+                bucket = get_bucket()
+                ext = os.path.splitext(file_rec.get("filename", ""))[1]
+                tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+                tmp_file.close()  # must close before fget_object on Windows
+                await asyncio.to_thread(
+                    minio_client.fget_object, bucket, file_rec["minio_object"], tmp_file.name
+                )
+                resolved_path = tmp_file.name
+                logger.info("Resolved file %s from MinIO -> %s", file_id, resolved_path)
+        except Exception as exc:
+            logger.warning("MinIO download failed for %s: %s — trying local disk", file_id, exc)
+            if tmp_file is not None:
+                try:
+                    os.unlink(tmp_file.name)
+                except Exception:
+                    pass
+                tmp_file = None
+
+    if not resolved_path:
+        resolved_path = file_rec.get("disk_path", "")
+
+    return file_rec, resolved_path, tmp_file
+
+
 async def ingest_files(
     db: AsyncIOMotorDatabase,
     settings,
     case_id: str,
-    file_ids: List[str],
+    file_ids: Optional[List[str]] = None,
+    groups=None,
 ) -> Dict[str, List[Dict[str, Any]]]:
-    """Ingest the given files into a case.
+    """Ingest files into a case, returning ``{"ingested": [...], "errors": [...]}``.
 
-    Returns ``{"ingested": [...], "errors": [...]}``.
+    Accepts either ``file_ids`` (legacy: one doc per file) or ``groups``
+    (list of IngestGroup: one doc per group). The caller normalises via
+    ``IngestRequest.resolved_groups``.
     """
     from DocumentProcessor import process_document
+    from DocumentProcessor.pipeline import process_document_group
+
+    # Normalise to groups
+    if groups is not None:
+        resolved_groups = groups
+    elif file_ids is not None:
+        class _G:
+            def __init__(self, fids):
+                self.file_ids = fids
+        resolved_groups = [_G([fid]) for fid in file_ids]
+    else:
+        return {"ingested": [], "errors": []}
 
     ingested: List[Dict[str, Any]] = []
     errors: List[Dict[str, Any]] = []
 
-    for file_id in file_ids:
-        file_rec = await db[FILES].find_one({"_id": file_id})
-        if file_rec is None:
-            errors.append({"file_id": file_id, "error": "File not found"})
-            continue
-
-        # -- Resolve file path: MinIO first, local disk fallback -------------
-        resolved_path: str = ""
-        tmp_file = None
-
-        if file_rec.get("storage_backend") == "minio" and file_rec.get("minio_object"):
-            try:
-                from api.db.minio_client import get_minio, get_bucket
-
-                minio_client = get_minio()
-                if minio_client:
-                    bucket = get_bucket()
-                    ext = os.path.splitext(file_rec.get("filename", ""))[1]
-                    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-                    tmp_file.close()  # ← must close before fget_object on Windows
-                    await asyncio.to_thread(
-                        minio_client.fget_object, bucket, file_rec["minio_object"], tmp_file.name
-                    )
-                    resolved_path = tmp_file.name
-                    logger.info("Resolved file %s from MinIO -> %s", file_id, resolved_path)
-            except Exception as exc:
-                logger.warning("MinIO download failed for %s: %s — trying local disk", file_id, exc)
-
-        if not resolved_path:
-            resolved_path = file_rec.get("disk_path", "")
-
-        if not resolved_path:
-            errors.append({"file_id": file_id, "error": "File not found in MinIO or local disk"})
-            continue
+    for group in resolved_groups:
+        group_file_ids: List[str] = list(group.file_ids)
+        tmp_files = []
+        resolved_paths: List[str] = []
+        file_recs: List[dict] = []
+        group_error = None
 
         try:
-            result = await asyncio.to_thread(
-                process_document, resolved_path, case_id, file_id
-            )
+            for fid in group_file_ids:
+                file_rec, path, tmp_file = await _resolve_file_path(db, fid)
+                if tmp_file is not None:
+                    tmp_files.append(tmp_file)
+                if file_rec is None:
+                    group_error = f"File not found: {fid}"
+                    break
+                if not path:
+                    group_error = f"File not found in MinIO or local disk: {fid}"
+                    break
+                file_recs.append(file_rec)
+                resolved_paths.append(path)
+
+            if group_error:
+                errors.append({
+                    "file_ids": group_file_ids,
+                    "file_id": group_file_ids[0] if group_file_ids else None,
+                    "error": group_error,
+                    "status": "failed",
+                })
+                continue
+
+            if len(group_file_ids) == 1:
+                result = await asyncio.to_thread(
+                    process_document, resolved_paths[0], case_id, group_file_ids[0]
+                )
+            else:
+                result = await asyncio.to_thread(
+                    process_document_group, resolved_paths, case_id, group_file_ids
+                )
 
             classification = result.get("classification", {})
             doc_type = classification.get("final_type", "")
+            metadata = result.get("metadata", {})
+            doc_id = metadata.get("mongo_id")
 
             ingested.append({
-                "file_id": file_id,
+                "file_ids": group_file_ids,
+                "file_id": group_file_ids[0],
+                "doc_id": doc_id,
                 "doc_type": doc_type,
                 "classification": classification,
                 "status": "success",
@@ -94,19 +158,25 @@ async def ingest_files(
                 db,
                 case_id,
                 {
-                    "file_id": file_id,
-                    "filename": file_rec.get("filename", ""),
+                    "file_ids": group_file_ids,
+                    "file_id": group_file_ids[0],
+                    "filenames": [r.get("filename", "") for r in file_recs],
                     "classification": classification,
                     "ingested_at": datetime.now(timezone.utc),
                 },
             )
 
         except Exception as exc:
-            logger.exception("Ingestion failed for file %s: %s", file_id, exc)
-            errors.append({"file_id": file_id, "error": str(exc), "status": "failed"})
+            logger.exception("Ingestion failed for group %s: %s", group_file_ids, exc)
+            errors.append({
+                "file_ids": group_file_ids,
+                "file_id": group_file_ids[0] if group_file_ids else None,
+                "error": str(exc),
+                "status": "failed",
+            })
 
         finally:
-            if tmp_file is not None:
+            for tmp_file in tmp_files:
                 try:
                     os.unlink(tmp_file.name)
                 except Exception:
@@ -119,14 +189,20 @@ async def list_documents(db: AsyncIOMotorDatabase, case_id: str) -> list:
     cursor = db[DOCUMENTS].find(
         {"case_id": case_id},
         {
-            "_id": 1, "title": 1, "source_file": 1, "created_at": 1,
-            "doc_type": 1, "file_type": 1, "file_id": 1,
+            "_id": 1, "title": 1, "source_file": 1, "source_files": 1,
+            "created_at": 1, "doc_type": 1, "file_type": 1,
+            "file_id": 1, "file_ids": 1,
         }
     ).sort("created_at", -1)
     docs = await cursor.to_list(length=200)
     result = []
     for d in docs:
         d["id"] = str(d.pop("_id"))
+        # Backfill list fields for docs ingested before this change
+        if "file_ids" not in d:
+            d["file_ids"] = [d["file_id"]] if d.get("file_id") else []
+        if "source_files" not in d:
+            d["source_files"] = [d["source_file"]] if d.get("source_file") else []
         result.append(d)
     return result
 

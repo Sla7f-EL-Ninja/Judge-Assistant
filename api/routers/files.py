@@ -2,9 +2,12 @@
 files.py
 
 POST /api/v1/files/upload -- file upload endpoint.
+GET  /api/v1/files/{file_id} -- stream raw file for browser rendering.
+DELETE /api/v1/files/{file_id} -- delete uploaded file.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from config.api import Settings
@@ -12,7 +15,7 @@ from api.dependencies import get_current_user, get_db, get_settings
 from api.errors import FILE_NOT_FOUND
 from api.schemas.common import ErrorEnvelope, MessageResponse
 from api.schemas.files import FileUploadResponse
-from api.services.file_service import save_upload, delete_file
+from api.services.file_service import save_upload, delete_file, open_file_stream
 
 router = APIRouter(prefix="/api/v1/files", tags=["Files"])
 
@@ -64,6 +67,45 @@ async def upload_file(
         size_bytes=doc["size_bytes"],
         mime_type=doc["mime_type"],
         uploaded_at=doc["uploaded_at"],
+    )
+
+
+@router.get(
+    "/{file_id}",
+    summary="Stream a raw file for browser rendering",
+    description=(
+        "Returns the raw file bytes with the correct Content-Type so browsers can "
+        "render PDFs, images, etc. inline. Pass ?download=1 to force attachment download."
+    ),
+    responses={
+        200: {"description": "File stream"},
+        401: {"model": ErrorEnvelope},
+        404: {"model": ErrorEnvelope, "description": "File not found"},
+    },
+)
+async def get_file(
+    file_id: str,
+    download: bool = Query(default=False, description="Force attachment download"),
+    user_id: str = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    result = await open_file_stream(db, file_id)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": FILE_NOT_FOUND, "message": "File not found"},
+        )
+
+    stream, meta = result
+    disposition = "attachment" if download else "inline"
+    headers = {
+        "Content-Disposition": f'{disposition}; filename="{meta["filename"]}"',
+        "Content-Length": str(meta["size_bytes"]),
+    }
+    return StreamingResponse(
+        content=stream,
+        media_type=meta["mime_type"],
+        headers=headers,
     )
 
 
