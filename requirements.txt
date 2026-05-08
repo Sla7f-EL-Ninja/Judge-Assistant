@@ -45,6 +45,6 @@ sentence_transformers==5.1.2
 sentry_sdk==2.55.0
 streamlit==1.55.0
 structlog==25.5.0
-torch==2.6.0+cu124
+torch==2.8.0
 transformers==4.57.6
 typing_extensions==4.15.0
