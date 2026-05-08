@@ -66,7 +66,7 @@ async def ingest_documents(
         _case_not_found()
 
     result = await document_service.ingest_files(
-        db=db, settings=settings, case_id=case_id, file_ids=body.file_ids,
+        db=db, settings=settings, case_id=case_id, groups=body.resolved_groups,
     )
     return IngestResponse(**result)
 
@@ -122,13 +122,17 @@ async def get_document(
         "confidence": doc.get("classification_confidence", 0.0),
         "explanation": doc.get("classification_explanation", ""),
     }
+    file_ids = doc.get("file_ids") or ([doc["file_id"]] if doc.get("file_id") else [])
+    source_files = doc.get("source_files") or ([doc["source_file"]] if doc.get("source_file") else [])
     return DocumentDetailResponse(
         id=doc["id"],
         title=doc.get("title", ""),
         source_file=doc.get("source_file", ""),
+        source_files=source_files,
         doc_type=doc.get("doc_type"),
         file_type=doc.get("file_type"),
-        file_id=doc.get("file_id"),
+        file_ids=file_ids,
+        file_id=file_ids[0] if file_ids else None,
         created_at=doc.get("created_at"),
         text_excerpt=text[:500],
         classification=ClassificationDetail(**classification_raw),
@@ -195,11 +199,15 @@ async def get_ocr_text(
         "confidence": doc.get("classification_confidence", 0.0),
         "explanation": doc.get("classification_explanation", ""),
     }
+    file_ids = doc.get("file_ids") or ([doc["file_id"]] if doc.get("file_id") else [])
+    source_files = doc.get("source_files") or ([doc["source_file"]] if doc.get("source_file") else [])
     return OCRTextResponse(
         doc_id=doc["id"],
-        file_id=doc.get("file_id"),
+        file_ids=file_ids,
+        file_id=file_ids[0] if file_ids else None,
         file_type=doc.get("file_type"),
         source_file=doc.get("source_file", ""),
+        source_files=source_files,
         text=doc.get("text", ""),
         classification=ClassificationDetail(**classification_raw),
         corrected=doc.get("corrected", False),
@@ -252,11 +260,15 @@ async def correct_ocr_text(
         "confidence": doc.get("classification_confidence", 0.0),
         "explanation": doc.get("classification_explanation", ""),
     }
+    file_ids_patch = doc.get("file_ids") or ([doc["file_id"]] if doc.get("file_id") else [])
+    source_files_patch = doc.get("source_files") or ([doc["source_file"]] if doc.get("source_file") else [])
     return OCRTextResponse(
         doc_id=doc["id"],
-        file_id=doc.get("file_id"),
+        file_ids=file_ids_patch,
+        file_id=file_ids_patch[0] if file_ids_patch else None,
         file_type=doc.get("file_type"),
         source_file=doc.get("source_file", ""),
+        source_files=source_files_patch,
         text=doc.get("text", ""),
         classification=ClassificationDetail(**classification_raw),
         corrected=doc.get("corrected", False),
