@@ -9,9 +9,9 @@ so civil_law_rag and case_doc_rag calls never share a lock.
 """
 
 from __future__ import annotations
-
 import json
 import logging
+import os
 import subprocess
 import sys
 import threading
@@ -77,10 +77,10 @@ class MCPClient:
             [sys.executable, "-u", "-m", self._server_module],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=None,   # inherit parent stderr so server logs are visible
+            stderr=None,
             bufsize=-1,
         )
-
+    
     def _next_id(self) -> int:
         self._id += 1
         return self._id
