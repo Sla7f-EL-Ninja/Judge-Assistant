@@ -74,13 +74,15 @@ pages using the sidebar menu.
 | Cases | PATCH | `/api/v1/cases/{id}` | Update case |
 | Cases | DELETE | `/api/v1/cases/{id}` | Delete case |
 | Files | POST | `/api/v1/files/upload` | Upload file |
+| Files | GET | `/api/v1/files/{id}` | View or download raw file |
 | Files | DELETE | `/api/v1/files/{id}` | Delete file |
-| Documents | POST | `/api/v1/cases/{id}/documents` | Ingest documents |
+| Documents | POST | `/api/v1/cases/{id}/documents` | Ingest documents (legacy file_ids or grouped) |
 | Documents | GET | `/api/v1/cases/{id}/documents` | List documents |
 | Documents | GET | `/api/v1/cases/{id}/documents/{doc_id}` | Get document detail |
 | Documents | DELETE | `/api/v1/cases/{id}/documents/{doc_id}` | Delete document |
 | Documents | GET | `/api/v1/cases/{id}/documents/{doc_id}/ocr` | Get OCR text |
 | Documents | PATCH | `/api/v1/cases/{id}/documents/{doc_id}/ocr` | Correct OCR text |
+| Documents | POST | `/api/v1/cases/{id}/documents/ocr/bulk` | Bulk correct OCR text |
 | Query | POST | `/api/v1/query` | Supervisor query (SSE) |
 | Conversations | GET | `/api/v1/cases/{id}/conversations` | List conversations |
 | Conversations | GET | `/api/v1/conversations/{id}` | Get conversation |

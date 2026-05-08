@@ -10,7 +10,7 @@ if not client:
     st.error("Configure API connection in the sidebar first.")
     st.stop()
 
-tab_upload, tab_delete = st.tabs(["Upload", "Delete"])
+tab_upload, tab_view, tab_delete = st.tabs(["Upload", "View / Download", "Delete"])
 
 # -- Upload -------------------------------------------------------------------
 with tab_upload:
@@ -35,6 +35,54 @@ with tab_upload:
         if status == 201 and "file_id" in body:
             st.session_state["last_file_id"] = body["file_id"]
             st.success(f"File ID stored: {body['file_id']}")
+
+# -- View / Download ----------------------------------------------------------
+with tab_view:
+    st.subheader("View / Download File")
+    st.markdown("`GET /api/v1/files/{file_id}`")
+
+    view_file_id = st.text_input(
+        "File ID", value=st.session_state.get("last_file_id", ""), key="view_file_id"
+    )
+    force_download = st.checkbox("Force download instead of inline view", key="view_file_download")
+
+    if st.button("Fetch File"):
+        if not view_file_id.strip():
+            st.error("File ID is required.")
+        else:
+            status, data, content_type, elapsed = client.get_file(view_file_id.strip(), download=force_download)
+            st.caption(f"HTTP {status} · {content_type or '—'} · {elapsed:.0f} ms · {len(data):,} bytes")
+
+            if status != 200:
+                st.error(f"Request failed with status {status}.")
+                try:
+                    st.code(data.decode("utf-8", errors="replace"))
+                except Exception:
+                    st.code(repr(data[:500]))
+            elif force_download or not content_type:
+                st.download_button(
+                    "Download file",
+                    data=data,
+                    file_name=f"file_{view_file_id.strip()}",
+                    mime=content_type or "application/octet-stream",
+                )
+            elif content_type.startswith("image/"):
+                st.image(data)
+            elif "pdf" in content_type:
+                st.info("PDF rendering not supported inline — use the download button.")
+                st.download_button(
+                    "Download PDF",
+                    data=data,
+                    file_name=f"file_{view_file_id.strip()}.pdf",
+                    mime="application/pdf",
+                )
+            else:
+                st.download_button(
+                    "Download file",
+                    data=data,
+                    file_name=f"file_{view_file_id.strip()}",
+                    mime=content_type or "application/octet-stream",
+                )
 
 # -- Delete -------------------------------------------------------------------
 with tab_delete:
