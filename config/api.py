@@ -43,7 +43,7 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     # -- JWT ------------------------------------------------------------------
-    jwt_secret: str = cfg.api.get("jwt_secret", "change-me-in-production")
+    jwt_secret: str = cfg.api.get("jwt_secret", "123456")
     jwt_algorithm: str = cfg.api.get("jwt_algorithm", "HS256")
 
     # -- File Uploads ---------------------------------------------------------

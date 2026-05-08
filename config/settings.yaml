@@ -96,7 +96,7 @@ api:
   app_version: 0.1.0
   debug: false
   cors_origins: "http://localhost:3000"   # restrict to actual frontend origin in production
-  jwt_secret: 123456     # override via JA_API_JWT_SECRET env var — never commit real value
+  jwt_secret: "123456"     # override via JA_API_JWT_SECRET env var — never commit real value
   jwt_algorithm: HS256
   max_upload_bytes: 20971520
   allowed_mime_types: application/pdf,text/plain,text/markdown,image/png,image/jpeg,image/tiff,image/bmp,image/webp,image/gif,image/heic,image/heif

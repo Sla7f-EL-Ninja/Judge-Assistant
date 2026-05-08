@@ -17,6 +17,7 @@ All store / reflection calls are wrapped — failures log a warning and the
 graph continues.
 """
 
+import json
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -58,11 +59,27 @@ def write_long_term_memory_node(state: SupervisorState) -> Dict[str, Any]:
     if case_id:
         try:
             manager = get_semantic_manager(case_id)
-            valid_facts = [f for f in semantic_facts if isinstance(f.get("content"), str)]
+            # Guard 1: filter facts whose content is already a valid string.
+            # Guard 2: coerce any dict-valued content to a JSON string so a
+            #          previously mis-stored fact doesn't cause a Pydantic error
+            #          in langmem on the *existing* side of the merge.
+            sanitized_facts: List[Dict] = []
+            for f in semantic_facts:
+                content = f.get("content")
+                if isinstance(content, str) and content.strip():
+                    sanitized_facts.append(f)
+                elif isinstance(content, dict):
+                    coerced = {**f, "content": json.dumps(content, ensure_ascii=False)}
+                    sanitized_facts.append(coerced)
+                    logger.warning(
+                        "write_long_term_memory: coerced dict content to string for case %s — %s",
+                        case_id, content,
+                    )
+                # else: drop (None, empty string, unexpected type)
+
             try:
-                manager.invoke({"messages": messages, "existing": valid_facts})
+                manager.invoke({"messages": messages, "existing": sanitized_facts})
             except Exception as exc:
-                # langmem extraction returned invalid Memory objects — log and skip
                 logger.warning(
                     "write_long_term_memory: memory extraction produced invalid entry "
                     "(likely empty/null content from LLM) — %s", exc

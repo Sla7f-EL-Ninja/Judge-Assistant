@@ -144,6 +144,23 @@ def get_presigned_url(object_name: str, expires_seconds: int = 3600) -> str:
     )
 
 
+def stream_file(object_name: str, chunk_size: int = 8192):
+    """Yield file contents from MinIO in chunks. Closes the connection in a finally."""
+    if _client is None or _bucket is None:
+        raise RuntimeError("MinIO is not connected. Call connect_minio first.")
+
+    response = _client.get_object(_bucket, object_name)
+    try:
+        while True:
+            chunk = response.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
+    finally:
+        response.close()
+        response.release_conn()
+
+
 def delete_file(object_name: str) -> None:
     """Delete a file from MinIO."""
     if _client is None or _bucket is None:

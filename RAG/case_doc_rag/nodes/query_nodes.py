@@ -82,7 +82,9 @@ def questionRewriter(state: AgentState) -> Dict[str, Any]:
     """Decompose the judge's query into standalone retrieval questions.
 
     Fixes: Bug 1 (query as HumanMessage), Bug 2 (first-turn skip),
-    Bug 3 (JSON never parsed), Bug 7 (.format() anti-pattern).
+    Bug 3 (JSON never parsed), Bug 7 (.format() anti-pattern),
+    Bug 8 (history turns fed as HumanMessages causing prior questions
+           to be decomposed alongside the current query).
     Always runs -- no conditional gate on conversation length.
     """
     request_id = state.get("request_id", "")
@@ -92,16 +94,36 @@ def questionRewriter(state: AgentState) -> Dict[str, Any]:
         logger.warning("[%s] Empty query received in questionRewriter", request_id)
         return {"error": "Empty query received", "sub_questions": []}
 
-    # Build the LLM message list
-    messages = [SystemMessage(content=QUESTION_REWRITER_PROMPT)]
-
-    # Add user turns from conversation history for context
+    # Build history block as labeled text in the system prompt.
+    # History is injected as READ-ONLY context so the LLM never mistakes
+    # prior user turns for additional queries to decompose.
+    # Bug 8: the previous approach appended each user turn as a bare
+    # HumanMessage, causing the LLM to treat every prior question as a
+    # new query and generate sub-questions for the entire conversation
+    # instead of only the current query.
+    history_lines = []
     for turn in state.get("conversation_history", []):
-        if turn.get("role") == "user" and turn.get("content"):
-            messages.append(HumanMessage(content=turn["content"]))
+        role = turn.get("role", "")
+        content = turn.get("content", "")
+        if not role or not content:
+            continue
+        if role == "user":
+            history_lines.append(f"القاضي: {content}")
+        elif role == "assistant":
+            history_lines.append(f"المساعد: {content}")
 
-    # Current query
-    messages.append(HumanMessage(content=query))
+    system_content = QUESTION_REWRITER_PROMPT
+    if history_lines:
+        history_block = "\n".join(history_lines)
+        system_content += (
+            "\n\nسياق المحادثة السابقة (للاستخدام كسياق فقط — لا تُعد هذه أسئلة يجب إعادة صياغتها):\n"
+            + history_block
+        )
+
+    messages = [
+        SystemMessage(content=system_content),
+        HumanMessage(content=query),  # ONLY the current query
+    ]
 
     try:
         prompt_template = ChatPromptTemplate.from_messages(messages)
