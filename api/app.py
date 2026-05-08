@@ -161,11 +161,27 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Civil Law RAG indexing check failed (non-fatal): %s", exc)
 
+    # -- BGE-M3 warm-up (single load, GPU) ------------------------------------
+    # _get_vectorstore() loads BGE-M3 onto cuda:0 once. We then expose the
+    # loaded embeddings object over HTTP on :8080 so the two MCP child
+    # processes (legal_rag_server, case_doc_server) can call it instead of
+    # each loading their own copy of the model.
+    try:
+        import asyncio
+        from DocumentProcessor.pipeline import _get_vectorstore
+        logger.info("Warming up BGE-M3 embedding model and Qdrant vectorstore ...")
+        vs = await asyncio.get_event_loop().run_in_executor(None, _get_vectorstore)
+        logger.info("BGE-M3 + Qdrant vectorstore ready")
+
+        from api.embedding_server import start_embedding_server
+        start_embedding_server(vs.embeddings, port=8080)
+        logger.info("Local TEI-compatible embedding server ready on :8080")
+    except Exception as exc:
+        logger.warning("Vectorstore warm-up failed (non-fatal): %s", exc)
+
     # -- MCP servers (legal_rag + case_doc_rag) --------------------------------
-    # Spawned in a thread-pool executor so the blocking child-process startup
-    # (model download, graph compile, handshake) doesn't block the event loop.
-    # legal_rag_server warms embeddings + reranker + vectorstores at boot, so
-    # the first /legal/search call hits a hot process with no extra latency.
+    # Children probe :8080 first; since it's now up they skip their own model
+    # load entirely — startup is ~20s faster and uses no extra VRAM/RAM.
     try:
         import asyncio
         from mcp_servers.lifecycle import start_mcp_servers
@@ -173,8 +189,6 @@ async def lifespan(app: FastAPI):
         await asyncio.get_event_loop().run_in_executor(None, start_mcp_servers)
         logger.info("MCP servers ready")
     except Exception as exc:
-        # Non-fatal: legal search and case-doc RAG will return 503 until fixed,
-        # but all other endpoints remain available.
         logger.warning("MCP server startup failed (non-fatal): %s", exc)
 
     yield
@@ -197,7 +211,6 @@ async def lifespan(app: FastAPI):
         logger.info("MCP servers shut down")
     except Exception as exc:
         logger.warning("MCP shutdown error (non-fatal): %s", exc)
-
 
 # -- OpenAPI tag descriptions -------------------------------------------------
 OPENAPI_TAGS = [
