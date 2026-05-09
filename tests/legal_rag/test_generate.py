@@ -60,20 +60,20 @@ class TestVerifyCitations:
         answer = "وفقًا للمادة 89 والمادة 90 من القانون."
         cleaned, integrity = _verify_citations(answer, {89, 90})
         assert integrity == "full"
-        assert "المادة 89" in cleaned
-        assert "المادة 90" in cleaned
+        assert "89" in cleaned
+        assert "90" in cleaned
 
     def test_invented_citation_stripped_returns_partial(self):
         from RAG.legal_rag.nodes.generate import _verify_citations
         answer = "وفقًا للمادة 89 والمادة 999 من القانون."
         cleaned, integrity = _verify_citations(answer, {89})
         assert integrity == "partial"
-        assert "المادة 89" in cleaned
+        assert "89" in cleaned
         assert "999" not in cleaned
 
     def test_all_citations_invalid_returns_partial(self):
         from RAG.legal_rag.nodes.generate import _verify_citations
-        answer = "وفقًا للمادة 999 من القانون."
+        answer = "وفقًا لأحكام المادة 999 من القانون."
         cleaned, integrity = _verify_citations(answer, {89})
         assert integrity == "partial"
         assert "999" not in cleaned

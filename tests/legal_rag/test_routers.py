@@ -1,7 +1,7 @@
 """
 test_routers.py
 ---------------
-Unit tests for all four routing functions in routers.py.
+Unit tests for all routing functions in routers.py.
 No mocks needed — pure state-dict logic.
 """
 
@@ -9,61 +9,87 @@ from __future__ import annotations
 
 import pytest
 from RAG.legal_rag.routers import (
-    corpus_router_router,
+    post_preprocessor_router,
+    corpus_classifier_router,
     llm_grader_router,
     rule_grader_router,
-    top_level_router,
 )
 
 
 # ===========================================================================
-# corpus_router_router
+# post_preprocessor_router
 # ===========================================================================
-class TestCorpusRouterRouter:
+class TestPostPreprocessorRouter:
 
-    def test_corpus_config_set_routes_to_preprocessor(self, civil_corpus):
-        state = {"corpus_config": civil_corpus, "classification": None}
-        assert corpus_router_router(state) == "preprocessor_node"
+    def test_off_topic_routes_to_off_topic(self):
+        state = {"classification": "off_topic", "error": None}
+        assert post_preprocessor_router(state) == "off_topic_node"
 
-    def test_off_topic_classification_routes_to_off_topic(self, civil_corpus):
-        state = {"corpus_config": civil_corpus, "classification": "off_topic"}
-        assert corpus_router_router(state) == "off_topic_node"
+    def test_analytical_routes_to_corpus_classifier(self):
+        state = {"classification": "analytical", "error": None}
+        assert post_preprocessor_router(state) == "corpus_classifier_node"
 
-    def test_no_corpus_config_routes_to_off_topic(self):
-        state = {"corpus_config": None, "classification": None}
-        assert corpus_router_router(state) == "off_topic_node"
+    def test_textual_routes_to_corpus_classifier(self):
+        state = {"classification": "textual", "error": None}
+        assert post_preprocessor_router(state) == "corpus_classifier_node"
 
-    def test_off_topic_takes_priority_over_corpus_config(self, civil_corpus):
-        # Even if corpus_config is set, off_topic wins
-        state = {"corpus_config": civil_corpus, "classification": "off_topic"}
-        assert corpus_router_router(state) == "off_topic_node"
+    def test_error_set_routes_to_cannot_answer(self):
+        state = {"classification": "analytical", "error": {"type": "PreprocessingError"}}
+        assert post_preprocessor_router(state) == "cannot_answer_node"
 
-    def test_empty_state_routes_to_off_topic(self):
-        assert corpus_router_router({}) == "off_topic_node"
+    def test_none_classification_routes_to_corpus_classifier(self):
+        state = {"classification": None, "error": None}
+        assert post_preprocessor_router(state) == "corpus_classifier_node"
 
 
 # ===========================================================================
-# top_level_router
+# corpus_classifier_router
 # ===========================================================================
-class TestTopLevelRouter:
+class TestCorpusClassifierRouter:
 
-    def test_off_topic(self):
-        assert top_level_router({"classification": "off_topic"}) == "off_topic_node"
+    def test_textual_with_corpus_routes_to_textual(self, civil_corpus):
+        state = {
+            "classification": "textual",
+            "corpus_config":  civil_corpus,
+            "error":          None,
+        }
+        assert corpus_classifier_router(state) == "textual_node"
 
-    def test_textual(self):
-        assert top_level_router({"classification": "textual"}) == "textual_node"
+    def test_analytical_with_corpus_routes_to_scope(self, civil_corpus):
+        state = {
+            "classification": "analytical",
+            "corpus_config":  civil_corpus,
+            "error":          None,
+        }
+        assert corpus_classifier_router(state) == "scope_classifier_node"
 
-    def test_analytical(self):
-        assert top_level_router({"classification": "analytical"}) == "scope_classifier_node"
+    def test_off_topic_routes_to_off_topic(self, civil_corpus):
+        state = {
+            "classification": "off_topic",
+            "corpus_config":  civil_corpus,
+            "error":          None,
+        }
+        assert corpus_classifier_router(state) == "off_topic_node"
 
-    def test_unknown_classification_routes_to_cannot_answer(self):
-        assert top_level_router({"classification": "unknown"}) == "cannot_answer_node"
+    def test_no_corpus_routes_to_off_topic(self):
+        state = {"classification": "analytical", "corpus_config": None, "error": None}
+        assert corpus_classifier_router(state) == "off_topic_node"
 
-    def test_none_classification_routes_to_cannot_answer(self):
-        assert top_level_router({"classification": None}) == "cannot_answer_node"
+    def test_error_routes_to_cannot_answer(self, civil_corpus):
+        state = {
+            "classification": "analytical",
+            "corpus_config":  civil_corpus,
+            "error":          {"type": "CorpusRoutingError"},
+        }
+        assert corpus_classifier_router(state) == "cannot_answer_node"
 
-    def test_missing_classification_routes_to_cannot_answer(self):
-        assert top_level_router({}) == "cannot_answer_node"
+    def test_unknown_classification_routes_to_cannot_answer(self, civil_corpus):
+        state = {
+            "classification": "unknown",
+            "corpus_config":  civil_corpus,
+            "error":          None,
+        }
+        assert corpus_classifier_router(state) == "cannot_answer_node"
 
 
 # ===========================================================================
@@ -88,7 +114,6 @@ class TestRuleGraderRouter:
         assert rule_grader_router(state) == "cannot_answer_node"
 
     def test_max_retries_reached_overrides_grade(self):
-        # Even if grade == "pass", retry exhaustion must win
         state = {"grade": "pass", "retry_count": 3, "max_retries": 3}
         assert rule_grader_router(state) == "cannot_answer_node"
 
@@ -109,7 +134,6 @@ class TestRuleGraderRouter:
         assert rule_grader_router(state) == "cannot_answer_node"
 
     def test_default_max_retries_when_missing(self):
-        # retry_count defaults to 0, max_retries defaults to 3 via state.get
         state = {"grade": "pass"}
         assert rule_grader_router(state) == "generate_answer_node"
 

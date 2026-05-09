@@ -100,10 +100,10 @@ def _mock_all(
     if mock_registry_fixture is None:
         raise ValueError("mock_registry_fixture must be supplied")
 
-    # Build LLM side_effect chain
+    # Build LLM side_effect chain (preprocessor runs first, then corpus_classifier)
     llm_calls = [
-        _corpus_scores(corpus_winner, corpus_confidence),
         _preproc_json(preproc_cls, preproc_rewritten),
+        _corpus_scores(corpus_winner, corpus_confidence),
         _ch_json(ch_id, ch_conf),
         _sec_json(sec_id, sec_conf),
         generate_answer,
@@ -111,28 +111,35 @@ def _mock_all(
     llm_mock = MagicMock()
     llm_mock.invoke.side_effect = [_llm_response(c) for c in llm_calls]
 
-    # PATCH MAX_LLM_CALLS to 20 across all nodes to prevent "Budget Exhausted" errors during tests
-    with patch("RAG.legal_rag.nodes.corpus_router.MAX_LLM_CALLS", 20), \
-         patch("RAG.legal_rag.nodes.preprocessor.MAX_LLM_CALLS", 20), \
-         patch("RAG.legal_rag.nodes.scope_classifier.MAX_LLM_CALLS", 20), \
-         patch("RAG.legal_rag.nodes.generate.MAX_LLM_CALLS", 20), \
-         patch("RAG.legal_rag.nodes.corpus_router._get_llm",    return_value=llm_mock), \
-         patch("RAG.legal_rag.nodes.preprocessor._get_llm",     return_value=llm_mock), \
-         patch("RAG.legal_rag.nodes.scope_classifier._get_llm", return_value=llm_mock), \
-         patch("RAG.legal_rag.nodes.generate._get_llm",         return_value=llm_mock), \
-         patch("RAG.legal_rag.nodes.graders._get_llm",          return_value=llm_mock), \
-         patch("RAG.legal_rag.nodes.refine._get_llm",           return_value=llm_mock), \
-         patch("RAG.legal_rag.nodes.corpus_router._corpus_threshold", return_value=0.4), \
-         patch("RAG.legal_rag.nodes.scope_classifier._chapter_threshold", return_value=0.5), \
-         patch("RAG.legal_rag.nodes.scope_classifier._section_threshold", return_value=0.5), \
-         patch("RAG.legal_rag.nodes.scope_classifier.load_toc", return_value=SAMPLE_TOC), \
-         patch("RAG.legal_rag.nodes.retrieve.load_vectorstore") as mock_vs, \
-         patch("RAG.legal_rag.nodes.retrieve.rerank", return_value=reranked_docs) as mock_rerank, \
-         patch("RAG.legal_rag.nodes.retrieve._hyde_enabled", return_value=False), \
-         patch("RAG.legal_rag.nodes.textual.get_qdrant_client") as mock_qdrant, \
-         patch("RAG.legal_rag.nodes.textual.load_vectorstore") as mock_vs_textual, \
-         patch("RAG.legal_rag.nodes.corpus_router._get_registry", return_value=mock_registry_fixture):
-
+    # Use ExitStack to avoid Python's "too many statically nested blocks" limit.
+    from contextlib import ExitStack
+    patches = [
+        patch("RAG.legal_rag.nodes.corpus_router.MAX_LLM_CALLS", 20),
+        patch("RAG.legal_rag.nodes.preprocessor.MAX_LLM_CALLS", 20),
+        patch("RAG.legal_rag.nodes.scope_classifier.MAX_LLM_CALLS", 20),
+        patch("RAG.legal_rag.nodes.generate.MAX_LLM_CALLS", 20),
+        patch("RAG.legal_rag.llm_utils.MAX_LLM_CALLS", 20),
+        patch("RAG.legal_rag.nodes.corpus_router._get_llm",    return_value=llm_mock),
+        patch("RAG.legal_rag.nodes.preprocessor._get_llm",     return_value=llm_mock),
+        patch("RAG.legal_rag.nodes.scope_classifier._get_llm", return_value=llm_mock),
+        patch("RAG.legal_rag.nodes.generate._get_llm",         return_value=llm_mock),
+        patch("RAG.legal_rag.nodes.graders._get_llm",          return_value=llm_mock),
+        patch("RAG.legal_rag.nodes.refine._get_llm",           return_value=llm_mock),
+        patch("RAG.legal_rag.nodes.corpus_router._corpus_threshold", return_value=0.4),
+        patch("RAG.legal_rag.nodes.scope_classifier._chapter_threshold", return_value=0.5),
+        patch("RAG.legal_rag.nodes.scope_classifier._section_threshold", return_value=0.5),
+        patch("RAG.legal_rag.nodes.scope_classifier.load_toc", return_value=SAMPLE_TOC),
+        patch("RAG.legal_rag.nodes.retrieve.load_vectorstore"),
+        patch("RAG.legal_rag.nodes.retrieve.rerank", return_value=reranked_docs),
+        patch("RAG.legal_rag.nodes.retrieve._hyde_enabled", return_value=False),
+        patch("RAG.legal_rag.nodes.retrieve._global_retrieval_enabled", return_value=False),
+        patch("RAG.legal_rag.nodes.textual.get_qdrant_client"),
+        patch("RAG.legal_rag.nodes.textual.load_vectorstore"),
+        patch("RAG.legal_rag.nodes.corpus_router._get_registry", return_value=mock_registry_fixture),
+    ]
+    with ExitStack() as stack:
+        entered = [stack.enter_context(p) for p in patches]
+        mock_vs = entered[15]
         mock_vs.return_value.similarity_search_with_relevance_scores.return_value = retrieval_pairs
         yield
 
@@ -203,13 +210,15 @@ class TestGraphFlow:
         }
 
         llm_calls = [
-            _corpus_scores("civil", 0.9),
             _preproc_json("نصّي", "ما نص المادة 89؟"),
+            _corpus_scores("civil", 0.9),
         ]
         llm_mock = MagicMock()
         llm_mock.invoke.side_effect = [_llm_response(c) for c in llm_calls]
 
         with patch("RAG.legal_rag.nodes.corpus_router.MAX_LLM_CALLS", 20), \
+             patch("RAG.legal_rag.nodes.preprocessor.MAX_LLM_CALLS", 20), \
+             patch("RAG.legal_rag.llm_utils.MAX_LLM_CALLS", 20), \
              patch("RAG.legal_rag.nodes.corpus_router._get_llm",  return_value=llm_mock), \
              patch("RAG.legal_rag.nodes.preprocessor._get_llm",   return_value=llm_mock), \
              patch("RAG.legal_rag.nodes.corpus_router._corpus_threshold", return_value=0.4), \
@@ -224,14 +233,14 @@ class TestGraphFlow:
     def test_rule_grader_refine_then_pass_produces_answer(self, fresh_state, mock_registry):
         """First retrieval → low confidence (refine), second → high confidence (pass)."""
         llm_calls = [
-            _corpus_scores("civil", 0.9),          
-            _preproc_json("analytical", "سؤال"),   
-            _ch_json("1", 0.8),                    
-            _sec_json("1", 0.2),                   
-            _refine_json("استفسار محسّن"),          
-            _ch_json("1", 0.8),                    
-            _sec_json("1", 0.2),                   
-            "إجابة نهائية بعد التحسين.",           
+            _preproc_json("analytical", "سؤال"),
+            _corpus_scores("civil", 0.9),
+            _ch_json("1", 0.8),
+            _sec_json("1", 0.2),
+            _refine_json("استفسار محسّن"),
+            _ch_json("1", 0.8),
+            _sec_json("1", 0.2),
+            "إجابة نهائية بعد التحسين.",
         ]
         llm_mock = MagicMock()
         llm_mock.invoke.side_effect = [_llm_response(c) for c in llm_calls]
@@ -245,28 +254,36 @@ class TestGraphFlow:
             [(d, 0.85) for d in high_docs],
         ]
 
-        with patch("RAG.legal_rag.nodes.corpus_router.MAX_LLM_CALLS", 20), \
-             patch("RAG.legal_rag.nodes.preprocessor.MAX_LLM_CALLS", 20), \
-             patch("RAG.legal_rag.nodes.scope_classifier.MAX_LLM_CALLS", 20), \
-             patch("RAG.legal_rag.nodes.generate.MAX_LLM_CALLS", 20), \
-             patch("RAG.legal_rag.nodes.corpus_router._get_llm",    return_value=llm_mock), \
-             patch("RAG.legal_rag.nodes.preprocessor._get_llm",     return_value=llm_mock), \
-             patch("RAG.legal_rag.nodes.scope_classifier._get_llm", return_value=llm_mock), \
-             patch("RAG.legal_rag.nodes.generate._get_llm",         return_value=llm_mock), \
-             patch("RAG.legal_rag.nodes.refine._get_llm",           return_value=llm_mock), \
-             patch("RAG.legal_rag.nodes.corpus_router._corpus_threshold", return_value=0.4), \
-             patch("RAG.legal_rag.nodes.scope_classifier._chapter_threshold", return_value=0.5), \
-             patch("RAG.legal_rag.nodes.scope_classifier._section_threshold", return_value=0.5), \
-             patch("RAG.legal_rag.nodes.scope_classifier.load_toc",  return_value=SAMPLE_TOC), \
-             patch("RAG.legal_rag.nodes.retrieve.load_vectorstore",  return_value=vs_mock), \
-             patch("RAG.legal_rag.nodes.retrieve.rerank") as mock_rerank, \
-             patch("RAG.legal_rag.nodes.retrieve._hyde_enabled",     return_value=False), \
-             patch("RAG.legal_rag.nodes.corpus_router._get_registry", return_value=mock_registry):
-             mock_rerank.side_effect = lambda q, docs, top_k: docs
-             graph = _build_graph()
-             fresh_state["last_query"] = "ما هي شروط صحة العقد؟"
-             fresh_state["llm_call_count"] = 0
-             result = graph.invoke(fresh_state)
+        from contextlib import ExitStack
+        refine_patches = [
+            patch("RAG.legal_rag.nodes.corpus_router.MAX_LLM_CALLS", 20),
+            patch("RAG.legal_rag.nodes.preprocessor.MAX_LLM_CALLS", 20),
+            patch("RAG.legal_rag.nodes.scope_classifier.MAX_LLM_CALLS", 20),
+            patch("RAG.legal_rag.nodes.generate.MAX_LLM_CALLS", 20),
+            patch("RAG.legal_rag.llm_utils.MAX_LLM_CALLS", 20),
+            patch("RAG.legal_rag.nodes.corpus_router._get_llm",    return_value=llm_mock),
+            patch("RAG.legal_rag.nodes.preprocessor._get_llm",     return_value=llm_mock),
+            patch("RAG.legal_rag.nodes.scope_classifier._get_llm", return_value=llm_mock),
+            patch("RAG.legal_rag.nodes.generate._get_llm",         return_value=llm_mock),
+            patch("RAG.legal_rag.nodes.refine._get_llm",           return_value=llm_mock),
+            patch("RAG.legal_rag.nodes.corpus_router._corpus_threshold", return_value=0.4),
+            patch("RAG.legal_rag.nodes.scope_classifier._chapter_threshold", return_value=0.5),
+            patch("RAG.legal_rag.nodes.scope_classifier._section_threshold", return_value=0.5),
+            patch("RAG.legal_rag.nodes.scope_classifier.load_toc",  return_value=SAMPLE_TOC),
+            patch("RAG.legal_rag.nodes.retrieve.load_vectorstore",  return_value=vs_mock),
+            patch("RAG.legal_rag.nodes.retrieve.rerank"),
+            patch("RAG.legal_rag.nodes.retrieve._hyde_enabled",     return_value=False),
+            patch("RAG.legal_rag.nodes.retrieve._global_retrieval_enabled", return_value=False),
+            patch("RAG.legal_rag.nodes.corpus_router._get_registry", return_value=mock_registry),
+        ]
+        with ExitStack() as stack:
+            entered = [stack.enter_context(p) for p in refine_patches]
+            mock_rerank = entered[15]
+            mock_rerank.side_effect = lambda q, docs, top_k: docs
+            graph = _build_graph()
+            fresh_state["last_query"] = "ما هي شروط صحة العقد؟"
+            fresh_state["llm_call_count"] = 0
+            result = graph.invoke(fresh_state)
 
         assert result["final_answer"]
         assert "إجابة نهائية" in result["final_answer"]
@@ -274,8 +291,8 @@ class TestGraphFlow:
     def test_max_retries_exhausted_routes_to_cannot_answer(self, fresh_state, mock_registry):
         """Simulate continuous low-confidence retrieval until retries are exhausted."""
         llm_calls = [
-            _corpus_scores("civil", 0.9),
             _preproc_json("analytical", "سؤال"),
+            _corpus_scores("civil", 0.9),
             _ch_json("1", 0.8), _sec_json("1", 0.2), _refine_json("محسّن 1"),
             _ch_json("1", 0.8), _sec_json("1", 0.2), _refine_json("محسّن 2"),
             _ch_json("1", 0.8), _sec_json("1", 0.2), _refine_json("محسّن 3"),
@@ -289,28 +306,36 @@ class TestGraphFlow:
             (_doc(i), 0.15) for i in [1, 2]
         ]
 
-        with patch("RAG.legal_rag.nodes.corpus_router.MAX_LLM_CALLS", 20), \
-             patch("RAG.legal_rag.nodes.preprocessor.MAX_LLM_CALLS", 20), \
-             patch("RAG.legal_rag.nodes.scope_classifier.MAX_LLM_CALLS", 20), \
-             patch("RAG.legal_rag.nodes.generate.MAX_LLM_CALLS", 20), \
-             patch("RAG.legal_rag.nodes.corpus_router._get_llm",    return_value=llm_mock), \
-             patch("RAG.legal_rag.nodes.preprocessor._get_llm",     return_value=llm_mock), \
-             patch("RAG.legal_rag.nodes.scope_classifier._get_llm", return_value=llm_mock), \
-             patch("RAG.legal_rag.nodes.refine._get_llm",           return_value=llm_mock), \
-             patch("RAG.legal_rag.nodes.generate._get_llm",         return_value=llm_mock), \
-             patch("RAG.legal_rag.nodes.corpus_router._corpus_threshold", return_value=0.4), \
-             patch("RAG.legal_rag.nodes.scope_classifier._chapter_threshold", return_value=0.5), \
-             patch("RAG.legal_rag.nodes.scope_classifier._section_threshold", return_value=0.5), \
-             patch("RAG.legal_rag.nodes.scope_classifier.load_toc",  return_value=SAMPLE_TOC), \
-             patch("RAG.legal_rag.nodes.retrieve.load_vectorstore",  return_value=always_low), \
-             patch("RAG.legal_rag.nodes.retrieve.rerank") as mock_rerank, \
-             patch("RAG.legal_rag.nodes.retrieve._hyde_enabled",     return_value=False), \
-             patch("RAG.legal_rag.nodes.corpus_router._get_registry", return_value=mock_registry):
-             mock_rerank.side_effect = lambda q, docs, top_k: docs
-             graph = _build_graph()
-             fresh_state["last_query"] = "ما هي شروط صحة العقد؟"
-             fresh_state["llm_call_count"] = 0
-             result = graph.invoke(fresh_state)
+        from contextlib import ExitStack
+        retry_patches = [
+            patch("RAG.legal_rag.nodes.corpus_router.MAX_LLM_CALLS", 20),
+            patch("RAG.legal_rag.nodes.preprocessor.MAX_LLM_CALLS", 20),
+            patch("RAG.legal_rag.nodes.scope_classifier.MAX_LLM_CALLS", 20),
+            patch("RAG.legal_rag.nodes.generate.MAX_LLM_CALLS", 20),
+            patch("RAG.legal_rag.llm_utils.MAX_LLM_CALLS", 20),
+            patch("RAG.legal_rag.nodes.corpus_router._get_llm",    return_value=llm_mock),
+            patch("RAG.legal_rag.nodes.preprocessor._get_llm",     return_value=llm_mock),
+            patch("RAG.legal_rag.nodes.scope_classifier._get_llm", return_value=llm_mock),
+            patch("RAG.legal_rag.nodes.refine._get_llm",           return_value=llm_mock),
+            patch("RAG.legal_rag.nodes.generate._get_llm",         return_value=llm_mock),
+            patch("RAG.legal_rag.nodes.corpus_router._corpus_threshold", return_value=0.4),
+            patch("RAG.legal_rag.nodes.scope_classifier._chapter_threshold", return_value=0.5),
+            patch("RAG.legal_rag.nodes.scope_classifier._section_threshold", return_value=0.5),
+            patch("RAG.legal_rag.nodes.scope_classifier.load_toc",  return_value=SAMPLE_TOC),
+            patch("RAG.legal_rag.nodes.retrieve.load_vectorstore",  return_value=always_low),
+            patch("RAG.legal_rag.nodes.retrieve.rerank"),
+            patch("RAG.legal_rag.nodes.retrieve._hyde_enabled",     return_value=False),
+            patch("RAG.legal_rag.nodes.retrieve._global_retrieval_enabled", return_value=False),
+            patch("RAG.legal_rag.nodes.corpus_router._get_registry", return_value=mock_registry),
+        ]
+        with ExitStack() as stack:
+            entered = [stack.enter_context(p) for p in retry_patches]
+            mock_rerank = entered[15]
+            mock_rerank.side_effect = lambda q, docs, top_k: docs
+            graph = _build_graph()
+            fresh_state["last_query"] = "ما هي شروط صحة العقد؟"
+            fresh_state["llm_call_count"] = 0
+            result = graph.invoke(fresh_state)
 
         assert result["final_answer"]
         assert result["retry_count"] >= result["max_retries"]
@@ -322,8 +347,8 @@ class TestGraphFlow:
             _preproc_json("analytical", "سؤال"),
             _ch_json("1", 0.8),
             _sec_json("1", 0.2),
-            _grader_json(True, "المستندات كافية"),  
-            "إجابة بعد موافقة llm_grader.",         
+            _grader_json(True, "المستندات كافية"),
+            "إجابة بعد موافقة llm_grader.",
         ]
         llm_mock = MagicMock()
         llm_mock.invoke.side_effect = [_llm_response(c) for c in llm_calls]

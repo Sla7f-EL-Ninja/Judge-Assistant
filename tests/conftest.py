@@ -181,9 +181,9 @@ def test_pdf_bytes() -> bytes:
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Helvetica", size=12)
-        pdf.cell(200, 10, "Test document for Hakim AI test suite", ln=True)
-        pdf.cell(200, 10, "This is a synthetic test PDF.", ln=True)
-        return pdf.output(dest="S").encode("latin-1")
+        pdf.cell(200, 10, text="Test document for Hakim AI test suite", ln=True)
+        pdf.cell(200, 10, text="This is a synthetic test PDF.", ln=True)
+        return bytes(pdf.output())
     except ImportError:
         # Minimal valid PDF if fpdf2 not available
         return (
@@ -227,18 +227,10 @@ async def app_client() -> AsyncGenerator:
 
     from api.app import create_app
     from api.db.mongodb import close_mongo, connect_mongo
-    from api.db.minio_client import close_minio, connect_minio
     from config.api import get_settings
 
     settings = get_settings()
     await connect_mongo(settings)
-    try:
-        connect_minio(settings)
-    except Exception as exc:
-        import logging as _logging
-        _logging.getLogger(__name__).warning(
-            "MinIO unavailable in test fixture: %s — uploads will fall back to disk", exc
-        )
     application = create_app()
 
     async with AsyncClient(
@@ -249,7 +241,6 @@ async def app_client() -> AsyncGenerator:
         yield client
 
     await close_mongo()
-    close_minio()
 
 
 # ---------------------------------------------------------------------------

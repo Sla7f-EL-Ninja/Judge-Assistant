@@ -265,15 +265,17 @@ def test_second_call_is_faster_due_to_cache():
 # Error resilience
 # ===========================================================================
 @pytest.mark.e2e
-def test_exception_in_graph_returns_error_message_not_raises():
+def test_exception_in_graph_raises_internal_error():
     """
-    Simulate a graph that raises unexpectedly; service must return graceful answer.
-    This patches build_graph at the service level only.
+    Graph crashes now surface as InternalRAGError (HTTP 500), not graceful degradation.
     """
     from unittest.mock import patch
+    from RAG.legal_rag.errors import InternalRAGError
     with patch("RAG.legal_rag.graph.build_graph") as mock_bg:
         mock_bg.return_value.invoke.side_effect = RuntimeError("unexpected error")
         from RAG.legal_rag.service import ask_question
-        result = ask_question("ما هي شروط صحة العقد؟")
-    assert result.answer
-    assert "خطأ" in result.answer
+        try:
+            ask_question("ما هي شروط صحة العقد؟")
+            assert False, "Expected InternalRAGError"
+        except InternalRAGError:
+            pass
