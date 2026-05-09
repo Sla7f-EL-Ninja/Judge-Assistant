@@ -330,7 +330,7 @@ def get_llm(tier: str, **overrides: Any):
             temperature=temperature,
             request_timeout=timeout,
             max_retries=llm_retries,
-            retry_wait_seconds=1
+            retry_wait_seconds=1,
             **overrides,
         )
 
