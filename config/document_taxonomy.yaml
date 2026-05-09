@@ -1,0 +1,135 @@
+# config/document_taxonomy.yaml
+#
+# Egyptian civil-document taxonomy for the classifier.
+# Each type has three keyword tiers:
+#   strong  — near-deterministic markers; a single hit strongly implies this type
+#   weak    — supportive markers; several hits corroborate but cannot decide alone
+#   anti    — markers that argue *against* this type
+#
+# Scoring: strong=60pts, weak=15pts, anti=-30pts.
+# Heuristic short-circuits only when top candidate has >=1 strong hit
+# and leads second-best by >=30 pts. Otherwise the LLM decides.
+#
+# To add a new type: append a new key here — no code changes needed.
+
+unknown_label: "مستند غير معروف"
+
+doc_types:
+
+  حكم:
+    strong:
+      - "باسم الشعب"
+      - "فلهذه الأسباب"
+    weak:
+      - "قضت المحكمة"
+      - "وحيث إن"
+      - "حضوريا"
+      - "غيابيا"
+      - "الدائرة المدنية"
+      - "محكمة الاستئناف"
+      - "المحكمة الابتدائية"
+      - "حكم في الدعوى"
+    anti: []
+
+  صحيفة دعوى:
+    strong:
+      - "صحيفة دعوى"
+    weak:
+      - "المدعي"
+      - "المدعى عليه"
+      - "الطلبات"
+      - "الوقائع"
+      - "بناءً عليه"
+      - "موضوع الدعوى"
+      - "طلب الحكم"
+    anti:
+      - "باسم الشعب"
+
+  مذكرة بدفاع:
+    strong:
+      - "مذكرة بدفاع"
+      - "مذكرة دفاع"
+    weak:
+      - "الدفاع"
+      - "أولاً"
+      - "ثانياً"
+      - "ثالثاً"
+      - "دفوع"
+      - "رداً على"
+      - "الدفع بعدم القبول"
+    anti:
+      - "باسم الشعب"
+
+  محضر جلسة:
+    strong:
+      - "انعقدت المحكمة"
+      - "أثبت الحاضرون"
+    weak:
+      - "قررت المحكمة"
+      - "الجلسة المنعقدة"
+      - "تأجل النظر"
+      - "حضر المحامي"
+      - "محضر الجلسة"
+    anti:
+      - "باسم الشعب"
+      - "فلهذه الأسباب"
+
+  إعلان:
+    strong:
+      - "إنه في يوم"
+      - "محضر إعلان"
+    weak:
+      - "أعلنت"
+      - "كلفته الحضور"
+      - "صورة طبق الأصل"
+      - "المحضر القضائي"
+      - "تسليم الإعلان"
+    anti: []
+
+  أمر أداء:
+    strong:
+      - "أمر أداء"
+    weak:
+      - "يأمر"
+      - "دين ثابت"
+      - "مطالبة بمبلغ"
+      - "الأمر بالدفع"
+      - "المدين"
+    anti:
+      - "باسم الشعب"
+      - "فلهذه الأسباب"
+
+  أمر على عريضة:
+    strong:
+      - "أمر على عريضة"
+    weak:
+      - "بعد الاطلاع"
+      - "نأمر"
+      - "العريضة المقدمة"
+      - "القاضي المختص"
+    anti:
+      - "باسم الشعب"
+
+  تقرير خبير:
+    strong:
+      - "تقرير الخبير"
+      - "الخبير المنتدب"
+    weak:
+      - "المعاينة"
+      - "الخبير"
+      - "التقرير الفني"
+      - "المنتدب بمعرفة المحكمة"
+      - "الجهة الفنية"
+      - "نتائج الفحص"
+    anti: []
+
+  محضر إثبات حالة:
+    strong:
+      - "إثبات حالة"
+    weak:
+      - "قام المحضر"
+      - "ثبت لديه"
+      - "انتقل إلى موقع"
+      - "تحرير المحضر"
+      - "الواقعة المادية"
+    anti: []

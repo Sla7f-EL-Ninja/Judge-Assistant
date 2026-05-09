@@ -71,6 +71,29 @@ class JudgeAssistantClient:
             elapsed = (time.time() - start) * 1000
             return 0, {"_error": str(exc)}, elapsed
 
+    def _request_raw(
+        self,
+        method: str,
+        path: str,
+        params: Any = None,
+        timeout: int = 60,
+    ) -> tuple[int, bytes, str, float]:
+        """Execute a request and return (status, raw_bytes, content_type, elapsed_ms)."""
+        start = time.time()
+        try:
+            r = self.session.request(
+                method,
+                self._url(path),
+                params=params,
+                timeout=timeout,
+            )
+            elapsed = (time.time() - start) * 1000
+            content_type = r.headers.get("Content-Type", "")
+            return r.status_code, r.content, content_type, elapsed
+        except requests.RequestException as exc:
+            elapsed = (time.time() - start) * 1000
+            return 0, str(exc).encode(), "", elapsed
+
     # -- Health ---------------------------------------------------------------
 
     def health(self) -> tuple[int, dict, float]:
@@ -104,16 +127,29 @@ class JudgeAssistantClient:
         files = {"file": (filename, content, mime_type)}
         return self._request("POST", "/api/v1/files/upload", files=files)
 
+    def get_file(self, file_id: str, download: bool = False) -> tuple[int, bytes, str, float]:
+        params = {"download": 1} if download else None
+        return self._request_raw("GET", f"/api/v1/files/{file_id}", params=params)
+
     def delete_file(self, file_id: str) -> tuple[int, dict, float]:
         return self._request("DELETE", f"/api/v1/files/{file_id}")
 
     # -- Documents ------------------------------------------------------------
 
-    def ingest_documents(self, case_id: str, file_ids: list[str]) -> tuple[int, dict, float]:
+    def ingest_documents(
+        self,
+        case_id: str,
+        file_ids: list[str] | None = None,
+        groups: list[list[str]] | None = None,
+    ) -> tuple[int, dict, float]:
+        if groups is not None:
+            payload = {"groups": [{"file_ids": g} for g in groups]}
+        else:
+            payload = {"file_ids": file_ids or []}
         return self._request(
             "POST",
             f"/api/v1/cases/{case_id}/documents",
-            json={"file_ids": file_ids},
+            json=payload,
             timeout=700,
         )
 
@@ -133,6 +169,21 @@ class JudgeAssistantClient:
         if corrected_by:
             payload["corrected_by"] = corrected_by
         return self._request("PATCH", f"/api/v1/cases/{case_id}/documents/{doc_id}/ocr", json=payload)
+
+    def bulk_correct_document_ocr(
+        self,
+        case_id: str,
+        corrections: list[dict],
+        corrected_by: Optional[str] = None,
+    ) -> tuple[int, dict, float]:
+        payload: dict = {"corrections": corrections}
+        if corrected_by:
+            payload["corrected_by"] = corrected_by
+        return self._request(
+            "POST",
+            f"/api/v1/cases/{case_id}/documents/ocr/bulk",
+            json=payload,
+        )
 
     def delete_document(self, case_id: str, doc_id: str) -> tuple[int, dict, float]:
         return self._request("DELETE", f"/api/v1/cases/{case_id}/documents/{doc_id}")

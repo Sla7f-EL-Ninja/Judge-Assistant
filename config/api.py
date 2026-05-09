@@ -107,6 +107,9 @@ class Settings(BaseSettings):
     # -- Upload directory (legacy fallback, MinIO preferred) -------------------
     upload_dir: str = cfg.api.get("upload_dir", "./uploads")
 
+    # -- Bulk operations -------------------------------------------------------
+    bulk_ocr_max_items: int = cfg.api.get("bulk_ocr_max_items", 50)
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

@@ -289,6 +289,64 @@ async def correct_document_ocr(
     return doc
 
 
+async def bulk_correct_document_ocr(
+    db: AsyncIOMotorDatabase,
+    case_id: str,
+    items: List[Dict[str, Any]],
+    default_corrected_by: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Apply correct_document_ocr to each item sequentially with per-item error isolation.
+
+    Each item dict must have keys: doc_id, text, corrected_by (optional).
+    Returns list of result dicts: {doc_id, status, result, error}.
+
+    Note: if Mongo update succeeds but Qdrant reindex fails, the doc text is
+    already updated in Mongo — no rollback occurs (same as single PATCH semantics).
+    """
+    from api.errors import DOCUMENT_NOT_FOUND, QDRANT_REINDEX_FAILED, INTERNAL_ERROR
+
+    results = []
+    for item in items:
+        doc_id = item["doc_id"]
+        text = item["text"]
+        corrected_by = item.get("corrected_by") or default_corrected_by
+
+        try:
+            doc = await correct_document_ocr(db, case_id, doc_id, text, corrected_by)
+        except RuntimeError as exc:
+            code = QDRANT_REINDEX_FAILED if "QDRANT_REINDEX_FAILED" in str(exc) else INTERNAL_ERROR
+            logger.exception("bulk OCR correction failed for doc %s in case %s", doc_id, case_id)
+            results.append({
+                "doc_id": doc_id,
+                "status": "failed",
+                "result": None,
+                "error": {"code": code, "message": str(exc)},
+            })
+            continue
+        except Exception as exc:
+            logger.exception("bulk OCR correction failed for doc %s in case %s", doc_id, case_id)
+            results.append({
+                "doc_id": doc_id,
+                "status": "failed",
+                "result": None,
+                "error": {"code": INTERNAL_ERROR, "message": str(exc)},
+            })
+            continue
+
+        if doc is None:
+            results.append({
+                "doc_id": doc_id,
+                "status": "failed",
+                "result": None,
+                "error": {"code": DOCUMENT_NOT_FOUND, "message": f"Document not found: {doc_id}"},
+            })
+            continue
+
+        results.append({"doc_id": doc_id, "status": "success", "result": doc, "error": None})
+
+    return results
+
+
 async def delete_document(
     db: AsyncIOMotorDatabase,
     case_id: str,

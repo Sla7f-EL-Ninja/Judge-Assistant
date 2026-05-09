@@ -5,9 +5,9 @@ Schemas for document endpoints.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class IngestGroup(BaseModel):
@@ -137,3 +137,38 @@ class OCRTextResponse(BaseModel):
 class OCRCorrectionRequest(BaseModel):
     text: str = Field(..., min_length=1)
     corrected_by: Optional[str] = None
+
+
+class BulkOCRCorrectionItem(BaseModel):
+    doc_id: str = Field(..., min_length=1)
+    text: str = Field(..., min_length=1)
+    corrected_by: Optional[str] = None
+
+
+class BulkOCRCorrectionRequest(BaseModel):
+    corrections: List[BulkOCRCorrectionItem] = Field(..., min_length=1)
+    corrected_by: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _validate_corrections(self) -> "BulkOCRCorrectionRequest":
+        from config.api import get_settings
+        cap = get_settings().bulk_ocr_max_items
+        if len(self.corrections) > cap:
+            raise ValueError(f"corrections list exceeds maximum of {cap} items")
+        ids = [item.doc_id for item in self.corrections]
+        if len(ids) != len(set(ids)):
+            raise ValueError("corrections contains duplicate doc_id values")
+        return self
+
+
+class BulkOCRCorrectionResultItem(BaseModel):
+    doc_id: str
+    status: Literal["success", "failed"]
+    result: Optional[OCRTextResponse] = None
+    error: Optional[Dict[str, str]] = None
+
+
+class BulkOCRCorrectionResponse(BaseModel):
+    results: List[BulkOCRCorrectionResultItem]
+    succeeded: int
+    failed: int
