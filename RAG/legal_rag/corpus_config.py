@@ -25,7 +25,8 @@ Usage::
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -57,3 +58,4 @@ class CorpusConfig:
     law_display_name:     str
     corpus_version:       str
     prompts_version:      str
+    global_k:             Optional[int] = None  # per-corpus override for global retrieval pass; None → settings.yaml default

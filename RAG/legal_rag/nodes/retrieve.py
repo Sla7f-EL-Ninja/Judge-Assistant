@@ -8,9 +8,18 @@ Pipeline:
     2. Build Qdrant filter — always type=article + source from corpus_config,
        plus optional chapter/section from state['scope_filter']
     3. Single dense search (or HyDE multi-query when hyde_enabled=true)
-    4. Deduplicate candidates by article index (keep max-score per article)
-    5. Cross-encoder reranker (union → top-20)
-    6. Store results + confidence in state
+    4. Global fallback pass — one unfiltered search across the full corpus
+       (controlled by global_retrieval_enabled + global_k in settings.yaml)
+    5. Deduplicate candidates by article index (keep max-score per article)
+    6. Cross-encoder reranker (union → top-20)
+    7. Store results + confidence in state
+
+Global retrieval rationale:
+    When scope_classifier picks the wrong chapter, every scoped article is
+    from the wrong part of the law and graders fail.  The global pass fetches
+    a small number of unfiltered articles that compete in the same dedup+rerank
+    step, giving the pipeline a chance to surface the correct articles even
+    when scoping misfires.
 """
 
 from __future__ import annotations
@@ -18,8 +27,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -33,6 +43,7 @@ from RAG.legal_rag.indexing.normalizer import normalize
 from RAG.legal_rag.prompts import HYDE_EXPANSION_PROMPT
 from RAG.legal_rag.retrieval.vectorstore import load_vectorstore, source_filter
 from RAG.legal_rag.retrieval.reranker import rerank
+from RAG.legal_rag.errors import RetrievalError
 from RAG.legal_rag.telemetry import get_logger, log_event
 
 logger = get_logger(__name__)
@@ -42,12 +53,15 @@ _RERANK_TOP  = 20
 _MAX_WORKERS = 4
 
 _llm = None
+_llm_lock = threading.Lock()
 
 
 def _get_llm():
     global _llm
     if _llm is None:
-        _llm = get_llm("medium")
+        with _llm_lock:
+            if _llm is None:
+                _llm = get_llm("medium")
     return _llm
 
 
@@ -116,6 +130,17 @@ def _hyde_enabled() -> bool:
     return bool(cfg.get("rag", {}).get("legal", {}).get("hyde_enabled", False))
 
 
+def _global_retrieval_enabled() -> bool:
+    return bool(cfg.get("rag", {}).get("legal", {}).get("global_retrieval_enabled", True))
+
+
+def _resolve_global_k(corpus_config) -> int:
+    """corpus_config.global_k overrides settings.yaml which overrides default 5."""
+    if corpus_config is not None and corpus_config.global_k is not None:
+        return corpus_config.global_k
+    return int(cfg.get("rag", {}).get("legal", {}).get("global_k", 5))
+
+
 def _build_filter(source_value: str, scope_filter: dict) -> Filter:
     """Build Qdrant filter: mandatory article + source + optional scope."""
     conditions = [
@@ -136,32 +161,60 @@ def _build_filter(source_value: str, scope_filter: dict) -> Filter:
 
 @traceable(name="Retrieve Node")
 def retrieve_node(state: dict) -> dict:
-    """Dense retrieval + reranking into state['last_results']."""
+    """Dense retrieval + optional global pass + reranking into state['last_results']."""
     corpus_config  = state.get("corpus_config")
     collection     = corpus_config.collection_name     if corpus_config else "civil_law_docs"
     source_val     = corpus_config.source_filter_value if corpus_config else "civil_law"
     law_name       = corpus_config.law_display_name    if corpus_config else "القانون"
 
-    db = load_vectorstore(collection)
+    try:
+        db = load_vectorstore(collection)
 
-    raw_query = (
-        state.get("refined_query")
-        or state.get("rewritten_question")
-        or state.get("last_query", "")
-    )
-    query         = normalize(raw_query)
-    scope_filt    = state.get("scope_filter") or {}
-    article_filter = _build_filter(source_val, scope_filt)
-
-    if _hyde_enabled():
-        queries         = _expand_queries(query, law_name, state)
-        all_pairs       = _parallel_search(db, queries, article_filter)
-        expansion_count = len(queries)
-    else:
-        all_pairs       = db.similarity_search_with_relevance_scores(
-            query, k=_RETRIEVE_K, filter=article_filter
+        raw_query = (
+            state.get("refined_query")
+            or state.get("rewritten_question")
+            or state.get("last_query", "")
         )
-        expansion_count = 1
+        query          = normalize(raw_query)
+        scope_filt     = state.get("scope_filter") or {}
+        article_filter = _build_filter(source_val, scope_filt)
+
+        # ── Scoped retrieval (chapter/section filtered) ───────────────────
+        if _hyde_enabled():
+            queries    = _expand_queries(query, law_name, state)
+            scoped_pairs = _parallel_search(db, queries, article_filter)
+        else:
+            scoped_pairs = db.similarity_search_with_relevance_scores(
+                query, k=_RETRIEVE_K, filter=article_filter
+            )
+        n_scoped = len(scoped_pairs)
+
+        # ── Global fallback pass (whole corpus, no chapter/section filter) ─
+        global_pairs: List[Tuple[Document, float]] = []
+        if _global_retrieval_enabled():
+            global_k      = _resolve_global_k(corpus_config)
+            global_filter = _build_filter(source_val, {})
+            try:
+                global_pairs = db.similarity_search_with_relevance_scores(
+                    query, k=global_k, filter=global_filter
+                )
+            except Exception as exc:
+                log_event(logger, "global_retrieve_error", error=str(exc),
+                          level=logging.WARNING)
+        n_global = len(global_pairs)
+
+        # ── Merge, dedup, rerank ──────────────────────────────────────────
+        all_pairs    = scoped_pairs + global_pairs
+    except Exception as exc:
+        log_event(logger, "retrieve_error", error=str(exc), level=logging.ERROR)
+        state["error"] = {
+            "type":    RetrievalError.__name__,
+            "node":    "retrieve_node",
+            "message": str(exc),
+        }
+        state["last_results"]         = []
+        state["retrieval_confidence"] = 0.0
+        return state
 
     if not all_pairs:
         state["last_results"]         = []
@@ -171,10 +224,12 @@ def retrieve_node(state: dict) -> dict:
         return state
 
     unique_pairs  = _dedupe_by_index(all_pairs)
+    n_after_dedup = len(unique_pairs)
     unique_docs   = [doc for doc, _ in unique_pairs]
     unique_scores = {doc.metadata.get("index"): score for doc, score in unique_pairs}
 
     reranked_docs   = rerank(query, unique_docs, top_k=_RERANK_TOP)
+    n_after_rerank  = len(reranked_docs)
     reranked_scores = [
         unique_scores.get(d.metadata.get("index"), 0.0) for d in reranked_docs
     ]
@@ -187,10 +242,10 @@ def retrieve_node(state: dict) -> dict:
               query=query,
               corpus=source_val,
               scope=scope_filt,
-              expansion_count=expansion_count,
-              raw_candidates=len(all_pairs),
-              unique_candidates=len(unique_docs),
-              reranked_docs=len(reranked_docs),
+              n_scoped=n_scoped,
+              n_global=n_global,
+              n_after_dedup=n_after_dedup,
+              n_after_rerank=n_after_rerank,
               confidence=round(confidence, 3),
               top_indices=[d.metadata.get("index") for d in reranked_docs])
     return state

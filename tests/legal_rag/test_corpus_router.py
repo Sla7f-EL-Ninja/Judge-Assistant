@@ -40,35 +40,35 @@ def _state(query: str = "ما هي شروط صحة العقد؟", llm_call_count
 # ---------------------------------------------------------------------------
 class TestCorpusRouterNode:
 
-    # ── Fast off-topic gate ──────────────────────────────────────────────────
-    def test_empty_query_is_fast_off_topic(self):
+    # ── corpus_classifier_node has NO fast gate — preprocessor handles it ────
+    # The node always calls the LLM (or raises LLMBudgetExceededError).
+    # We test with mocked LLM so as not to make real network calls.
+
+    @patch("RAG.legal_rag.nodes.corpus_router._get_registry")
+    @patch("RAG.legal_rag.nodes.corpus_router._get_llm")
+    @patch("RAG.legal_rag.nodes.corpus_router._corpus_threshold", return_value=0.4)
+    def test_empty_query_is_fast_off_topic(
+        self, mock_threshold, mock_llm, mock_registry, mock_registry_fixture
+    ):
+        # Empty query → LLM scores below threshold → off_topic
+        mock_registry.return_value = mock_registry_fixture
+        mock_llm.return_value = make_mock_llm(
+            _scores_json(_score("civil", 0.1), _score("evidence", 0.0), _score("procedures", 0.0))
+        )
         from RAG.legal_rag.nodes.corpus_router import corpus_router_node
         state = _state(query="")
         result = corpus_router_node(state)
         assert result["classification"] == "off_topic"
-        assert result["corpus_config"] is None
+        assert result.get("corpus_config") is None
 
-    def test_very_short_query_is_fast_off_topic(self):
-        from RAG.legal_rag.nodes.corpus_router import corpus_router_node
-        state = _state(query="عقد")  # 3 chars — fast gate fires at < 5
-        result = corpus_router_node(state)
-        assert result["classification"] == "off_topic"
-
-    def test_non_arabic_query_is_fast_off_topic(self):
-        from RAG.legal_rag.nodes.corpus_router import corpus_router_node
-        state = _state(query="What is contract law?")
-        result = corpus_router_node(state)
-        assert result["classification"] == "off_topic"
-
-    # ── LLM budget guard ─────────────────────────────────────────────────────
-    @patch("RAG.legal_rag.nodes.corpus_router._get_registry")
-    def test_budget_exhausted_falls_back_to_civil(self, mock_registry, mock_registry_fixture):
-        mock_registry.return_value = mock_registry_fixture
+    # ── LLM budget guard → sets state["error"], does NOT fall back to civil ──
+    def test_budget_exhausted_sets_error(self):
         from RAG.legal_rag.nodes.corpus_router import corpus_router_node
         state = _state(query="ما هي شروط صحة العقد؟", llm_call_count=5)
         result = corpus_router_node(state)
-        assert result["corpus_config"].name == "civil"
-        assert result["corpus_routing_scores"] == []
+        assert result.get("error") is not None
+        assert result["error"]["type"] == "CorpusRoutingError"
+        assert result.get("corpus_config") is None
 
     # ── Successful routing ────────────────────────────────────────────────────
     @patch("RAG.legal_rag.nodes.corpus_router._get_registry")
@@ -186,10 +186,10 @@ class TestCorpusRouterNode:
         result = corpus_router_node(state)
         assert result["classification"] == "off_topic"
 
-    # ── LLM exception fallback ────────────────────────────────────────────────
+    # ── LLM exception → sets state["error"] (does NOT fall back to civil) ─────
     @patch("RAG.legal_rag.nodes.corpus_router._get_registry")
     @patch("RAG.legal_rag.nodes.corpus_router._get_llm")
-    def test_llm_exception_falls_back_to_civil(
+    def test_llm_exception_sets_error(
         self, mock_llm, mock_registry, mock_registry_fixture
     ):
         mock_registry.return_value = mock_registry_fixture
@@ -200,12 +200,14 @@ class TestCorpusRouterNode:
         from RAG.legal_rag.nodes.corpus_router import corpus_router_node
         state = _state("ما هي شروط صحة العقد؟")
         result = corpus_router_node(state)
-        assert result["corpus_config"].name == "civil"
+        assert result.get("error") is not None
+        assert result["error"]["type"] == "CorpusRoutingError"
+        assert result.get("corpus_config") is None
 
-    # ── Malformed JSON from LLM ───────────────────────────────────────────────
+    # ── Malformed JSON → sets state["error"] ──────────────────────────────────
     @patch("RAG.legal_rag.nodes.corpus_router._get_registry")
     @patch("RAG.legal_rag.nodes.corpus_router._get_llm")
-    def test_malformed_json_falls_back_to_civil(
+    def test_malformed_json_sets_error(
         self, mock_llm, mock_registry, mock_registry_fixture
     ):
         mock_registry.return_value = mock_registry_fixture
@@ -214,7 +216,8 @@ class TestCorpusRouterNode:
         from RAG.legal_rag.nodes.corpus_router import corpus_router_node
         state = _state("ما هي شروط صحة العقد؟")
         result = corpus_router_node(state)
-        assert result["corpus_config"].name == "civil"
+        assert result.get("error") is not None
+        assert result["error"]["type"] == "CorpusRoutingError"
 
     # ── Routing scores stored in state ───────────────────────────────────────
     @patch("RAG.legal_rag.nodes.corpus_router._get_registry")

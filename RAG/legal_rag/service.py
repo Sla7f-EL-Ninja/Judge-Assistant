@@ -22,12 +22,20 @@ Architecture note (unified graph):
     for the first call, and a pre-invocation hit for subsequent identical
     queries routed to the same corpus.  To support this, we do a
     speculative cache check across all corpora after routing is known.
+
+FIX-1 (scope_fallback):
+    ask_question() now accepts an optional scope_fallback kwarg forwarded
+    from legal_rag_server.search_legal_corpus when the executor signals a
+    retry.  It is written into the initial state before graph invocation so
+    scope_classifier_node can skip or relax the section-scoping LLM call
+    that was repeatedly misrouting queries to the wrong section.
 """
 
 from __future__ import annotations
 
 import logging
 import re
+import threading
 import traceback
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -35,7 +43,17 @@ from typing import Dict, List, Optional
 from RAG.legal_rag.cache import SemanticCache
 from config.legal_rag import LLM_MODEL, MAX_QUERY_LENGTH, MIN_ARABIC_RATIO, MIN_QUERY_LENGTH
 from RAG.legal_rag.corpus_config import CorpusConfig
-from RAG.legal_rag.errors import QueryValidationError
+from RAG.legal_rag.errors import (
+    QueryValidationError,
+    InternalRAGError,
+    LLMTimeoutError,
+    LLMBudgetExceededError,
+    RetrievalError,
+    GenerationError,
+    ScopeClassificationError,
+    CorpusRoutingError,
+    PreprocessingError,
+)
 from RAG.legal_rag.state import make_initial_state
 from RAG.legal_rag.telemetry import get_logger, log_event
 
@@ -43,11 +61,26 @@ logger = get_logger(__name__)
 
 # One SemanticCache instance per corpus  {corpus_name: SemanticCache}
 _caches: Dict[str, SemanticCache] = {}
+_caches_lock = threading.Lock()
+
+# Error types that map to graceful degraded response (HTTP 200).
+_DEGRADED_ERROR_TYPES = {LLMTimeoutError.__name__, LLMBudgetExceededError.__name__}
+
+# Error types that map to internal server error (HTTP 500).
+_INTERNAL_ERROR_TYPES = {
+    RetrievalError.__name__,
+    GenerationError.__name__,
+    ScopeClassificationError.__name__,
+    CorpusRoutingError.__name__,
+    PreprocessingError.__name__,
+}
 
 
 def _get_cache(corpus_config: CorpusConfig) -> SemanticCache:
     if corpus_config.name not in _caches:
-        _caches[corpus_config.name] = SemanticCache()
+        with _caches_lock:
+            if corpus_config.name not in _caches:
+                _caches[corpus_config.name] = SemanticCache()
     return _caches[corpus_config.name]
 
 
@@ -65,6 +98,7 @@ class LegalRAGResult:
     from_cache: bool                         = False
     corpus: Optional[str]                    = None   # corpus_config.name
     corpus_routing_scores: Optional[list]    = None   # raw LLM scores (observability)
+    error_type: Optional[str]                = None   # set when answer is a degraded fallback
 
 
 # ---------------------------------------------------------------------------
@@ -124,14 +158,25 @@ def _extract_sources(result_state: dict) -> List[dict]:
 from langsmith import traceable
 
 @traceable(name="Legal RAG Pipeline")
-def ask_question(query: str) -> LegalRAGResult:
+def ask_question(
+    query: str,
+    *,
+    # FIX-1: scope_fallback is forwarded from legal_rag_server on executor retries.
+    #   None        → normal two-stage scoping (chapter → section)
+    #   "section"   → skip section classification; chapter filter only
+    #   "chapter"   → skip all scoping; search full corpus
+    scope_fallback: Optional[str] = None,
+) -> LegalRAGResult:
     """Process a query through the unified legal_rag pipeline.
 
     The corpus is resolved automatically by corpus_router_node inside
     the graph — callers no longer need to know or pass a CorpusConfig.
 
     Args:
-        query: The user's legal question in Arabic.
+        query:          The user's legal question in Arabic.
+        scope_fallback: Optional retry hint from the executor.  When set,
+                        scope_classifier_node skips or relaxes the section-
+                        scoping LLM call to avoid repeating a misroute.
 
     Returns:
         LegalRAGResult with answer, sources, corpus name, and metadata.
@@ -150,35 +195,58 @@ def ask_question(query: str) -> LegalRAGResult:
         state               = make_initial_state()
         state["last_query"] = query
 
+        # FIX-1: inject scope_fallback so scope_classifier_node can honour it.
+        if scope_fallback is not None:
+            state["scope_fallback"] = scope_fallback
+
         result_state = app.invoke(state)
 
-        corpus_config: Optional[CorpusConfig] = result_state.get("corpus_config")
-        answer  = result_state.get("final_answer") or "تعذر الحصول على إجابة."
-        sources = _extract_sources(result_state)
-
-        # 3. Cache successful answers (only when we have a resolved corpus)
-        if corpus_config and answer:
-            cache = _get_cache(corpus_config)
-            cache.set(query, answer, corpus_config=corpus_config, llm_model=LLM_MODEL)
-
-        return LegalRAGResult(
-            answer=answer,
-            sources=sources,
-            classification=result_state.get("classification"),
-            retrieval_confidence=result_state.get("retrieval_confidence"),
-            citation_integrity=result_state.get("citation_integrity"),
-            corpus=corpus_config.name if corpus_config else None,
-            corpus_routing_scores=result_state.get("corpus_routing_scores"),
-        )
-
     except Exception:
-        log_event(logger, "ask_question_error",
+        log_event(logger, "ask_question_graph_crash",
                   query=query[:200],
                   traceback=traceback.format_exc(),
                   level=logging.ERROR)
+        raise InternalRAGError("Unhandled graph crash") from None
+
+    corpus_config: Optional[CorpusConfig] = result_state.get("corpus_config")
+    answer     = result_state.get("final_answer") or "تعذر الحصول على إجابة."
+    sources    = _extract_sources(result_state)
+    node_error = result_state.get("error")  # {type, node, message} or None
+
+    # 3. Inspect node-level error and map to appropriate response.
+    if node_error:
+        error_type = node_error.get("type", "")
+        log_event(logger, "ask_question_node_error",
+                  error_type=error_type,
+                  error_node=node_error.get("node"),
+                  error_message=node_error.get("message"),
+                  level=logging.ERROR)
+        if error_type in _INTERNAL_ERROR_TYPES:
+            raise InternalRAGError(
+                f"Internal pipeline failure ({error_type}) at node '{node_error.get('node')}'"
+            )
+        # Degraded response for timeout / budget (HTTP 200 with error_type).
         return LegalRAGResult(
-            answer="حدث خطأ أثناء معالجة السؤال. يرجى المحاولة مرة أخرى لاحقًا.",
+            answer=answer,
+            corpus=corpus_config.name if corpus_config else None,
+            corpus_routing_scores=result_state.get("corpus_routing_scores"),
+            error_type=error_type,
         )
+
+    # 4. Cache successful answers (only when we have a resolved corpus).
+    if corpus_config and answer:
+        cache = _get_cache(corpus_config)
+        cache.set(query, answer, corpus_config=corpus_config, llm_model=LLM_MODEL)
+
+    return LegalRAGResult(
+        answer=answer,
+        sources=sources,
+        classification=result_state.get("classification"),
+        retrieval_confidence=result_state.get("retrieval_confidence"),
+        citation_integrity=result_state.get("citation_integrity"),
+        corpus=corpus_config.name if corpus_config else None,
+        corpus_routing_scores=result_state.get("corpus_routing_scores"),
+    )
 
 
 def clear_cache(corpus_config: CorpusConfig) -> None:

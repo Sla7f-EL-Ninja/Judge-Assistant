@@ -73,10 +73,9 @@ def textual_node(state: dict) -> dict:
     source_val    = corpus_config.source_filter_value if corpus_config else "civil_law"
 
     # ── Range: "بين X و Y" or "من X إلى Y" ──────────────────────────────
-    # After
     range_match = re.search(
         r"(?:بين\s*(\d+)\s*و\s*(\d+)"
-        r"|من\s*(?:[لبك]?ا?لمادة\s*)?(\d+)\s*(?:الي|إلى|إلي|الى)\s*(?:[لبك]?ا?لمادة\s*)?(\d+))",
+        r"|من\s*(?:المادة\s*)?(\d+)\s*(?:الي|إلى|إلي|الى)\s*(?:المادة\s*)?(\d+))",
         query,
     )
     if range_match:
@@ -98,7 +97,7 @@ def textual_node(state: dict) -> dict:
         return state
 
     # ── Exact article number: "المادة X" ──────────────────────────────────
-    article_match = re.search(r"[لبك]?ا?لمادة\s*(\d+)", query)
+    article_match = re.search(r"المادة\s*(\d+)", query)
     if article_match:
         article_num = int(article_match.group(1))
         docs        = _scroll_by_index([article_num], collection, source_val)

@@ -213,14 +213,14 @@ class TestAskQuestion:
         assert result.answer  # should be the fallback string, not empty/None
 
     @patch("RAG.legal_rag.graph.build_graph")
-    def test_graph_exception_returns_error_result_not_raises(self, mock_build_graph):
+    def test_graph_crash_raises_internal_error(self, mock_build_graph):
+        """Unhandled graph crashes now surface as InternalRAGError (HTTP 500)."""
+        from RAG.legal_rag.errors import InternalRAGError
         mock_build_graph.return_value.invoke.side_effect = RuntimeError("boom")
 
         from RAG.legal_rag.service import ask_question
-        result = ask_question("ما هي شروط صحة العقد؟")
-
-        assert result.answer  # graceful error message
-        assert "خطأ" in result.answer
+        with pytest.raises(InternalRAGError):
+            ask_question("ما هي شروط صحة العقد؟")
 
     def test_invalid_query_raises_validation_error(self):
         from RAG.legal_rag.service import ask_question
