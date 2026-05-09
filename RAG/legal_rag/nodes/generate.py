@@ -20,7 +20,9 @@ load_dotenv()
 from langchain_core.documents import Document
 from langsmith import traceable
 
-from config.legal_rag import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT
+from config.legal_rag import get_llm, MAX_LLM_CALLS
+from RAG.legal_rag.errors import GenerationError
+from RAG.legal_rag.llm_utils import invoke_with_budget_and_timeout
 from RAG.legal_rag.prompts import ANALYTICAL_PROMPT
 from RAG.legal_rag.telemetry import get_logger, log_event
 
@@ -99,13 +101,24 @@ def generate_answer_node(state: dict) -> dict:
         for d in docs
     )
 
-    prompt   = ANALYTICAL_PROMPT.format(
+    prompt = ANALYTICAL_PROMPT.format(
         law_name=law_name,
         context_text=context_text,
         query=query,
     )
-    response = _get_llm().invoke(prompt, config={"timeout": LLM_TIMEOUT})
-    state["llm_call_count"] = state.get("llm_call_count", 0) + 1
+    try:
+        response = invoke_with_budget_and_timeout(
+            state, _get_llm(), prompt, node="generate_answer_node"
+        )
+    except Exception as exc:
+        log_event(logger, "generate_llm_error", error=str(exc), level=logging.ERROR)
+        state["error"] = {
+            "type":    GenerationError.__name__,
+            "node":    "generate_answer_node",
+            "message": str(exc),
+        }
+        state["final_answer"] = "تعذر توليد الإجابة بسبب خطأ داخلي."
+        return state
 
     answer = response.content.strip()
 

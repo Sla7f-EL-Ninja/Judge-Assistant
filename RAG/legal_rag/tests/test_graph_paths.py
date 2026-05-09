@@ -166,40 +166,43 @@ from RAG.legal_rag.state import make_initial_state
 from RAG.legal_rag.routers import (
     llm_grader_router,
     rule_grader_router,
-    top_level_router,
+    corpus_classifier_router,
+    post_preprocessor_router,
 )
 from RAG.legal_rag.nodes.fallback import cannot_answer_node, off_topic_node
 from RAG.legal_rag.nodes.graders import rule_grader_node
 
 
 # ---------------------------------------------------------------------------
-# top_level_router
+# corpus_classifier_router (formerly top_level_router)
 # ---------------------------------------------------------------------------
 
-def test_top_level_off_topic():
+def test_top_level_off_topic(civil_corpus):
     state = make_initial_state()
     state["classification"] = "off_topic"
-    assert top_level_router(state) == "off_topic_node"
+    state["corpus_config"]  = civil_corpus
+    assert corpus_classifier_router(state) == "off_topic_node"
 
 
-def test_top_level_textual_routes_to_worker():
+def test_top_level_textual_routes_to_worker(civil_corpus):
     state = make_initial_state()
     state["classification"] = "textual"
-    # FIX: After classification, go to the worker, not the entry router[cite: 18]
-    assert top_level_router(state) == "textual_node"
+    state["corpus_config"]  = civil_corpus
+    assert corpus_classifier_router(state) == "textual_node"
 
 
-def test_top_level_analytical_routes_to_worker():
+def test_top_level_analytical_routes_to_worker(civil_corpus):
     state = make_initial_state()
     state["classification"] = "analytical"
-    # FIX: Analytical queries go to the scope classifier[cite: 18]
-    assert top_level_router(state) == "scope_classifier_node"
+    state["corpus_config"]  = civil_corpus
+    assert corpus_classifier_router(state) == "scope_classifier_node"
 
 
-def test_top_level_unknown_falls_to_cannot_answer():
+def test_top_level_unknown_falls_to_cannot_answer(civil_corpus):
     state = make_initial_state()
     state["classification"] = "unknown_type"
-    assert top_level_router(state) == "cannot_answer_node"
+    state["corpus_config"]  = civil_corpus
+    assert corpus_classifier_router(state) == "cannot_answer_node"
 
 
 # ---------------------------------------------------------------------------

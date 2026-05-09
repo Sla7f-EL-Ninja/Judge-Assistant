@@ -120,40 +120,32 @@ def split_legal_document(text: str, source_value: str) -> List[Document]:
         attrs    = m.group("attrs").strip()
 
         if not is_close:
-            # For structural tags, extract the title immediately by peeking at
-            # the text between this opening tag and the next tag.  This ensures
-            # current_* is set BEFORE any nested [ARTICLE] closing tags fire.
-            if tag in ("BOOK", "PART", "CHAPTER", "SECTION"):
-                next_m = tag_pat.search(text, m.end())
-                title_text = text[m.end() : next_m.start() if next_m else len(text)].strip()
-
-                if tag == "BOOK":
-                    current_book    = _flatten(title_text)
-                    current_part    = None
-                    current_chapter = None
-                    current_section = None
-                elif tag == "PART":
-                    current_part    = _flatten(title_text)
-                    current_chapter = None
-                    current_section = None
-                elif tag == "CHAPTER":
-                    current_chapter = _chapter_title(title_text)
-                    current_section = None
-                elif tag == "SECTION":
-                    current_section = _section_title(title_text)
-
             tag_stack.append((tag, attrs, m.end()))
         else:
             for i in range(len(tag_stack) - 1, -1, -1):
                 if tag_stack[i][0] == tag:
                     open_tag, open_attrs, content_start = tag_stack.pop(i)
+                    content = text[content_start:m.start()].strip()
 
-                    # Structural tags: context already set on open — nothing to do.
-                    if open_tag in ("BOOK", "PART", "CHAPTER", "SECTION", "PREFACE"):
-                        break
+                    if open_tag == "BOOK":
+                        current_book    = _flatten(content)
+                        current_part    = None
+                        current_chapter = None
+                        current_section = None
+
+                    elif open_tag == "PART":
+                        current_part    = _flatten(content)
+                        current_chapter = None
+                        current_section = None
+
+                    elif open_tag == "CHAPTER":
+                        current_chapter = _chapter_title(content)
+                        current_section = None
+
+                    elif open_tag == "SECTION":
+                        current_section = _section_title(content)
 
                     elif open_tag == "ARTICLE":
-                        content  = text[content_start:m.start()].strip()
                         id_match = re.search(r'id\s*=\s*"?([^"\s\]]+)"?', open_attrs)
                         if not id_match:
                             break
@@ -175,7 +167,7 @@ def split_legal_document(text: str, source_value: str) -> List[Document]:
                             },
                         ))
 
-                    break
+                    break  # PREFACE — skip entirely
 
     return docs
 

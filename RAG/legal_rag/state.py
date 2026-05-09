@@ -181,6 +181,8 @@ class State(TypedDict):
     scope_confidence: Optional[float]       # 0–1, from scope_classifier_node
     scope_filter: dict                      # metadata filter applied during retrieval
     citation_integrity: Optional[str]       # "full" | "partial" | "none"
+    # ── Error tracking ────────────────────────────────────────────────────
+    error: Optional[dict]                   # {type, node, message} — set on hard failures; routes to cannot_answer
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +224,7 @@ _DEFAULTS: dict = {
     "scope_confidence":       None,
     "scope_filter":           {},
     "citation_integrity":     None,
+    "error":                  None,
 }
 
 
