@@ -135,6 +135,14 @@ rag:
     hyde_enabled: false
     scope_chapter_threshold: 0.5
     scope_section_threshold: 0.5
+  legal:
+    hyde_enabled: false
+    corpus_router_threshold: 0.4
+    scope_chapter_threshold: 0.5
+    scope_section_threshold: 0.5
+    global_retrieval_enabled: true
+    global_k: 5
+
 
 # -------------------------------------------------------
 # OCR Pipeline
