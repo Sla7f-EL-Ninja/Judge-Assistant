@@ -17,3 +17,7 @@ CLAUDE.original.md
 .json
 web/
 docs/
+Case Sample/
+db/
+logs/
+.vscode/
