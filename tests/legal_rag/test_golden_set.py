@@ -18,21 +18,21 @@ Marks
 Run commands
 ------------
 # All golden tests (requires live services):
-    pytest RAG/legal_rag/tests/test_golden_set.py -m golden -v
+    pytest tests/legal_rag/test_golden_set.py -m golden -v
 
 # With live summary table at end:
-    pytest RAG/legal_rag/tests/test_golden_set.py -m golden -v -s
+    pytest tests/legal_rag/test_golden_set.py -m golden -v -s
 
 # Single case by ID:
-    pytest RAG/legal_rag/tests/test_golden_set.py -m golden -k "C101" -v
+    pytest tests/legal_rag/test_golden_set.py -m golden -k "C101" -v
 
 # Skip golden (default CI):
-    pytest RAG/legal_rag/tests/ -m "not e2e and not golden"
+    pytest tests/legal_rag/ -m "not e2e and not golden"
 
 Golden file location
 --------------------
 Place golden_set.yaml in the same directory as this file:
-    RAG/legal_rag/tests/golden_set.yaml
+    tests/legal_rag/golden_set.yaml
 
 Or override via env var:
     GOLDEN_SET_PATH=/path/to/golden_set.yaml pytest ...
@@ -131,7 +131,7 @@ def _skip_if_no_samples(samples: list) -> None:
     if not samples:
         pytest.skip(
             f"golden_set.yaml not found at {_golden_set_path()}. "
-            "Place it in RAG/legal_rag/tests/ or set GOLDEN_SET_PATH env var."
+            "Place it in tests/legal_rag/ or set GOLDEN_SET_PATH env var."
         )
 
 
