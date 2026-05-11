@@ -1,0 +1,53 @@
+﻿@startuml report_generation_activity
+
+|Judge / API|
+start
+:POST /api/v1/cases/{case_id}/reports/generate;
+if (Case exists + has documents?) then (NO)
+  :Return 404\nCase or docs not found;
+  stop
+endif
+
+|MongoDB|
+:Create report_job\nstatus: pending;
+
+|Judge / API|
+:Return HTTP 202 + job_id;
+note right: HTTP request ends here\nclient polls separately
+
+|Background Task|
+:Update job status → running;
+:Run Summarization Pipeline\n7-node LangGraph;
+if (Success?) then (NO)
+  |MongoDB|
+  :Update status → failed\nstore error message;
+  stop
+endif
+|MongoDB|
+:Upsert summary\nsummaries collection;
+|Background Task|
+:Run Case Reasoner Pipeline\nrun_case_reasoning();
+if (Success?) then (NO)
+  |MongoDB|
+  :Update status → failed\nstore error message;
+  stop
+endif
+|MongoDB|
+:Upsert case_reasoning\ncase_reasonings collection;
+:Update status → completed;
+
+|Judge / API|
+repeat
+  :GET /api/v1/cases/{case_id}/reports/{report_id};
+  if (status?) then (pending or running)
+    :Wait + poll again;
+  endif
+repeat while (status = pending or running?)
+if (status = completed?) then (YES)
+  :Fetch summary + case_reasoning\nfrom MongoDB;
+  :Return 200\nsummary + case_reasoning;
+else (failed)
+  :Return 200 status=failed + error;
+endif
+stop
+@enduml

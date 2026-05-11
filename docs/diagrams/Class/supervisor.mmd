@@ -1,0 +1,87 @@
+classDiagram
+    class SupervisorState {
+        <<state>>
+        +str judge_query
+        +str intent
+        +str classified_query
+        +str correlation_id
+        +int turn_count
+        +int retry_count
+        +list conversation_history
+        +list agent_results
+        +str final_response
+        +str validation_feedback
+        +str running_summary
+        +list semantic_facts
+        +list procedural_prefs
+        +int messages_since_last_summary
+        +str case_id
+    }
+
+    class IntentEnum {
+        <<enumeration>>
+        civil_law_rag
+        case_doc_rag
+        reason
+        multi
+        off_topic
+        ocr
+        summarize
+    }
+
+    class ValidationResult {
+        <<dataclass>>
+        +bool is_relevant
+        +bool is_complete
+        +bool no_hallucination
+        +bool is_arabic
+        +str verdict
+        +partial_pass() bool
+    }
+
+    class AgentResult {
+        <<dataclass>>
+        +str agent_name
+        +str output
+        +bool success
+        +dict metadata
+    }
+
+    class SupervisorGraph {
+        +validate_input()
+        +load_long_term_memory()
+        +classify_intent()
+        +enrich_context()
+        +dispatch_agents()
+        +merge_responses()
+        +verify_citations()
+        +validate_output()
+        +update_memory()
+        +prepare_retry()
+        +fallback_response()
+        +off_topic_response()
+        +write_long_term_memory()
+        +summarize_history()
+        +audit_log()
+        +build_graph() StateGraph
+    }
+
+    class CivilLawRAGAdapter {
+        +invoke(query, context) AgentResult
+    }
+
+    class CaseDocRAGAdapter {
+        +invoke(query, context) AgentResult
+    }
+
+    class ChatReasonerAdapter {
+        +invoke(query, context) AgentResult
+    }
+
+    SupervisorGraph --> SupervisorState : manages
+    SupervisorGraph --> IntentEnum : classifies to
+    SupervisorGraph --> ValidationResult : produces
+    SupervisorGraph --> AgentResult : collects
+    SupervisorGraph --> CivilLawRAGAdapter : dispatches
+    SupervisorGraph --> CaseDocRAGAdapter : dispatches
+    SupervisorGraph --> ChatReasonerAdapter : dispatches

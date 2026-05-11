@@ -1,0 +1,46 @@
+sequenceDiagram
+    participant FastAPI
+    participant SummarizationGraph
+    participant Node0_Intake
+    participant Node1_Classifier
+    participant Node2_Extractor
+    participant Node3_Aggregator
+    participant Node4A_Clustering
+    participant Node4B_Synthesis
+    participant Node5_Brief
+    participant MongoDB
+
+    FastAPI->>SummarizationGraph: invoke(documents, case_id)
+
+    par ThreadPoolExecutor — one thread per document
+        SummarizationGraph->>Node0_Intake: process(doc_1)
+    and
+        SummarizationGraph->>Node0_Intake: process(doc_2 … doc_N)
+    end
+    Note over Node0_Intake: extract doc_type + party per doc [low LLM]
+    Node0_Intake->>Node0_Intake: disambiguate_defendants()
+    Node0_Intake-->>SummarizationGraph: chunks[] + party_manifest
+
+    SummarizationGraph->>Node1_Classifier: classify chunks by legal role [low LLM]
+    Node1_Classifier-->>SummarizationGraph: classified_chunks[]
+
+    SummarizationGraph->>Node2_Extractor: extract atomic bullets per chunk [high LLM]
+    Node2_Extractor-->>SummarizationGraph: bullets[]
+
+    SummarizationGraph->>Node3_Aggregator: group bullets by role [high LLM]
+    Note over Node3_Aggregator: labels: متفق عليه / محل النزاع / خاص بطرف
+    Node3_Aggregator-->>SummarizationGraph: role_aggregations[]
+
+    SummarizationGraph->>Node4A_Clustering: cluster bullets into 3-7 themes per role [low LLM]
+    Node4A_Clustering-->>SummarizationGraph: themed_roles[]
+
+    SummarizationGraph->>Node4B_Synthesis: generate Arabic prose per theme [high LLM]
+    Note over Node4B_Synthesis: cite bullet IDs in output
+    Node4B_Synthesis-->>SummarizationGraph: role_theme_summaries[]
+
+    SummarizationGraph->>Node5_Brief: generate 7-section judge-facing brief [high LLM]
+    Node5_Brief-->>SummarizationGraph: case_brief + rendered_brief + all_sources
+
+    SummarizationGraph->>MongoDB: upsert summaries collection
+    MongoDB-->>SummarizationGraph: ack
+    SummarizationGraph-->>FastAPI: case_brief + rendered_brief

@@ -1,0 +1,44 @@
+﻿@startuml validation_retry
+
+|Supervisor|
+start
+:validate_output\nCheck: hallucination · relevance\ncompleteness · coherence;
+if (validation_status?) then (pass)
+  :Deliver response as-is;
+elseif (partial_pass\ncompleteness fail only) then ()
+  :Append disclosure caveat\nto response;
+  :Deliver response;
+elseif (fail) then ()
+  if (retry_count < max_retries?) then (YES)
+    :prepare_retry\nappend validation_feedback\nincrement retry_count;
+    |Agents|
+    :dispatch_agents\nre-run with feedback;
+    |Supervisor|
+    :merge_responses\nverify_citations\nvalidate_output;
+    note right: loops back to\nvalidation_status check
+  else (NO — exhausted)
+    :fallback_response\ngeneric Arabic fallback;
+  endif
+else (validator_error\nLLM call failed)
+  if (retry_count < max_retries?) then (YES)
+    :prepare_retry\nincrement retry_count;
+    |Agents|
+    :dispatch_agents;
+    |Supervisor|
+    :merge_responses\nverify_citations\nvalidate_output;
+  else (NO — exhausted)
+    :fallback_response\ngeneric Arabic fallback;
+  endif
+endif
+|Supervisor|
+:update_memory\nappend turn to MongoDB;
+
+|MongoDB|
+:write_long_term_memory\nupsert semantic_facts + prefs;
+if (messages_since_last_summary\n> threshold?) then (YES)
+  :summarize_history\n[high-tier LLM]\ncompress older turns;
+endif
+:audit_log\nwrite to MongoDB;
+|Supervisor|
+stop
+@enduml

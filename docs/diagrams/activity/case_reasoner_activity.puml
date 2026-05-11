@@ -1,0 +1,44 @@
+﻿@startuml case_reasoner_activity
+
+|CaseReasonerGraph|
+start
+:run_case_reasoning()\ncase_brief + rendered_brief\n+ judge_query + case_id;
+:extract_issues\nidentify distinct legal issues\n[high-tier LLM];
+if (Issues identified?) then (NO)
+  :generate_empty_report\nno issues found;
+  stop
+endif
+fork
+  :decompose_issue\nidentify required legal elements;
+  :generate_retrieval_queries\nproduce law + fact queries per element;
+  fork
+    |RAG Tools|
+    :retrieve_law\ncivil_law_rag MCP tool;
+  fork again
+    |RAG Tools|
+    :retrieve_facts\ncase_doc_rag MCP tool;
+  end fork
+  |CaseReasonerGraph|
+  :classify_evidence\nper element:\nestablished / not_established\ndisputed / insufficient_evidence;
+  :apply_law\nArabic legal reasoning\ncite specific articles\n[high-tier LLM];
+  :generate_counterarguments\nplaintiff + defendant analyses\n[high-tier LLM];
+  :validate_analysis\ncitation check + logical consistency\n+ completeness\n[medium-tier LLM];
+  :package_result\nstructured IssueAnalysis dict;
+fork again
+  :[ additional parallel branches\nper issue — same logic ];
+end fork
+:aggregate_issues\ncombine all branch results;
+:check_global_consistency\ndetect cross-issue conflicts\n[high-tier LLM];
+if (Conflicts detected?) then (YES)
+  :generate reconciliation paragraphs\n[high-tier LLM];
+endif
+:compute_confidence\nper-issue + case-level scores;
+:generate_report\nfinal Arabic legal analysis\n[high-tier LLM];
+if (save_to_db?) then (YES)
+  |MongoDB|
+  :Upsert to case_reasonings collection;
+endif
+|CaseReasonerGraph|
+:Return CaseReasoningResult;
+stop
+@enduml

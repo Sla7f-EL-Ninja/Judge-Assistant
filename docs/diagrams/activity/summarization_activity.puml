@@ -1,0 +1,46 @@
+﻿@startuml summarization_activity
+
+|FastAPI|
+start
+:POST /api/v1/cases/{case_id}/summary/generate;
+
+|SummarizationGraph|
+:Receive documents list + case_id;
+if (Documents empty?) then (YES)
+  stop
+endif
+fork
+  :Node 0 — Intake\nclassify doc_type (7 types)\nclassify party (6 types)\nsegment into chunks\n[low-tier LLM];
+fork again
+  :Node 0 — Intake\n[ doc 2 … N — same ]\nparallel via ThreadPoolExecutor;
+end fork
+:disambiguate_defendants()\nmerge ghost party labels\napply Arabic ordinal suffixes;
+:build party_manifest\nparty → set of doc_types;
+:Node 1 — Role Classifier\nclassify each chunk → legal role\n7 categories\n[low-tier LLM];
+if (Classified chunks empty?) then (YES)
+  stop
+endif
+:Node 2 — Bullet Extractor\nextract atomic legal ideas per chunk\nhallucination prevention active\n[high-tier LLM];
+if (Bullets empty?) then (YES)
+  stop
+endif
+:Node 3 — Aggregator\ngroup bullets by role\nlabel: متفق عليه / محل النزاع / خاص بطرف\n[high-tier LLM];
+if (Role aggregations empty?) then (YES)
+  stop
+endif
+:Node 4A — Thematic Clustering\ncluster bullets into 3–7 themes per role\n[low-tier LLM];
+if (Themed roles empty?) then (YES)
+  stop
+endif
+:Node 4B — Theme Synthesis\ngenerate Arabic prose per theme\ncite bullet IDs\n[high-tier LLM];
+if (Role theme summaries empty?) then (YES)
+  stop
+endif
+:Node 5 — Brief Generator\nproduce 7-section judge-facing brief\n[high-tier LLM];
+
+|MongoDB|
+:Upsert to summaries collection\ncase_brief + rendered_brief;
+
+|SummarizationGraph|
+stop
+@enduml

@@ -1,0 +1,9 @@
+%% DROPPED: too similar to intent_routing.mmd + validation_retry.mmd — no unique decision logic added.
+%% The full StateGraph topology is already covered:
+%%   - intent_routing.mmd: validate_input → load_long_term_memory → classify_intent → enrich_context →
+%%     dispatch_agents (single/parallel) → merge_responses → verify_citations → validate_output
+%%   - validation_retry.mmd: validate_output → pass/partial_pass/fail/validator_error →
+%%     prepare_retry loop → fallback → update_memory → write_long_term_memory →
+%%     summarize_history → audit_log → END
+%% The back-edge (prepare_retry → dispatch_agents) and the memory/summarize branch
+%% are both shown in those two diagrams. No unique conditional edges remain.
