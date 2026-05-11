@@ -1,0 +1,57 @@
+sequenceDiagram
+    participant MCPClient
+    participant CaseDocServer
+    participant CaseDocRAGGraph
+    participant QueryRewriter
+    participant BranchDocSelector
+    participant RetrievalNode
+    participant RetrievalGrader
+    participant AnswerGenerator
+    participant MergeNode
+    participant Qdrant
+
+    MCPClient->>CaseDocServer: JSON-RPC tools/call(search_case_docs, query, case_id)
+    CaseDocServer->>CaseDocRAGGraph: invoke(query, case_id, conversation_history)
+
+    CaseDocRAGGraph->>QueryRewriter: rewrite + decompose query [LLM]
+    QueryRewriter-->>CaseDocRAGGraph: [sub_question_1, sub_question_2, ...]
+
+    CaseDocRAGGraph->>CaseDocRAGGraph: questionClassifier — on-topic check
+
+    CaseDocRAGGraph->>CaseDocRAGGraph: documentSelector — fetch doc titles (no LLM)
+
+    par parallel Send() per sub-question branch
+        CaseDocRAGGraph->>BranchDocSelector: classify sub_question mode
+        alt retrieve_specific_doc
+            BranchDocSelector->>Qdrant: fetch full document by doc_id
+            Qdrant-->>BranchDocSelector: document
+            BranchDocSelector-->>CaseDocRAGGraph: branch_result (short-circuit)
+        else restrict_to_doc or no_doc_specified
+            BranchDocSelector->>RetrievalNode: vector search (with optional doc filter)
+            RetrievalNode->>Qdrant: similarity search (case_id filter)
+            Qdrant-->>RetrievalNode: chunks[]
+            RetrievalNode-->>RetrievalGrader: chunks[]
+            RetrievalGrader->>RetrievalGrader: grade relevance [LLM]
+            alt pass
+                RetrievalGrader->>AnswerGenerator: generate answer [LLM]
+                AnswerGenerator-->>CaseDocRAGGraph: branch_result
+            else fail and rephrase_count < 2
+                RetrievalGrader->>QueryRewriter: rephrase sub-question
+                QueryRewriter-->>RetrievalNode: rephrased query
+                RetrievalNode->>Qdrant: retry search
+                Qdrant-->>RetrievalNode: chunks[]
+                RetrievalNode-->>RetrievalGrader: chunks[]
+                RetrievalGrader->>AnswerGenerator: generate answer
+                AnswerGenerator-->>CaseDocRAGGraph: branch_result
+            else fail and rephrase_count >= 2
+                RetrievalGrader->>AnswerGenerator: cannot_answer
+                AnswerGenerator-->>CaseDocRAGGraph: branch_result (cannot_answer)
+            end
+        end
+    end
+
+    CaseDocRAGGraph->>MergeNode: merge all branch_results [high LLM]
+    MergeNode-->>CaseDocRAGGraph: merged response + sources + citation_integrity
+
+    CaseDocRAGGraph-->>CaseDocServer: result
+    CaseDocServer-->>MCPClient: JSON-RPC response (answer, sources, citation_integrity)

@@ -1,0 +1,40 @@
+flowchart TD
+    START([START]) --> recv["receive documents list\n+ case_id"]
+
+    recv --> empty_check{documents\nempty?}
+    empty_check -->|YES| END_EMPTY([END — empty chunks])
+
+    empty_check -->|NO| n0_fork
+
+    subgraph n0_fork["Node 0 — Parallel Intake (ThreadPoolExecutor)"]
+        direction LR
+        doc1["process doc 1\nclassify doc_type 7 types\nclassify party 6 types\nsegment into chunks"]
+        docN["process doc N\n…"]
+    end
+
+    n0_fork --> disambig["disambiguate_defendants()\nmerge ghost party labels"]
+    disambig --> manifest["build party_manifest\nparty → set of doc_types"]
+
+    manifest --> n1["Node 1 — Role Classifier\nclassify each chunk → legal role\n[low-tier LLM]"]
+    n1 --> n1_check{classified\nchunks empty?}
+    n1_check -->|YES| END_N1([END])
+
+    n1_check -->|NO| n2["Node 2 — Bullet Extractor\nextract atomic legal ideas per chunk\n[high-tier LLM]"]
+    n2 --> n2_check{bullets\nempty?}
+    n2_check -->|YES| END_N2([END])
+
+    n2_check -->|NO| n3["Node 3 — Aggregator\ngroup bullets by role\nlabel: متفق عليه / محل النزاع / خاص بطرف\n[high-tier LLM]"]
+    n3 --> n3_check{role_aggregations\nempty?}
+    n3_check -->|YES| END_N3([END])
+
+    n3_check -->|NO| n4a["Node 4A — Thematic Clustering\ncluster bullets into 3-7 themes per role\n[low-tier LLM]"]
+    n4a --> n4a_check{themed_roles\nempty?}
+    n4a_check -->|YES| END_N4A([END])
+
+    n4a_check -->|NO| n4b["Node 4B — Theme Synthesis\ngenerate Arabic prose per theme\ncite bullet IDs\n[high-tier LLM]"]
+    n4b --> n4b_check{role_theme\nsummaries empty?}
+    n4b_check -->|YES| END_N4B([END])
+
+    n4b_check -->|NO| n5["Node 5 — Brief Generator\nproduce 7-section judge-facing brief\n[high-tier LLM]"]
+    n5 --> mongodb["Upsert to MongoDB\nsummaries collection"]
+    mongodb --> END_OK([END — case_brief + rendered_brief])

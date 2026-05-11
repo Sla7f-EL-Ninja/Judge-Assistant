@@ -1,0 +1,46 @@
+sequenceDiagram
+    participant Judge
+    participant FastAPI
+    participant ReportJob
+    participant SummarizationPipeline
+    participant CaseReasonerPipeline
+    participant MongoDB
+
+    Judge->>FastAPI: POST /api/v1/cases/{case_id}/reports/generate
+    FastAPI->>MongoDB: verify case exists + documents > 0
+    MongoDB-->>FastAPI: ok
+    FastAPI->>MongoDB: create_report_job (status: pending)
+    MongoDB-->>FastAPI: job_id
+    FastAPI-->>Judge: HTTP 202 + job_id
+
+    FastAPI->>ReportJob: start background task (case_id, job_id)
+    ReportJob->>MongoDB: update job status → running
+
+    ReportJob->>SummarizationPipeline: run(case_id, documents)
+    SummarizationPipeline->>SummarizationPipeline: 7-node pipeline
+    SummarizationPipeline->>MongoDB: upsert summaries
+    SummarizationPipeline-->>ReportJob: case_brief + rendered_brief
+
+    ReportJob->>CaseReasonerPipeline: run_case_reasoning(case_brief, rendered_brief, case_id)
+    CaseReasonerPipeline->>CaseReasonerPipeline: issue extraction + branch analyses
+    CaseReasonerPipeline->>MongoDB: upsert case_reasonings
+    CaseReasonerPipeline-->>ReportJob: CaseReasoningResult
+
+    ReportJob->>MongoDB: update job status → completed
+
+    loop Judge polling
+        Judge->>FastAPI: GET /api/v1/cases/{case_id}/reports/{report_id}
+        FastAPI->>MongoDB: fetch job status
+        alt completed
+            MongoDB-->>FastAPI: status=completed
+            FastAPI->>MongoDB: fetch summary + case_reasoning
+            MongoDB-->>FastAPI: summary + reasoning docs
+            FastAPI-->>Judge: status + summary + case_reasoning
+        else pending or running
+            MongoDB-->>FastAPI: status=pending|running
+            FastAPI-->>Judge: status only
+        else failed
+            MongoDB-->>FastAPI: status=failed + error
+            FastAPI-->>Judge: status + error message
+        end
+    end

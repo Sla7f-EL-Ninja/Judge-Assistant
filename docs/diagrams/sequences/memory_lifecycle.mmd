@@ -1,0 +1,40 @@
+sequenceDiagram
+    participant Supervisor
+    participant LoadMemoryNode
+    participant ConversationNodes
+    participant UpdateMemoryNode
+    participant WriteMemoryNode
+    participant SummarizeNode
+    participant MongoDB
+
+    Note over Supervisor: New turn begins — query received
+
+    Supervisor->>LoadMemoryNode: load_long_term_memory(case_id, user_id)
+    LoadMemoryNode->>MongoDB: fetch semantic_facts (keyed by case_id)
+    MongoDB-->>LoadMemoryNode: semantic_facts[]
+    LoadMemoryNode->>MongoDB: fetch procedural_prefs (keyed by user_id)
+    MongoDB-->>LoadMemoryNode: procedural_prefs[]
+    LoadMemoryNode-->>Supervisor: inject into state
+
+    Supervisor->>ConversationNodes: process turn
+    Note over ConversationNodes: classify_intent → enrich_context → dispatch_agents → merge_responses → verify_citations → validate_output
+    ConversationNodes-->>Supervisor: validated response + updated conversation_history
+
+    Supervisor->>Supervisor: increment messages_since_last_summary
+
+    alt messages_since_last_summary exceeds threshold
+        Supervisor->>SummarizeNode: compress older turns → running_summary [high LLM]
+        SummarizeNode-->>Supervisor: running_summary (Arabic prose), reset counter
+    end
+
+    Supervisor->>UpdateMemoryNode: extract new facts + preference signals from turn
+    UpdateMemoryNode-->>Supervisor: updated long_term_memory delta
+
+    Supervisor->>WriteMemoryNode: write_long_term_memory(case_id, user_id)
+    WriteMemoryNode->>MongoDB: upsert semantic_facts
+    MongoDB-->>WriteMemoryNode: ack
+    WriteMemoryNode->>MongoDB: upsert procedural_prefs
+    MongoDB-->>WriteMemoryNode: ack
+
+    Supervisor->>MongoDB: append audit_log entry (turn, intent, agents, validation_status)
+    MongoDB-->>Supervisor: ack

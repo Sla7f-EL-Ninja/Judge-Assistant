@@ -1,0 +1,63 @@
+sequenceDiagram
+    participant Supervisor
+    participant ChatReasonerGraph
+    participant Planner
+    participant PlanValidator
+    participant StepWorker
+    participant CaseDocRAGTool
+    participant CivilLawRAGTool
+    participant SummaryReportTool
+    participant Synthesizer
+    participant MongoDB
+
+    Supervisor->>ChatReasonerGraph: invoke(query, context, conversation_history)
+    ChatReasonerGraph->>Planner: generate plan(query) [high LLM]
+    Planner-->>ChatReasonerGraph: Plan(steps[], parallel_groups_note)
+
+    ChatReasonerGraph->>PlanValidator: validate plan (tools valid, deps valid, queries non-empty)
+
+    alt invalid plan and replan_count < limit
+        PlanValidator-->>ChatReasonerGraph: validation_error
+        ChatReasonerGraph->>Planner: replan with feedback
+        Planner-->>ChatReasonerGraph: revised Plan
+        ChatReasonerGraph->>PlanValidator: validate again
+    end
+
+    PlanValidator-->>ChatReasonerGraph: valid
+
+    ChatReasonerGraph->>ChatReasonerGraph: executor_fanout — identify independent steps (empty depends_on)
+
+    par parallel Send() per independent step
+        ChatReasonerGraph->>StepWorker: execute step_1
+        alt step tool = case_doc_rag
+            StepWorker->>CaseDocRAGTool: call(query)
+            CaseDocRAGTool-->>StepWorker: result
+        else step tool = civil_law_rag
+            StepWorker->>CivilLawRAGTool: call(query)
+            CivilLawRAGTool-->>StepWorker: result
+        else step tool = fetch_summary_report
+            StepWorker->>SummaryReportTool: call(case_id)
+            SummaryReportTool-->>StepWorker: result
+        end
+        StepWorker-->>ChatReasonerGraph: StepResult
+    and
+        ChatReasonerGraph->>StepWorker: execute step_N (other independent steps)
+        StepWorker-->>ChatReasonerGraph: StepResult
+    end
+
+    ChatReasonerGraph->>ChatReasonerGraph: collector — check all results received
+    Note over ChatReasonerGraph: dependent steps execute after prerequisites complete
+
+    ChatReasonerGraph->>Synthesizer: synthesize(query, all_step_results) [high LLM]
+
+    alt sufficient=false and replan_count < 2
+        Synthesizer-->>ChatReasonerGraph: replan_reason
+        ChatReasonerGraph->>Planner: replan
+        Note over ChatReasonerGraph: loop back through plan_validator → executor_fanout
+    else sufficient=true
+        Synthesizer-->>ChatReasonerGraph: final_answer
+    end
+
+    ChatReasonerGraph->>MongoDB: write trace (chat_reasoner_traces collection)
+    MongoDB-->>ChatReasonerGraph: ack
+    ChatReasonerGraph-->>Supervisor: AgentResult(answer, trace_id)

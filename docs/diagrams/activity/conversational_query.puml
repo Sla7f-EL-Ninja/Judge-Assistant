@@ -1,0 +1,52 @@
+﻿@startuml conversational_query
+
+|Judge|
+start
+:POST /api/v1/query\nquery + conversation_id + case_id;
+
+|FastAPI|
+if (JWT valid?) then (NO)
+  :Return 401 Unauthorized;
+  stop
+endif
+:Open SSE stream\nmedia_type=text/event-stream;
+:Emit SSE progress event;
+
+|Supervisor|
+:Load MongoDBSaver checkpoint\nrestore conversation_history;
+:Intent Classification + Dispatch\n(see intent_routing);
+if (off_topic?) then (YES)
+  |FastAPI|
+  :Emit SSE result event\nrefusal message in Arabic;
+  :Emit SSE done event;
+  |MongoDB|
+  :Save MongoDBSaver checkpoint;
+  stop
+endif
+
+|Supervisor|
+:Dispatch Agents\nCollect AgentResults;
+:Merge + Verify Citations\n+ Validate Output\n(see validation_retry);
+if (Outcome?) then (pass or partial_pass)
+  |FastAPI|
+  :Emit SSE result event\nArabic response;
+else (fallback triggered)
+  |FastAPI|
+  :Emit SSE result event\nfallback Arabic message;
+endif
+:Emit SSE done event;
+
+|MongoDB|
+:Save MongoDBSaver checkpoint;
+:update_memory\nappend turn;
+
+|Supervisor|
+if (messages_since_last_summary\n> threshold?) then (YES)
+  :summarize_history\ncompress older turns → running_summary\n[high-tier LLM];
+endif
+
+|MongoDB|
+:write_long_term_memory\nupsert semantic_facts + prefs;
+:audit_log\nwrite to MongoDB;
+stop
+@enduml
