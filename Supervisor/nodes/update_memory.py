@@ -54,7 +54,8 @@ def update_memory_node(state: SupervisorState) -> Dict[str, Any]:
         logger.warning("Skipping assistant turn: no judge_query present")
 
     turn_count = state.get("turn_count", 0) + 1
-    messages_since_last_summary = state.get("messages_since_last_summary", 0) + len(new_messages)
+    conversation_history = state.get("conversation_history") or []
+    messages_since_last_summary = len(conversation_history) + len(new_messages)
 
     logger.info(
         "Memory updated: turn=%d, new_messages_added=%d, messages_since_last_summary=%d",

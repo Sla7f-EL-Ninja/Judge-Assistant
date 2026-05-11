@@ -9,9 +9,9 @@ so civil_law_rag and case_doc_rag calls never share a lock.
 """
 
 from __future__ import annotations
-
 import json
 import logging
+import os
 import subprocess
 import sys
 import threading
@@ -77,10 +77,10 @@ class MCPClient:
             [sys.executable, "-u", "-m", self._server_module],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=None,   # inherit parent stderr so server logs are visible
+            stderr=None,
             bufsize=-1,
         )
-
+    
     def _next_id(self) -> int:
         self._id += 1
         return self._id
@@ -93,10 +93,11 @@ class MCPClient:
     def _recv(self, timeout: int | None = None) -> Dict[str, Any]:
         effective_timeout = timeout if timeout is not None else self._call_timeout
         result_q: queue.Queue = queue.Queue()
+        proc = self._proc  # snapshot — prevents race if self._proc is reassigned during respawn
 
         def _read():
             try:
-                line = self._proc.stdout.readline()
+                line = proc.stdout.readline()
                 result_q.put(("ok", line))
             except Exception as e:
                 result_q.put(("err", e))
@@ -107,7 +108,7 @@ class MCPClient:
         try:
             kind, value = result_q.get(timeout=effective_timeout)
         except queue.Empty:
-            raise BrokenPipeError(
+            raise TimeoutError(  # ← not BrokenPipeError
                 f"MCP server '{self._server_module}' timed out after {effective_timeout}s"
             )
 
@@ -213,17 +214,18 @@ class MCPClient:
         """Call *tool* with keyword *args*. Returns parsed dict on success.
 
         Transport errors trigger one respawn + one retry.
-        Persistent failure → MCPUnavailable.
+        Timeouts are raised as-is — server is still alive.
         ToolErrors are NOT retried — they are re-raised as-is.
         """
         with self._lock:
+            self._respawns = 0
             try:
                 resp = self._do_call(tool, args)
-                result = self._parse_response(resp)
-                self._respawns = 0
-                return result
+                return self._parse_response(resp)
             except ToolError:
-                raise  # tool-level errors never trigger respawn
+                raise
+            except TimeoutError:
+                raise  # server is alive and processing — don't touch it
             except (BrokenPipeError, OSError, ConnectionError, RuntimeError) as transport_err:
                 logger.warning(
                     "MCP transport error (server=%s tool=%s): %s — respawning",
@@ -240,10 +242,10 @@ class MCPClient:
                 self._handshake()
                 try:
                     resp = self._do_call(tool, args)
-                    result = self._parse_response(resp)
-                    self._respawns = 0
-                    return result
+                    return self._parse_response(resp)
                 except ToolError:
+                    raise
+                except TimeoutError:
                     raise
                 except Exception as retry_err:
                     raise MCPUnavailable(self._server_module, retry_err) from retry_err

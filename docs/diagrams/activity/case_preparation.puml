@@ -1,0 +1,45 @@
+﻿@startuml case_preparation
+
+|Judge|
+start
+:Create case\nPOST /api/v1/cases;
+
+|System|
+:Create case record in MongoDB\nReturn case_id;
+
+|Judge|
+:Upload document\nPOST /api/v1/files/upload;
+
+|System|
+:Document Ingestion Flow\nOCR → embed → Qdrant → MongoDB\n(see document_ingestion_activity);
+if (OCR low-confidence flag?) then (YES)
+  |Judge|
+  :Review OCR output\nGET .../documents/{doc_id}/ocr;
+  :Submit correction\nPATCH .../documents/{doc_id}/ocr;
+  |System|
+  :Re-index corrected text\ndelete old Qdrant chunks\nupsert new chunks;
+endif
+|Judge|
+if (More documents to upload?) then (YES)
+  :Upload next document;
+  note right: loops back to\nUpload document
+endif
+
+|Judge|
+:Request summary + report\nPOST .../reports/generate;
+
+|System|
+:Summarization Pipeline\n7-node LangGraph\n(see summarization_activity);
+:Case Reasoner Pipeline\n(see case_reasoner_activity);
+:Store results in MongoDB;
+
+|Judge|
+:Review 7-section case brief\nGET .../case-brief;
+if (Satisfied with brief?) then (NO — need more docs)
+  :Upload additional documents;
+  note right: loops back to\nUpload document
+else (YES)
+  :Case ready for querying;
+  stop
+endif
+@enduml

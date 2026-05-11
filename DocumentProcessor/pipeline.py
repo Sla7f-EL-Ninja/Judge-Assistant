@@ -3,14 +3,17 @@ DocumentProcessor.pipeline
 ---------------------------
 Unified document processing: detect type → extract text → classify → store.
 
-Public API: process_document(file_path, case_id="") -> dict
-"""
+Public API:
+    process_document(file_path, case_id="", file_id=None) -> dict
+    reindex_document(mongo_id, new_text, doc_meta) -> int
+""" 
 
 import logging
 import os
 import re
 import threading
-from typing import Any, Dict, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 from pymongo import MongoClient
 
@@ -216,6 +219,9 @@ def _store_in_mongo(
     confidence: int,
     explanation: str,
     file_type: str,
+    file_id: Optional[str] = None,
+    file_ids: Optional[List[str]] = None,
+    source_files: Optional[List[str]] = None,
 ) -> Optional[Any]:
     source_file = source_file.replace("\\", "/")
     doc_record = {
@@ -227,21 +233,31 @@ def _store_in_mongo(
         "classification_confidence": confidence,
         "classification_explanation": explanation,
         "file_type": file_type,
+        "file_id": file_id,
         "storage_backend": "local",
         "minio_object": None,
+        "created_at": datetime.now(timezone.utc),
+        "corrected": False,
     }
+    if file_ids is not None:
+        doc_record["file_ids"] = file_ids
+    if source_files is not None:
+        doc_record["source_files"] = [sf.replace("\\", "/") for sf in source_files]
+
     try:
         col = _get_mongo_collection()
-        existing = col.find_one(
-            {"source_file": source_file, "case_id": case_id},
-            {"_id": 1},
-        )
-        if existing:
-            logger.info(
-                "Skipping duplicate ingest for source_file='%s' case_id='%s'",
-                source_file, case_id,
+        # Dedupe only for single-file ingestion (legacy path)
+        if file_ids is None:
+            existing = col.find_one(
+                {"source_file": source_file, "case_id": case_id},
+                {"_id": 1},
             )
-            return existing["_id"]
+            if existing:
+                logger.info(
+                    "Skipping duplicate ingest for source_file='%s' case_id='%s'",
+                    source_file, case_id,
+                )
+                return existing["_id"]
 
         result = col.insert_one(doc_record)
         logger.info("Stored in MongoDB: title='%s', id=%s", title, result.inserted_id)
@@ -297,6 +313,7 @@ def _index_in_vectorstore(
     case_id: str,
     source_file: str,
     mongo_id: str,
+    file_id: Optional[str] = None,
 ) -> int:
     """Chunk and index text. Returns number of chunks indexed."""
     try:
@@ -322,6 +339,7 @@ def _index_in_vectorstore(
             "case_id": case_id,
             "source_file": source_file,
             "mongo_id": mongo_id,
+            "file_id": file_id,
             "chunk_index": i,
         }
         for i in range(len(chunks))
@@ -338,11 +356,159 @@ def _index_in_vectorstore(
         return 0
 
 
+def _delete_qdrant_chunks_by_mongo_id(mongo_id: str) -> None:
+    """Delete all Qdrant points where metadata.mongo_id == mongo_id."""
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    vs = _get_vectorstore()
+    client = vs.client
+    collection = vs.collection_name
+    filt = Filter(
+        must=[FieldCondition(key="metadata.mongo_id", match=MatchValue(value=mongo_id))]
+    )
+    client.delete(collection_name=collection, points_selector=filt)
+    logger.info("Deleted Qdrant chunks for mongo_id=%s", mongo_id)
+
+
+def process_document_group(
+    file_paths: List[str],
+    case_id: str,
+    file_ids: List[str],
+) -> Dict[str, Any]:
+    """Process a group of files as a single multi-page document.
+
+    Each file is OCR'd / text-extracted individually; results are concatenated in
+    order with a page-break separator. Classification and indexing happen once on
+    the merged text.
+
+    Returns same shape as process_document: {text, file_type, classification, metadata}.
+    """
+    PAGE_SEP = "\n\n--- PAGE BREAK ---\n\n"
+
+    per_file_texts: List[str] = []
+    file_types: List[str] = []
+
+    for path in file_paths:
+        ft = detect_file_type(path)
+        file_types.append(ft)
+        text = _extract_text(path, ft, case_id)
+        per_file_texts.append(text or "")
+
+    merged_text = PAGE_SEP.join(per_file_texts).strip()
+
+    # Determine composite file_type label
+    unique_types = set(file_types)
+    if len(unique_types) == 1:
+        composite_type = unique_types.pop()
+    else:
+        composite_type = "mixed"
+
+    source_files = [os.path.basename(p) for p in file_paths]
+    primary_source = source_files[0] if source_files else ""
+    primary_file_id = file_ids[0] if file_ids else None
+
+    if not merged_text:
+        logger.warning("No text extracted from group %s", file_ids)
+        return {
+            "text": "",
+            "file_type": composite_type,
+            "classification": {
+                "final_type": "مستند غير معروف",
+                "confidence": 0,
+                "explanation": "No text could be extracted",
+            },
+            "metadata": {
+                "mongo_id": None,
+                "minio_object": None,
+                "qdrant_chunks": 0,
+                "case_id": case_id,
+                "source_file": primary_source,
+                "source_files": source_files,
+                "file_id": primary_file_id,
+                "file_ids": file_ids,
+            },
+        }
+
+    classification = classify_document(merged_text)
+    doc_type = classification.get("final_type") or "مستند غير معروف"
+    confidence = classification.get("confidence", 0)
+    explanation = classification.get("explanation", "")
+    title = doc_type
+
+    mongo_id = _store_in_mongo(
+        title=title,
+        doc_type=doc_type,
+        case_id=case_id,
+        source_file=primary_source,
+        text=merged_text,
+        confidence=confidence,
+        explanation=explanation,
+        file_type=composite_type,
+        file_id=primary_file_id,
+        file_ids=file_ids,
+        source_files=source_files,
+    )
+
+    # Files are already in MinIO via the upload endpoint — skip _upload_to_minio.
+
+    qdrant_chunks = _index_in_vectorstore(
+        text=merged_text,
+        title=title,
+        doc_type=doc_type,
+        case_id=case_id,
+        source_file=primary_source,
+        mongo_id=str(mongo_id) if mongo_id else "",
+        file_id=primary_file_id,
+    )
+
+    logger.info(
+        "Processed group %s: type='%s', confidence=%d, mongo_id=%s, chunks=%d",
+        file_ids, doc_type, confidence, mongo_id, qdrant_chunks,
+    )
+
+    return {
+        "text": merged_text,
+        "file_type": composite_type,
+        "classification": classification,
+        "metadata": {
+            "mongo_id": str(mongo_id) if mongo_id else None,
+            "minio_object": None,
+            "qdrant_chunks": qdrant_chunks,
+            "case_id": case_id,
+            "source_file": primary_source,
+            "source_files": source_files,
+            "file_id": primary_file_id,
+            "file_ids": file_ids,
+        },
+    }
+
+
+def reindex_document(mongo_id: str, new_text: str, doc_meta: Dict[str, Any]) -> int:
+    """Delete existing Qdrant chunks for mongo_id and re-index new_text.
+
+    doc_meta must contain: title, doc_type, case_id, source_file. Optional: file_id.
+    Returns number of new chunks indexed.
+    """
+    _delete_qdrant_chunks_by_mongo_id(mongo_id)
+    return _index_in_vectorstore(
+        text=new_text,
+        title=doc_meta.get("title", ""),
+        doc_type=doc_meta.get("doc_type", ""),
+        case_id=doc_meta.get("case_id", ""),
+        source_file=doc_meta.get("source_file", ""),
+        mongo_id=mongo_id,
+        file_id=doc_meta.get("file_id"),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
+def process_document(
+    file_path: str,
+    case_id: str = "",
+    file_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """Process a single document end-to-end.
 
     Returns
@@ -351,7 +517,7 @@ def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
         text          -- extracted text content
         file_type     -- 'text' | 'pdf' | 'image' | 'unknown'
         classification -- {final_type, confidence, explanation}
-        metadata      -- {mongo_id, minio_object, qdrant_chunks, case_id, source_file}
+        metadata      -- {mongo_id, minio_object, qdrant_chunks, case_id, source_file, file_id}
     """
     file_type = detect_file_type(file_path)
 
@@ -373,11 +539,12 @@ def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
                 "qdrant_chunks": 0,
                 "case_id": case_id,
                 "source_file": file_path,
+                "file_id": file_id,
             },
         }
 
     classification = classify_document(text)
-    doc_type = classification.get("final_type", "مستند غير معروف")
+    doc_type = classification.get("final_type") or "مستند غير معروف"
     confidence = classification.get("confidence", 0)
     explanation = classification.get("explanation", "")
     title = doc_type
@@ -391,6 +558,7 @@ def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
         confidence=confidence,
         explanation=explanation,
         file_type=file_type,
+        file_id=file_id,
     )
 
     minio_object = None
@@ -416,6 +584,7 @@ def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
         case_id=case_id,
         source_file=file_path,
         mongo_id=str(mongo_id) if mongo_id else "",
+        file_id=file_id,
     )
 
     logger.info(
@@ -433,5 +602,6 @@ def process_document(file_path: str, case_id: str = "") -> Dict[str, Any]:
             "qdrant_chunks": qdrant_chunks,
             "case_id": case_id,
             "source_file": file_path,
+            "file_id": file_id,
         },
     }

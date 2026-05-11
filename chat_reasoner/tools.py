@@ -174,11 +174,21 @@ def _run_civil_law_rag(
         if prior_results:
             query = _rewrite_civil_query_with_context(query, prior_results)
 
-        resp = get_client("legal_rag").call(
-            "search_legal_corpus",
+        # FIX-1: forward scope_fallback so the RAG scoper can broaden on retries.
+        # scope_fallback is injected by executor.step_worker_node on failure_count > 0:
+        #   None          → normal full scoping (first attempt)
+        #   "section"     → skip section classification, filter by chapter only
+        #   "chapter"     → skip all scoping, search full corpus
+        scope_fallback: Optional[str] = step.get("scope_fallback")
+
+        call_kwargs: Dict[str, Any] = dict(
             query=query,
             corpus="civil_law",
         )
+        if scope_fallback is not None:
+            call_kwargs["scope_fallback"] = scope_fallback
+
+        resp = get_client("legal_rag").call("search_legal_corpus", **call_kwargs)
 
         final = resp.get("answer", "")
         if not final:
@@ -303,8 +313,8 @@ def _run_fetch_summary_report(
 # ---------------------------------------------------------------------------
 
 TOOL_REGISTRY: Dict[str, Callable] = {
-    "case_doc_rag":       _run_case_doc_rag,
-    "civil_law_rag":      _run_civil_law_rag,
+    "case_doc_rag":         _run_case_doc_rag,
+    "civil_law_rag":        _run_civil_law_rag,
     "fetch_summary_report": _run_fetch_summary_report,
 }
 

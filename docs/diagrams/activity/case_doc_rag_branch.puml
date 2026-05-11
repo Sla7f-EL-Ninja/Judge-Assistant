@@ -1,0 +1,72 @@
+﻿@startuml case_doc_rag_branch
+
+|MCPClient|
+start
+:Receive query via JSON-RPC;
+
+|CaseDocRAGGraph|
+:questionRewriter\nrewrite + decompose query;
+:questionClassifier\non-topic check;
+if (On topic?) then (NO)
+  :offTopicResponse;
+  stop
+elseif (Error?) then (YES)
+  :errorResponse;
+  stop
+endif
+:documentSelector\nfetch doc titles from MongoDB;
+if (Sub-questions generated?) then (NO)
+  :errorResponse;
+  stop
+endif
+fork
+  :branchDocSelector\nclassify doc_selection_mode;
+  if (doc_selection_mode?) then (retrieve_specific_doc)
+    |Qdrant|
+    :BranchDocumentFinalizer\nfetch full doc from Qdrant;
+    |CaseDocRAGGraph|
+    :branch result;
+  elseif (restrict_to_doc) then ()
+    |Qdrant|
+    :retrieve\nvector search scoped to doc\n+ case_id filter;
+    |CaseDocRAGGraph|
+    :retrievalGrader\nrelevance grade [LLM];
+    if (proceedToGenerate?) then (YES)
+      :generateAnswer\n[high-tier LLM];
+      :branch result;
+    else (NO)
+      if (rephraseCount >= 2?) then (YES)
+        :cannotAnswer;
+        :branch result;
+      else (NO)
+        :refineQuestion\nrephrase sub-question;
+        note right: retry retrieve
+      endif
+    endif
+  else (no_doc_specified)
+    |Qdrant|
+    :retrieve\nvector search all docs\n+ case_id filter;
+    |CaseDocRAGGraph|
+    :retrievalGrader\nrelevance grade [LLM];
+    if (proceedToGenerate?) then (YES)
+      :generateAnswer\n[high-tier LLM];
+      :branch result;
+    else (NO)
+      if (rephraseCount >= 2?) then (YES)
+        :cannotAnswer;
+        :branch result;
+      else (NO)
+        :refineQuestion\nrephrase sub-question;
+        note right: retry retrieve
+      endif
+    endif
+  endif
+fork again
+  :[ additional parallel branches\nper sub-question — same logic ];
+end fork
+:mergeAnswers\n[high-tier LLM]\nmerge + cite sources;
+
+|MCPClient|
+:Return JSON-RPC response;
+stop
+@enduml

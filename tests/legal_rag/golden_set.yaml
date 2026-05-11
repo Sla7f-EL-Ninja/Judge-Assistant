@@ -1,0 +1,609 @@
+# # golden_set.yaml
+# # ----------------
+# # Curated Q&A pairs for evaluating the Legal RAG pipeline.
+# # Each entry includes:
+# # - id: Unique identifier for the test case.
+# # - type: "analytical" for reasoning-based questions, "textual" for direct
+# #   retrieval, and "off_topic" for irrelevant queries that should be rejected.
+# # - expected_corpus: The specific legal corpus (e.g., "civil", "evidence", "procedures")
+# #   that the question pertains to, or "none" for off-topic cases.
+# # - query: The question or prompt to be evaluated.
+# # - expected_articles: List of article numbers that should be retrieved to answer the query.
+# # - answer_keywords: Key legal terms that should appear in the answer, used for
+# #   additional validation of relevance and correctness.
+# # - should_fail: Boolean indicating whether the query is expected to fail (e.g., off
+# #
+# samples:
+
+#   # ─────────────────────────────────────────────
+#   # CIVIL LAW (قانون مدني) - HARD CASES
+#   # ─────────────────────────────────────────────
+
+#   - id: C101
+#     type: analytical
+#     expected_corpus: civil
+#     query: "ما الفرق بين الفسخ والانفساخ في العقود، وما أثر كل منهما على الالتزامات المتبادلة؟"
+#     expected_articles: [157]
+#     answer_keywords: ["الفسخ", "الانفساخ", "العقد", "الالتزام"]
+#     should_fail: false
+
+#   - id: C102
+#     type: analytical
+#     expected_corpus: civil
+#     query: "متى يجوز للقاضي تعديل العقد وفقاً لنظرية الظروف الطارئة وما شروط ذلك؟"
+#     expected_articles: [147]
+#     answer_keywords: ["ظروف طارئة", "إرهاق", "القاضي", "التوازن العقدي"]
+#     should_fail: false
+
+#   - id: C103
+#     type: textual
+#     expected_corpus: civil
+#     query: "ما نص المادة المتعلقة بالمسؤولية التقصيرية عن الفعل الضار؟"
+#     expected_articles: [163]
+#     answer_keywords: []
+#     should_fail: false
+
+#   # ─────────────────────────────────────────────
+#   # EVIDENCE LAW (الإثبات) - HARD CASES
+#   # ─────────────────────────────────────────────
+
+#   - id: EV101
+#     type: analytical
+#     expected_corpus: evidence
+#     query: "هل يجوز الإثبات بالشهادة فيما يخالف دليلًا كتابيًا قائمًا؟ وما الاستثناءات التي يقررها القانون؟"
+#     expected_articles: [61, 62, 63]
+#     answer_keywords: ["مبدأ الثبوت", "مانع أدبي", "مانع مادي", "دليل كتابي"]
+#     should_fail: false
+
+#   - id: EV102
+#     type: analytical
+#     expected_corpus: evidence
+#     query: "متى يعتبر مبدأ الثبوت بالكتابة قائمًا، وما أثره على عبء الإثبات؟"
+#     expected_articles: [62]
+#     answer_keywords: ["كتابة", "قريب الاحتمال", "مبدأ ثبوت"]
+#     should_fail: false
+
+#   - id: EV103
+#     type: analytical
+#     expected_corpus: evidence
+#     query: "ما سلطة المحكمة في توجيه الإثبات بشهادة الشهود من تلقاء نفسها؟"
+#     expected_articles: [70]
+#     answer_keywords: ["من تلقاء نفسها", "فائدة الحقيقة", "شهادة الشهود"]
+#     should_fail: false
+
+#   - id: EV104
+#     type: textual
+#     expected_corpus: evidence
+#     query: "ما نص المادة التي تنظم فقد السند الكتابي بسبب أجنبي؟"
+#     expected_articles: [63]
+#     answer_keywords: []
+#     should_fail: false
+
+#   # ─────────────────────────────────────────────
+#   # PROCEDURES LAW (المرافعات) - HARD CASES
+#   # ─────────────────────────────────────────────
+
+#   - id: PR101
+#     type: analytical
+#     expected_corpus: procedures
+#     query: "ما الجزاء المترتب على عدم إبداء الدفوع الإجرائية في الميعاد، وهل يختلف بحسب مرحلة الدعوى؟"
+#     expected_articles: [108]
+#     answer_keywords: ["سقوط الحق", "الدفع", "الإجراءات"]
+#     should_fail: false
+
+#   - id: PR102
+#     type: analytical
+#     expected_corpus: procedures
+#     query: "ما الفرق بين الدفع بعدم القبول والدفع بعدم الاختصاص الولائي من حيث القابلية للإثارة أمام المحكمة؟"
+#     expected_articles: [109, 115]
+#     answer_keywords: ["في أي حالة", "من تلقاء نفسها", "الدعوى"]
+#     should_fail: false
+
+#   - id: PR103
+#     type: analytical
+#     expected_corpus: procedures
+#     query: "متى يجوز للمحكمة إحالة الدعوى إلى محكمة أخرى، وما أثر الإحالة على نظر الدعوى؟"
+#     expected_articles: [110, 113]
+#     answer_keywords: ["الإحالة", "المحكمة المختصة", "تلتزم"]
+#     should_fail: false
+
+#   # ─────────────────────────────────────────────
+#   # CROSS-LAW DISTINCTION (VERY HARD / TRICK)
+#   # ─────────────────────────────────────────────
+
+#   - id: MIX101
+#     type: analytical
+#     expected_corpus: evidence
+#     query: "هل يعتبر الدفع بعدم وجود دليل كتابي دفعًا إجرائيًا أم موضوعيًا، وكيف ينعكس ذلك على عبء الإثبات؟"
+#     expected_articles: [60, 61]
+#     answer_keywords: ["عبء الإثبات", "دليل كتابي", "شهادة الشهود"]
+#     should_fail: false
+
+#   - id: MIX102
+#     type: analytical
+#     expected_corpus: procedures
+#     query: "إذا تم الدفع ببطلان الإعلان لأول مرة أمام الاستئناف، هل يسقط الحق فيه؟"
+#     expected_articles: [108, 114]
+#     answer_keywords: ["سقوط الحق", "البطلان", "الإعلان"]
+#     should_fail: false
+
+#   # ─────────────────────────────────────────────
+#   # OFF-TOPIC (STRICT REJECTION)
+#   # ─────────────────────────────────────────────
+
+#   - id: O101
+#     type: off_topic
+#     expected_corpus: none
+#     query: "كيف أكتب عقد زواج عرفي بشكل صحيح؟"
+#     expected_articles: []
+#     answer_keywords: []
+#     should_fail: true
+
+#   - id: O102
+#     type: off_topic
+#     expected_corpus: none
+#     query: "ما هو حكم الزنا في الشريعة الإسلامية؟"
+#     expected_articles: []
+#     answer_keywords: []
+#     should_fail: true
+
+#   - id: O103
+#     type: off_topic
+#     expected_corpus: none
+#     query: "أفضل محامي أحوال شخصية في مصر مين؟"
+#     expected_articles: []
+#     answer_keywords: []
+#     should_fail: true
+
+# golden_preprocessor_set.yaml
+# ----------------------------
+# Curated evaluation set for testing the legal question preprocessor.
+# Each entry includes:
+# - id: Unique identifier for the test case.
+# - category: Source category of the test.
+# - expected_behavior:
+#     - keep: Question should remain mostly unchanged.
+#     - light_rewrite: Slight legal refinement only.
+#     - normalize_numbers: Numbers should be converted.
+#     - reject_legalization: Must not inject legal framing.
+# - expected_classification:
+#     - analytical
+#     - textual
+#     - off_topic
+# - query: Original user query.
+# - expected_rewritten_question: Expected rewritten output.
+# - should_change: Whether rewriting is expected.
+
+# samples:
+
+#   # ─────────────────────────────────────────────
+#   # STRAIGHTFORWARD LEGAL QUESTIONS
+#   # ─────────────────────────────────────────────
+
+#   - id: SQ101
+#     category: straightforward
+#     expected_behavior: keep
+#     expected_classification: analytical
+#     query: "ما شروط صحة عقد البيع في القانون المدني المصري؟"
+#     expected_rewritten_question: "ما شروط صحة عقد البيع في القانون المدني المصري؟"
+#     should_change: false
+
+#   - id: SQ102
+#     category: straightforward
+#     expected_behavior: keep
+#     expected_classification: analytical
+#     query: "ما الفرق بين الدفع بعدم القبول والدفع بعدم الاختصاص؟"
+#     expected_rewritten_question: "ما الفرق بين الدفع بعدم القبول والدفع بعدم الاختصاص؟"
+#     should_change: false
+
+#   - id: SQ103
+#     category: straightforward
+#     expected_behavior: keep
+#     expected_classification: analytical
+#     query: "ما مدة تقادم دعوى التعويض؟"
+#     expected_rewritten_question: "ما مدة تقادم دعوى التعويض؟"
+#     should_change: false
+
+#   # ─────────────────────────────────────────────
+#   # INFORMAL / WEAKLY WRITTEN QUESTIONS
+#   # ─────────────────────────────────────────────
+
+#   - id: IR101
+#     category: informal
+#     expected_behavior: light_rewrite
+#     expected_classification: analytical
+#     query: "لو واحد مأجر شقة ومابيدفعش الإيجار أعمل إيه؟"
+#     expected_rewritten_question: "ما الإجراءات القانونية التي يجوز اتخاذها إذا امتنع المستأجر عن سداد الأجرة؟"
+#     should_change: true
+
+#   - id: IR102
+#     category: informal
+#     expected_behavior: light_rewrite
+#     expected_classification: analytical
+#     query: "هل ينفع أرفع قضية لو الشخص ما رجعليش الفلوس؟"
+#     expected_rewritten_question: "هل يجوز رفع دعوى للمطالبة برد المبلغ المالي؟"
+#     should_change: true
+
+#   - id: IR103
+#     category: informal
+#     expected_behavior: light_rewrite
+#     expected_classification: analytical
+#     query: "لو حد ضربني أقدر أطالب بتعويض؟"
+#     expected_rewritten_question: "هل يجوز المطالبة بالتعويض في حالة التعرض للضرب؟"
+#     should_change: true
+
+#   # ─────────────────────────────────────────────
+#   # NUMBER NORMALIZATION TESTS
+#   # ─────────────────────────────────────────────
+
+#   - id: NM101
+#     category: numbers
+#     expected_behavior: normalize_numbers
+#     expected_classification: analytical
+#     query: "ما العقوبة المقررة في المواد بين الثمانين والتسعين؟"
+#     expected_rewritten_question: "ما العقوبة المقررة في المواد بين 80 و90؟"
+#     should_change: true
+
+#   - id: NM102
+#     category: numbers
+#     expected_behavior: normalize_numbers
+#     expected_classification: textual
+#     query: "ما حكم المادة الخامسة والعشرين؟"
+#     expected_rewritten_question: "ما حكم المادة 25؟"
+#     should_change: true
+
+#   - id: NM103
+#     category: numbers
+#     expected_behavior: normalize_numbers
+#     expected_classification: analytical
+#     query: "هل يجوز الحبس لمدة ثلاث سنوات في هذه الجريمة؟"
+#     expected_rewritten_question: "هل يجوز الحبس لمدة 3 سنوات في هذه الجريمة؟"
+#     should_change: true
+
+#   # ─────────────────────────────────────────────
+#   # TEXTUAL QUESTIONS
+#   # ─────────────────────────────────────────────
+
+#   - id: TX101
+#     category: textual
+#     expected_behavior: keep
+#     expected_classification: textual
+#     query: "اذكر نص المادة 147 من القانون المدني."
+#     expected_rewritten_question: "اذكر نص المادة 147 من القانون المدني."
+#     should_change: false
+
+#   - id: TX102
+#     category: textual
+#     expected_behavior: keep
+#     expected_classification: textual
+#     query: "أعطني نص المادة 375 مكرر."
+#     expected_rewritten_question: "أعطني نص المادة 375 مكرر."
+#     should_change: false
+
+#   - id: TX103
+#     category: textual
+#     expected_behavior: keep
+#     expected_classification: textual
+#     query: "اكتب المادة 102 كاملة."
+#     expected_rewritten_question: "اكتب المادة 102 كاملة."
+#     should_change: false
+
+#   # ─────────────────────────────────────────────
+#   # ANALYTICAL QUESTIONS
+#   # ─────────────────────────────────────────────
+
+#   - id: AN101
+#     category: analytical
+#     expected_behavior: keep
+#     expected_classification: analytical
+#     query: "ما الفرق بين البطلان المطلق والبطلان النسبي؟"
+#     expected_rewritten_question: "ما الفرق بين البطلان المطلق والبطلان النسبي؟"
+#     should_change: false
+
+#   - id: AN102
+#     category: analytical
+#     expected_behavior: keep
+#     expected_classification: analytical
+#     query: "متى يعتبر العقد مفسوخًا بحكم القانون؟"
+#     expected_rewritten_question: "متى يعتبر العقد مفسوخًا بحكم القانون؟"
+#     should_change: false
+
+#   - id: AN103
+#     category: analytical
+#     expected_behavior: keep
+#     expected_classification: analytical
+#     query: "ما أثر الإكراه على صحة العقد؟"
+#     expected_rewritten_question: "ما أثر الإكراه على صحة العقد؟"
+#     should_change: false
+
+#   # ─────────────────────────────────────────────
+#   # OUT OF CONTEXT QUESTIONS
+#   # ─────────────────────────────────────────────
+
+#   - id: OT101
+#     category: off_topic
+#     expected_behavior: reject_legalization
+#     expected_classification: off_topic
+#     query: "ما أفضل هاتف في 2026؟"
+#     expected_rewritten_question: "ما أفضل هاتف في 2026؟"
+#     should_change: false
+
+#   - id: OT102
+#     category: off_topic
+#     expected_behavior: reject_legalization
+#     expected_classification: off_topic
+#     query: "كيف أتعلم البرمجة بسرعة؟"
+#     expected_rewritten_question: "كيف أتعلم البرمجة بسرعة؟"
+#     should_change: false
+
+#   - id: OT103
+#     category: off_topic
+#     expected_behavior: reject_legalization
+#     expected_classification: off_topic
+#     query: "من هو أفضل شخصية في Attack on Titan؟"
+#     expected_rewritten_question: "من هو أفضل شخصية في Attack on Titan؟"
+#     should_change: false
+
+#   # ─────────────────────────────────────────────
+#   # DANGEROUS EDGE CASES
+#   # ─────────────────────────────────────────────
+
+#   - id: DG101
+#     category: dangerous
+#     expected_behavior: reject_legalization
+#     expected_classification: off_topic
+#     query: "كيف أزوّر عقد؟"
+#     expected_rewritten_question: "كيف أزوّر عقد؟"
+#     should_change: false
+
+#   - id: DG102
+#     category: dangerous
+#     expected_behavior: reject_legalization
+#     expected_classification: off_topic
+#     query: "كيف أهرب من الضرائب؟"
+#     expected_rewritten_question: "كيف أهرب من الضرائب؟"
+#     should_change: false
+
+#   - id: DG103
+#     category: dangerous
+#     expected_behavior: reject_legalization
+#     expected_classification: off_topic
+#     query: "كيف أخفي الأموال من المحكمة؟"
+#     expected_rewritten_question: "كيف أخفي الأموال من المحكمة؟"
+#     should_change: false
+
+#   # ─────────────────────────────────────────────
+#   # AMBIGUOUS MIXED QUESTIONS
+#   # ─────────────────────────────────────────────
+
+#   - id: MX101
+#     category: ambiguous
+#     expected_behavior: light_rewrite
+#     expected_classification: analytical
+#     query: "هل ينفع أشتكي الشركة؟"
+#     expected_rewritten_question: "هل يجوز تقديم شكوى ضد الشركة؟"
+#     should_change: true
+
+#   - id: MX102
+#     category: ambiguous
+#     expected_behavior: light_rewrite
+#     expected_classification: analytical
+#     query: "هل العقد ده قانوني؟"
+#     expected_rewritten_question: "هل هذا العقد قانوني؟"
+#     should_change: true
+
+#   - id: MX103
+#     category: ambiguous
+#     expected_behavior: light_rewrite
+#     expected_classification: analytical
+#     query: "ما عقوبة السب؟"
+#     expected_rewritten_question: "ما عقوبة جريمة السب؟"
+#     should_change: true
+
+
+# ------------------------------------------------------------------------
+# ------------------------------------------------------------------------
+
+# preprocessor_golden_set.yaml
+# ----------------
+# Curated test cases for evaluating the Preprocessor pipeline.
+# Each entry includes:
+# - id: Unique identifier for the test case.
+# - category: The test scenario type:
+#     "straightforward"   — already clear; must NOT be rewritten.
+#     "rewrite"           — colloquial/informal; needs light legal rephrasing only.
+#     "number_conversion" — contains word-numerals that must be converted to digits.
+#     "off_topic"         — not a legal question; must be rejected as-is.
+#     "edge_case"         — ambiguous or mixed; tests conservative rewrite behaviour.
+# - query: The raw input question sent to the preprocessor.
+# - should_rewrite: Whether the rewritten_question should differ from the query.
+# - expected_classification: The expected Arabic classification label.
+# - expected_rewritten_question: The ideal output (null means identical to query).
+# - notes: Human-readable explanation of what behaviour is being tested.
+# - should_fail: true if the query must be classified as "خارج السياق".
+
+samples:
+
+  # ─────────────────────────────────────────────
+  # STRAIGHTFORWARD — must NOT be rewritten
+  # ─────────────────────────────────────────────
+
+  - id: S101
+    category: straightforward
+    query: "ما هو نص المادة 163 من القانون المدني؟"
+    should_rewrite: false
+    expected_classification: "نصّي"
+    expected_rewritten_question: null
+    notes: >
+      سؤال نصّي مباشر يحتوي على رقم صريح ومصطلح قانوني واضح.
+      يجب إعادته كما هو دون أي تعديل.
+    should_fail: false
+
+  - id: S102
+    category: straightforward
+    query: "ما شروط صحة العقد في القانون المدني المصري؟"
+    should_rewrite: false
+    expected_classification: "تحليلي"
+    expected_rewritten_question: null
+    notes: >
+      سؤال تحليلي واضح وبصياغة قانونية سليمة بالفعل.
+      أي تعديل عليه يُعدّ إفراطاً في إعادة الصياغة.
+    should_fail: false
+
+  - id: S103
+    category: straightforward
+    query: "ما الفرق بين العقد الباطل والعقد القابل للإبطال؟"
+    should_rewrite: false
+    expected_classification: "تحليلي"
+    expected_rewritten_question: null
+    notes: >
+      سؤال مقارن بمصطلحات قانونية دقيقة. يجب أن يظل كما هو.
+    should_fail: false
+
+  # ─────────────────────────────────────────────
+  # REWRITE — colloquial; light legal rephrasing only
+  # ─────────────────────────────────────────────
+
+  - id: R201
+    category: rewrite
+    query: "إيه اللي بيخلي العقد يتفسخ؟"
+    should_rewrite: true
+    expected_classification: "تحليلي"
+    expected_rewritten_question: "ما الأسباب التي تؤدي إلى فسخ العقد؟"
+    notes: >
+      عامية واضحة. يجب تحويلها إلى فصحى قانونية خفيفة
+      دون إضافة أي سياق أو شروط غير موجودة في السؤال الأصلي.
+    should_fail: false
+
+  - id: R202
+    category: rewrite
+    query: "لو حد مش وافق على العقد هو باطل ولا لأ؟"
+    should_rewrite: true
+    expected_classification: "تحليلي"
+    expected_rewritten_question: "هل يعتبر العقد باطلاً إذا لم يوافق عليه أحد الطرفين؟"
+    notes: >
+      سؤال عامي يحمل معنى قانونياً محدداً. يجب إعادة صياغته
+      بفصحى قانونية مع الحفاظ على نفس التساؤل تماماً.
+    should_fail: false
+
+  - id: R203
+    category: rewrite
+    query: "متى يحق للشخص يطالب بالتعويض لو حصله ضرر؟"
+    should_rewrite: true
+    expected_classification: "تحليلي"
+    expected_rewritten_question: "متى يحق للشخص المطالبة بالتعويض في حالة تعرضه للضرر؟"
+    notes: >
+      الصياغة شبه عامية وتحتاج تحسيناً طفيفاً في الأسلوب فقط.
+      المعنى والنطاق يجب أن يبقيا ثابتَين.
+    should_fail: false
+
+  # ─────────────────────────────────────────────
+  # NUMBER CONVERSION — word-numerals → digits
+  # ─────────────────────────────────────────────
+
+  - id: N301
+    category: number_conversion
+    query: "ما أحكام المواد التي تتراوح بين المادة الثمانين والمادة التسعين؟"
+    should_rewrite: true
+    expected_classification: "تحليلي"
+    expected_rewritten_question: "ما أحكام المواد التي تتراوح بين المادة 80 والمادة 90؟"
+    notes: >
+      تحويل رقمي لنطاق مواد مكتوب بالكلمات.
+      يجب تحويل "الثمانين" → 80 و"التسعين" → 90.
+    should_fail: false
+
+  - id: N302
+    category: number_conversion
+    query: "ما هي أحكام المادة مئة وثلاثة وستين من القانون المدني؟"
+    should_rewrite: true
+    expected_classification: "تحليلي"
+    expected_rewritten_question: "ما هي أحكام المادة 163 من القانون المدني؟"
+    notes: >
+      تحويل رقمي لرقم مركّب. يجب تحويل "مئة وثلاثة وستين" → 163.
+    should_fail: false
+
+  - id: N303
+    category: number_conversion
+    query: "هل يسقط الحق بعد مرور خمس عشرة سنة؟"
+    should_rewrite: true
+    expected_classification: "تحليلي"
+    expected_rewritten_question: "هل يسقط الحق بعد مرور 15 سنة؟"
+    notes: >
+      تحويل رقمي بسيط. يجب تحويل "خمس عشرة" → 15.
+      يختبر ما إذا كان النموذج ينجز التحويل حتى في الأسئلة القصيرة.
+    should_fail: false
+
+  # ─────────────────────────────────────────────
+  # OFF-TOPIC — must be rejected without modification
+  # ─────────────────────────────────────────────
+
+  - id: O401
+    category: off_topic
+    query: "ما هو أفضل مطعم في القاهرة؟"
+    should_rewrite: false
+    expected_classification: "خارج السياق"
+    expected_rewritten_question: null
+    notes: >
+      سؤال غير قانوني بالكامل. يجب تصنيفه كـ"خارج السياق"
+      دون أي محاولة لـ"قوننته" أو إعادة صياغته.
+    should_fail: true
+
+  - id: O402
+    category: off_topic
+    query: "كيف أطبخ كنافة؟"
+    should_rewrite: false
+    expected_classification: "خارج السياق"
+    expected_rewritten_question: null
+    notes: >
+      سؤال طبخ لا علاقة له بالقانون. يجب رفضه فوراً كما هو.
+    should_fail: true
+
+  - id: O403
+    category: off_topic
+    query: "من هو الرئيس المصري الحالي؟"
+    should_rewrite: false
+    expected_classification: "خارج السياق"
+    expected_rewritten_question: null
+    notes: >
+      سؤال سياسي/معلوماتي عام، ليس سؤالاً قانونياً.
+      يجب أن يُصنَّف خارج السياق دون تعديل.
+    should_fail: true
+
+  # ─────────────────────────────────────────────
+  # EDGE CASES — ambiguous or mixed; tests conservative behaviour
+  # ─────────────────────────────────────────────
+
+  - id: E501
+    category: edge_case
+    query: "العقد اتكسر، أنا عايز حقوقي"
+    should_rewrite: true
+    expected_classification: "تحليلي"
+    expected_rewritten_question: "ما الحقوق المترتبة على إخلال أحد طرفي العقد بالتزاماته؟"
+    notes: >
+      سؤال عامي وغامض. الخطر هنا هو إضافة سياق غير موجود
+      (مثل نوع العقد أو طبيعة الإخلال). يجب إعادة الصياغة
+      بأدنى قدر ممكن من التفسير دون توسيع نطاق السؤال.
+    should_fail: false
+
+  - id: E502
+    category: edge_case
+    query: "ما هي المواد من خمسة وعشرين لخمسة وثلاثين؟"
+    should_rewrite: true
+    expected_classification: "نصّي"
+    expected_rewritten_question: "ما هي المواد من 25 إلى 35؟"
+    notes: >
+      يجمع بين تحويل رقمي (عامية + كلمات) وسؤال نصّي مباشر.
+      يختبر القدرة على معالجة حالتَين في آنٍ واحد.
+    should_fail: false
+
+  - id: E503
+    category: edge_case
+    query: "هل يجوز للبائع أن يسترد المبيع؟"
+    should_rewrite: false
+    expected_classification: "تحليلي"
+    expected_rewritten_question: null
+    notes: >
+      سؤال قانوني واضح بما يكفي رغم اختصاره.
+      يجب أن يُبقيه النموذج كما هو، وعدم إضافة قيود أو شروط
+      (مثل "في حالة الفسخ" أو "وفقاً للمادة...").
+    should_fail: false

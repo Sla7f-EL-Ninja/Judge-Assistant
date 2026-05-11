@@ -1,0 +1,42 @@
+﻿@startuml document_ingestion_activity
+
+|Judge / API|
+start
+:POST /api/v1/files/upload\nfile + case_id;
+if (MIME type allowed?\nPDF PNG JPEG TIFF BMP WebP GIF HEIC) then (NO)
+  :Return 400 Invalid MIME type;
+  stop
+endif
+if (File size ≤ 20 MB?) then (NO)
+  :Return 413 File too large;
+  stop
+endif
+
+|MinIO|
+:Store binary in MinIO\nobject_key returned;
+
+|OCR / TEI|
+if (Image-based file?) then (YES)
+  :Surya OCR\nArabic extraction batch_size=4;
+  :Post-processing:\ndeskew + contrast enhance\ndict correction max Levenshtein=2\nArabic-Indic digit normalization;
+  if (Confidence tier?) then (high ≥ 0.85)
+    :Accept — no flag;
+  elseif (medium ≥ 0.60) then ()
+    :Accept with review-recommended flag;
+  else (low < 0.60)
+    :Flag for manual correction;
+  endif
+else (PDF with text layer)
+  :Extract text layer directly\nno OCR;
+endif
+:Segment text into chunks;
+:TEI embed chunks\nBAAI/bge-m3 (1024-dim);
+
+|Qdrant / MongoDB|
+:Upsert vectors to Qdrant\ncase_docs collection\nfiltered by case_id;
+:Store metadata in MongoDB\ndoc_type · party · confidence_tier\nobject_key · chunk_ids;
+
+|Judge / API|
+:Return 201\ndocument_id + confidence_tier;
+stop
+@enduml

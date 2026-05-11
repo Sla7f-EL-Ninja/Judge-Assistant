@@ -1,817 +1,949 @@
-# Judge Assistant
+# Judge Assistant (حكيم)
 
-An AI-powered legal assistant built for Egyptian judicial workflows. It combines Arabic OCR, document classification, civil law retrieval-augmented generation (RAG), case reasoning, and multi-document summarization into a unified REST API, orchestrated by a LangGraph-based multi-agent supervisor.
+An AI-powered legal assistant built for Egyptian judicial workflows. It combines Arabic OCR, multi-corpus civil law retrieval, case document reasoning, multi-document summarization, and an adaptive chat reasoner into a unified REST API — orchestrated by a 15-node LangGraph multi-agent supervisor with persistent long-term memory.
+
+> **Language:** All agent outputs, prompts, and responses are in Arabic. The system is purpose-built for Egyptian civil law (القانون المدني المصري).
+
+---
 
 ## Table of Contents
 
-- [Documentation](#documentation)
 - [Features](#features)
-- [Architecture](#architecture)
+- [Architecture Overview](#architecture-overview)
+- [Agent Roster](#agent-roster)
+- [Infrastructure Stack](#infrastructure-stack)
 - [Prerequisites](#prerequisites)
-- [Quick Start with Docker](#quick-start-with-docker)
-- [Local Development Setup](#local-development-setup)
+- [Quick Start (Local)](#quick-start-local)
 - [Configuration](#configuration)
 - [API Reference](#api-reference)
 - [Authentication](#authentication)
 - [Streaming Queries (SSE)](#streaming-queries-sse)
+- [Report Generation](#report-generation)
+- [MCP Transport Layer](#mcp-transport-layer)
+- [LLM Tier System](#llm-tier-system)
 - [Testing](#testing)
-- [Streamlit Testing UI](#streamlit-testing-ui)
 - [Project Structure](#project-structure)
+- [Diagrams](#diagrams)
 - [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
+- [Documentation Index](#documentation-index)
 
-## Documentation
-
-Comprehensive project documentation lives in the [`docs/`](docs/) directory:
-
-| Document | Description |
-|---|---|
-| [Glossary](docs/GLOSSARY.md) | Bilingual reference of 30+ terms (Arabic/English) covering system components, legal domain, and technical concepts |
-| [Architecture](docs/ARCHITECTURE.md) | System design, component overview, supervisor graph flow, state management, LLM tier system |
-| [Agents](docs/AGENTS.md) | All 5 specialist agents: purpose, triggers, retrieval strategies, input/output schemas |
-| [Database](docs/DATABASE.md) | MongoDB collections, Qdrant vectors, Redis caching, MinIO storage, PostgreSQL user management |
-| [API Reference](docs/API.md) | Every endpoint documented with request/response schemas, SSE streaming guide, error codes |
-| [Setup](docs/SETUP.md) | Environment variables, Docker Compose, local development, common setup errors |
-| [Testing](docs/TESTING.md) | Test suite structure, running tests, writing new tests, CI/CD |
-| [Deployment](docs/DEPLOYMENT.md) | Docker Compose services, Dockerfile details, health checks, scaling, backups |
-| [Troubleshooting](docs/TROUBLESHOOTING.md) | 10 known issues with symptoms, root causes, and fixes; debugging guide |
-| [Decisions](docs/DECISIONS.md) | 7 Architecture Decision Records (ADRs) with context, rationale, and consequences |
-| [Contributing](docs/CONTRIBUTING.md) | Developer onboarding, adding agents/endpoints, code style, PR checklist |
+---
 
 ## Features
 
-- **Arabic OCR Pipeline** -- Extract text from scanned legal documents (PDF, PNG, JPEG, TIFF, BMP) using Surya OCR with Arabic-specific preprocessing, deskewing, denoising, confidence scoring, and dictionary-based post-processing.
-- **Civil Law RAG** -- Query Egyptian civil law articles using retrieval-augmented generation with ChromaDB vector store and BGE-M3 embeddings. Supports query rewriting, classification, and multi-pass retrieval.
-- **Case Document RAG** -- Classify and query case-specific documents uploaded by the user.
-- **Case Reasoning** -- Apply legal reasoning to case facts against relevant law articles.
-- **Document Summarization** -- Multi-node pipeline that generates structured summaries of legal documents.
-- **Multi-Agent Supervisor** -- LangGraph state machine that classifies user intent and dispatches to one or more specialist agents, merges results, validates output, and manages conversation memory.
-- **REST API** -- FastAPI application with JWT authentication, SSE streaming, file uploads, case management, and conversation history.
-- **Docker Support** -- One-command deployment with Docker Compose (MongoDB + API + optional Streamlit UI).
+| Feature | Description |
+|---|---|
+| **Arabic OCR** | QARI OCR (`NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct` — Qwen2VL-based VLM) with two preprocessing stages: (1) CLAHE contrast normalization on LAB L-channel; (2) perspective correction via Canny edge-contour detection with adaptive-threshold fallback and safety guards. Confidence derived from token softmax probabilities (page-level + per-word). Arabic-Indic digit normalization applied post-inference. |
+| **Civil Law RAG** | Unified multi-corpus retrieval across Egyptian Civil Law, Evidence Law, and Civil Procedure Law. Corpus is auto-selected per query via LLM scoring. Optional HyDE expansion. TEI-powered BAAI/bge-m3 embeddings + reranker |
+| **Case Document RAG** | Per-case document retrieval with parallel sub-question fan-out, three document selection modes (retrieve_specific / restrict_to / search_all), and automatic rephrase-retry loop |
+| **Case Reasoner** | Per-issue legal analysis pipeline: issue extraction → law + fact retrieval → evidence classification → legal application → counterarguments → validation → global consistency check → confidence scoring |
+| **Chat Reasoner** | Adaptive planner-executor: generates a multi-step tool-use plan, validates it, executes steps in parallel (respecting dependency ordering), and synthesizes a final answer with replan support |
+| **Document Summarization** | 7-node sequential pipeline producing a 7-section judge-facing Arabic brief: parallel document intake, role classification, bullet extraction, aggregation (متفق عليه / محل النزاع), thematic clustering, synthesis, and brief generation |
+| **Multi-Agent Supervisor** | 15-node LangGraph state machine: intent classification → context enrichment → agent dispatch → response merging → citation verification → output validation with retry loop → long-term memory read/write → history summarization → audit logging |
+| **Async Report Generation** | Background pipeline that runs Summarization + Case Reasoning in sequence and returns results via a polling endpoint |
+| **REST API + SSE** | FastAPI with JWT authentication, SSE streaming (progress / result / error / done events), file uploads, case management, conversation history |
+| **Long-Term Memory** | Per-case semantic facts and per-judge procedural preferences stored in MongoDB, loaded at turn start and updated at turn end |
 
-## Architecture
+---
+
+## Architecture Overview
 
 ```
-Client (Express frontend / Streamlit)
-         |
-         v
-+--------------------+
-|   FastAPI (api/)   |  <-- JWT auth, file upload, SSE streaming
-+--------+-----------+
-         |
-+--------v-----------+
-|   Supervisor Agent  |  <-- LangGraph state machine
-|   (multi-agent)     |     Intent classification -> dispatch -> merge -> validate
-+--------+-----------+
-         |
-         +-------------------+-------------------+-------------------+
-         |                   |                   |                   |
-    +----v----+        +-----v-----+       +-----v-----+      +----v----+
-    |   OCR   |        | Civil Law |       | Case Doc  |      |Summarize|
-    | Pipeline|        |    RAG    |       |    RAG    |      |  Agent  |
-    +---------+        +-----------+       +-----------+      +---------+
-         |                   |                   |                   |
-    +----v----+        +-----v-----+       +-----v-----+      +----v----+
-    |  Surya  |        | ChromaDB  |       | ChromaDB  |      |  LLM    |
-    |  Engine |        | + BGE-M3  |       | + BGE-M3  |      | (Groq)  |
-    +---------+        +-----------+       +-----------+      +---------+
-
-Data stores:
-  - MongoDB: cases, files metadata, conversations, summaries
-  - ChromaDB: vector embeddings for civil law articles and case documents
+Judge (HTTP Client)
+        │
+        │  POST /api/v1/query  (JWT Bearer)
+        ▼
+┌───────────────────┐
+│  FastAPI  api/    │  SSE stream ──────────────────────────► Judge
+│  app.py           │
+└────────┬──────────┘
+         │
+         ▼
+┌────────────────────────────────────────────────────────────┐
+│  Supervisor  (LangGraph 15-node StateGraph)                │
+│                                                            │
+│  validate_input → load_long_term_memory                    │
+│    → classify_intent → enrich_context                      │
+│    → dispatch_agents ──────────────────────────────────┐   │
+│         │                                              │   │
+│         ▼                                              │   │
+│  ┌─────────────────────────────────────────────────┐  │   │
+│  │  MCP Transport Layer  (JSON-RPC 2.0 / stdio)    │  │   │
+│  │                                                 │  │   │
+│  │  ┌──────────────────┐  ┌─────────────────────┐ │  │   │
+│  │  │  LegalRAG Server │  │  CaseDoc RAG Server  │ │  │   │
+│  │  │  (FastMCP)       │  │  (FastMCP)           │ │  │   │
+│  │  └──────────────────┘  └─────────────────────┘ │  │   │
+│  └─────────────────────────────────────────────────┘  │   │
+│         │                                              │   │
+│  ChatReasonerAdapter (direct invocation) ──────────────┘   │
+│  SummarizeAdapter    (direct invocation)                   │
+│                                                            │
+│  merge_responses → verify_citations → validate_output      │
+│    → [retry loop, max 3] OR fallback                       │
+│    → update_memory → write_long_term_memory                │
+│    → [summarize_history?] → audit_log                      │
+└────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────────────┐
+│  Infrastructure                        │
+│  MongoDB · Qdrant · Redis              │
+│  MinIO · PostgreSQL · TEI              │
+└────────────────────────────────────────┘
 ```
 
-### How a Query Flows
+### Supervisor Turn Lifecycle
 
-1. User sends a query via `POST /api/v1/query` with a `case_id`
-2. The API streams Server-Sent Events (SSE) back to the client
-3. The **Supervisor** classifies the intent (civil law, case doc, OCR, summarize, reasoning, or multi-agent)
-4. Relevant agents are dispatched in parallel where possible
-5. Results are merged and validated
-6. Conversation memory is updated in MongoDB
-7. The final response is streamed as an SSE `result` event
+1. **validate_input** — sanitize and length-check the judge query; off-topic if injection detected
+2. **load_long_term_memory** — fetch per-case semantic facts and per-judge preferences from MongoDB
+3. **classify_intent** — medium-tier LLM → one of `civil_law_rag | case_doc_rag | reason | multi | off_topic`
+4. **enrich_context** — prefetch case summary and document titles from MongoDB
+5. **dispatch_agents** — run selected adapters; for `multi` intent, parallel `Send()` fan-out
+6. **merge_responses** — high-tier LLM synthesizes all agent outputs
+7. **verify_citations** — cross-check article references
+8. **validate_output** — low-tier LLM scores 4 criteria: hallucination · relevance · completeness · coherence
+9. **prepare_retry** — on failure, append `validation_feedback` and re-dispatch (max 3 retries)
+10. **fallback_response** — generic Arabic fallback after retries exhausted
+11. **update_memory** — append turn to MongoDB conversation history
+12. **write_long_term_memory** — upsert semantic facts and procedural preferences
+13. **summarize_history** — if `messages_since_last_summary` exceeds threshold, compress older turns into `running_summary` using high-tier LLM
+14. **audit_log** — write structured audit entry to MongoDB
+15. **off_topic_response** — direct refusal path (skips dispatch)
+
+---
+
+## Agent Roster
+
+| Agent | Trigger Intent | Transport | Entry Point |
+|---|---|---|---|
+| **Civil Law RAG** | `civil_law_rag` | MCP (subprocess stdio) | `mcp_servers.legal_rag_server` → `RAG/legal_rag/service.py` |
+| **Case Doc RAG** | `case_doc_rag` | MCP (subprocess stdio) | `mcp_servers.case_doc_server` → `RAG/case_doc_rag/graph.py` |
+| **Chat Reasoner** | `reason` | Direct invocation | `chat_reasoner/graph.py` |
+| **Summarizer** | `summarize` | Direct invocation | `summarize/graph.py` |
+| **OCR** | `ocr` | Direct invocation | `DocumentProcessor/OCR/ocr_pipeline.py` |
+
+### Civil Law RAG
+
+- **Corpora:** Civil Law (القانون المدني) · Evidence Law (قانون الإثبات) · Civil Procedure (قانون المرافعات)
+- **Corpus routing:** LLM scores the query against all 3 corpora at runtime — no upfront selection needed
+- **Scope classification:** narrows to chapter then section before vector search
+- **Retrieval:** BAAI/bge-m3 embeddings (1024-dim COSINE) via remote TEI service → Qdrant `civil_law_docs` collection
+- **Reranking:** TEI reranker re-scores candidates before grading
+- **Grading:** rule_grader (heuristic) → llm_grader (semantic) → generate_answer or refine loop
+- **Caching:** `SemanticCache` keyed by (query, corpus_version, prompt_version)
+
+### Case Doc RAG
+
+- **Scope:** per-case documents only, filtered by `case_id` in Qdrant `case_docs` collection
+- **Sub-question fan-out:** query is decomposed into sub-questions; each executes in a parallel branch via LangGraph `Send()`
+- **Branch modes:** `retrieve_specific_doc` (short-circuit fetch) · `restrict_to_doc` (scoped search) · `no_doc_specified` (full case search)
+- **Rephrase loop:** up to 2 rephrases per sub-question on grading failure
+
+### Chat Reasoner
+
+- **Tools available:** `case_doc_rag` · `civil_law_rag` · `fetch_summary_report`
+- **Plan validation:** unknown tools, empty queries, circular deps, >5 steps all rejected (up to 3 validator retries)
+- **Parallel execution:** steps with empty `depends_on` fan out simultaneously via `Send()`; dependent steps wait
+- **Replan cap:** 2 replans before returning best-effort answer
+- **Trace:** every run writes a structured trace to `chat_reasoner_traces` in MongoDB
+
+### Case Reasoner
+
+- **Issue extraction:** high-tier LLM identifies distinct legal issues from the case brief
+- **Per-issue branch** (sequential within branch, parallel across issues):
+  1. Decompose issue into legal elements
+  2. Generate retrieval queries for law + facts
+  3. Retrieve law via `civil_law_rag` MCP tool
+  4. Retrieve facts via `case_doc_rag` MCP tool
+  5. Classify evidence: `established | not_established | disputed | insufficient_evidence`
+  6. Apply law with Arabic legal reasoning citing specific articles
+  7. Generate counterarguments for both parties
+  8. Validate analysis (citation + consistency + completeness)
+  9. Package result
+- **Post-aggregation:** global consistency check → reconciliation paragraphs → per-issue and case-level confidence scoring → final report generation
+
+### Summarizer
+
+- **Parallel intake:** Node 0 processes documents concurrently via `ThreadPoolExecutor`
+- **Document types (7):** صحيفة دعوى · مذكرة دفاع · مذكرة رد · حافظة مستندات · محضر جلسة · حكم تمهيدي · غير محدد
+- **Party types (6):** المدعي · المدعى عليه · النيابة · المحكمة · خبير · غير محدد
+- **Defendant disambiguation:** merges "المدعى عليه" variants into numbered parties automatically
+- **Output:** 7-section structured brief persisted to MongoDB `summaries` collection
+
+---
+
+## Infrastructure Stack
+
+| Service | Purpose | Default |
+|---|---|---|
+| **MongoDB** | Cases, files, conversations, summaries, case_reasonings, chat_reasoner_traces, audit logs, long-term memory | `localhost:27017` |
+| **Qdrant** | Vector store — `civil_law_docs` (1024-dim COSINE) and `case_docs` (per-case filtered) | `localhost:6333` (HTTP) / `6334` (gRPC) |
+| **Redis** | Caching, rate limiting (100 req/60s), session data | `localhost:6379` |
+| **MinIO** | S3-compatible binary file storage (PDF, images) | `localhost:9000` |
+| **PostgreSQL** | Users, roles, audit logging | `localhost:5432` |
+| **TEI (Embeddings)** | Remote BAAI/bge-m3 embedding service | `localhost:8080` |
+| **TEI (Reranker)** | Remote reranker service | `localhost:8081` |
+
+---
 
 ## Prerequisites
 
-- **Docker and Docker Compose** (recommended) -- or Python 3.11+ with MongoDB for local dev
-- **API keys** for at least one LLM provider:
-  - [Groq API key](https://console.groq.com/) (default provider for high/medium tiers)
-  - [Google AI API key](https://makersuite.google.com/app/apikey) (default for low tier)
-
-## Quick Start with Docker
-
-This is the fastest way to get everything running. Docker Compose starts MongoDB, the API, and optionally the Streamlit testing UI.
-
-### Step 1: Clone the repository
+- **Python 3.11+**
+- **Running services:** MongoDB · Qdrant · Redis · MinIO · PostgreSQL
+- **TEI services** for embeddings and reranking (or configure fallback in-process)
+- **Google API key** for Gemini 2.5 Flash (all LLM tiers default to Google)
 
 ```bash
-git clone https://github.com/hassann16541-create/Judge-Assistant.git
-cd Judge-Assistant
+# Minimum required env vars
+GOOGLE_API_KEY=your_google_api_key
+JA_API_JWT_SECRET=a-strong-random-secret
 ```
 
-### Step 2: Configure environment variables
+---
+
+## Quick Start (Local)
+
+### 1. Clone and install
 
 ```bash
-cp .env.example .env
-```
-
-Open `.env` in your editor and set the required values:
-
-```bash
-# REQUIRED -- at least one LLM provider key
-GROQ_API_KEY=gsk_your_actual_groq_key_here
-GOOGLE_API_KEY=your_actual_google_key_here
-
-# REQUIRED -- change this to a strong random string in production
-JA_API_JWT_SECRET=my-super-secret-jwt-key
-```
-
-### Step 3: Start the services
-
-```bash
-# Start MongoDB + API
-docker compose up -d
-```
-
-This will:
-- Pull the MongoDB 7 image
-- Build the API Docker image (first time takes a few minutes due to ML dependencies)
-- Start MongoDB with a health check
-- Start the API once MongoDB is healthy
-- Download embedding models on first query (~400MB, cached in a Docker volume)
-
-### Step 4: Verify it's running
-
-```bash
-# Check service status
-docker compose ps
-
-# Check the health endpoint
-curl http://localhost:8000/api/v1/health
-```
-
-Expected response:
-```json
-{
-  "status": "healthy",
-  "mongo": "connected",
-  "chroma": "connected"
-}
-```
-
-### Step 5: Open the interactive docs
-
-Navigate to `http://localhost:8000/docs` in your browser for Swagger UI, or `http://localhost:8000/redoc` for ReDoc.
-
-### Step 6 (Optional): Start the Streamlit testing UI
-
-```bash
-docker compose --profile testing up -d
-```
-
-Open `http://localhost:8501` in your browser. The Streamlit app provides a GUI for testing all API endpoints.
-
-### Docker Management Commands
-
-The included `Makefile` provides shortcuts:
-
-| Command | What it does |
-|---------|-------------|
-| `make up` | Start MongoDB + API |
-| `make up-all` | Start everything including Streamlit |
-| `make down` | Stop all services |
-| `make down-clean` | Stop all services and delete all data (MongoDB volumes, etc.) |
-| `make logs` | Tail the API container logs |
-| `make build` | Rebuild Docker images from scratch (no cache) |
-| `make shell` | Open a bash shell inside the running API container |
-| `make mongo-shell` | Open the MongoDB shell (`mongosh`) |
-| `make help` | Show all available make targets |
-
-### Docker Services Overview
-
-| Service | Port | Description |
-|---------|------|-------------|
-| `mongo` | 27017 | MongoDB 7 with persistent volume |
-| `api` | 8000 | FastAPI application |
-| `streamlit` | 8501 | Testing UI (only with `--profile testing`) |
-
-### Docker Volumes
-
-| Volume | Purpose |
-|--------|---------|
-| `mongo_data` | MongoDB data persistence |
-| `huggingface_cache` | Cached embedding models (prevents re-download) |
-| `./uploads` | Uploaded files (bind mount) |
-| `./chroma_data` | ChromaDB vector store data (bind mount) |
-
-## Local Development Setup
-
-For development without Docker, you need Python 3.11+ and a running MongoDB instance.
-
-### Step 1: Install MongoDB
-
-**macOS (Homebrew):**
-```bash
-brew tap mongodb/brew
-brew install mongodb-community@7.0
-brew services start mongodb-community@7.0
-```
-
-**Ubuntu/Debian:**
-```bash
-# Follow the official MongoDB installation guide:
-# https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/
-sudo systemctl start mongod
-```
-
-**Windows:**
-Download and install from https://www.mongodb.com/try/download/community
-
-### Step 2: Set up Python environment
-
-```bash
-# Create a virtual environment
+git clone <repo-url>
+cd Code
 python3.11 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install all dependencies
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Step 3: Configure environment
+### 2. Configure environment
 
 ```bash
+# Create .env from template
 cp .env.example .env
-# Edit .env with your API keys (same as Docker setup)
 ```
 
-Optionally create a local config override:
-```yaml
-# config/settings.local.yaml (gitignored)
-mongodb:
-  uri: mongodb://localhost:27017/
-api:
-  debug: true
-llm:
-  high:
-    provider: google
-    model: gemini-1.5-pro  # Use Google if you don't have a Groq key
+Edit `.env`:
+```bash
+GOOGLE_API_KEY=your_actual_google_api_key
+JA_API_JWT_SECRET=your-strong-jwt-secret-here
+
+# Optional overrides
+JA_MONGODB_URI=mongodb://localhost:27017/
+JA_MONGODB_DATABASE=judge_assistant
+JA_QDRANT_HOST=localhost
 ```
 
-### Step 4: Run the API
+### 3. Start infrastructure services
+
+```bash
+# MongoDB
+mongod --dbpath ./data/db
+
+# Qdrant
+docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant
+
+# Redis
+redis-server
+
+# MinIO
+docker run -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=minioadmin \
+  minio/minio server /data --console-address ":9001"
+```
+
+### 4. Start the API
 
 ```bash
 uvicorn api.app:create_app --factory --host 0.0.0.0 --port 8000 --reload
 ```
 
-The `--reload` flag enables hot-reloading on code changes.
-
-### Step 5: Verify
+### 5. Verify
 
 ```bash
 curl http://localhost:8000/api/v1/health
 ```
 
+Expected:
+```json
+{"status": "healthy", "mongo": "connected", "qdrant": "connected"}
+```
+
+### 6. Open interactive API docs
+
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+---
+
 ## Configuration
 
-Judge Assistant uses a centralized YAML-based configuration system. See [CONFIG.md](CONFIG.md) for the full reference.
-
-### Config Precedence (highest wins)
+Configuration uses a 3-layer precedence system (highest wins):
 
 ```
-Environment variables (JA_*)  >  settings.local.yaml  >  settings.yaml
+JA_* environment variables  >  config/settings.local.yaml  >  config/settings.yaml
 ```
 
-### Key Configuration Files
+`config/settings.local.yaml` is gitignored and deep-merged over `settings.yaml`. Use it for local overrides without modifying committed files.
 
-| File | Purpose |
-|------|---------|
-| `config/settings.yaml` | Default configuration (committed to repo) |
-| `config/settings.local.yaml` | Local overrides (gitignored) |
-| `.env` | API keys and secrets (gitignored) |
+### Key Configuration Sections (`config/settings.yaml`)
 
-### Environment Variable Override Convention
+```yaml
+llm:
+  high:
+    provider: google
+    model: gemini-2.5-flash        # complex reasoning, synthesis, summarization
+    temperature: 0.0
+  medium:
+    provider: google
+    model: gemini-2.5-flash        # intent classification, extraction
+    temperature: 0.0
+  low:
+    provider: google
+    model: gemini-2.5-flash-lite   # output validation, simple routing
+    temperature: 0.0
 
-Nested YAML keys are joined with `_` and upper-cased, prefixed with `JA_`:
+embedding:
+  model: BAAI/bge-m3
 
-| YAML Path | Environment Variable | Example Value |
-|-----------|---------------------|---------------|
-| `llm.high.model` | `JA_LLM_HIGH_MODEL` | `llama-3.3-70b-versatile` |
-| `llm.high.provider` | `JA_LLM_HIGH_PROVIDER` | `groq` |
-| `mongodb.uri` | `JA_MONGODB_URI` | `mongodb://mongo:27017/` |
-| `mongodb.database` | `JA_MONGODB_DATABASE` | `Rag` |
+qdrant:
+  host: localhost
+  port: 6333
+  collection: civil_law_docs
+  case_collection: case_docs
+  vector_size: 1024
+
+tei:
+  embedding_url: http://localhost:8080
+  reranker_url: http://localhost:8081
+  timeout_seconds: 30
+
+rag:
+  civil_law:
+    hyde_enabled: false
+    scope_chapter_threshold: 0.5
+    scope_section_threshold: 0.5
+
+supervisor:
+  max_retries: 3
+  max_conversation_turns: 20
+```
+
+### Environment Variable Convention
+
+Nested YAML keys are flattened with `_` and prefixed with `JA_`:
+
+| YAML path | Environment variable | Example |
+|---|---|---|
+| `llm.high.model` | `JA_LLM_HIGH_MODEL` | `gemini-2.5-pro` |
+| `llm.high.provider` | `JA_LLM_HIGH_PROVIDER` | `google` |
+| `mongodb.uri` | `JA_MONGODB_URI` | `mongodb://user:pass@host:27017/` |
+| `mongodb.database` | `JA_MONGODB_DATABASE` | `production_db` |
+| `qdrant.host` | `JA_QDRANT_HOST` | `qdrant.internal` |
+| `api.jwt_secret` | `JA_API_JWT_SECRET` | `strong-random-value` |
+| `api.cors_origins` | `JA_API_CORS_ORIGINS` | `https://app.example.com` |
 | `api.debug` | `JA_API_DEBUG` | `true` |
-| `api.cors_origins` | `JA_API_CORS_ORIGINS` | `http://localhost:3000` |
-| `ocr.language` | `JA_OCR_LANGUAGE` | `ar` |
-| `ocr.use_gpu` | `JA_OCR_USE_GPU` | `false` |
-| `embedding.model` | `JA_EMBEDDING_MODEL` | `BAAI/bge-m3` |
+| `ocr.use_gpu` | `JA_OCR_USE_GPU` | `true` |
+| `tei.embedding_url` | `JA_TEI_EMBEDDING_URL` | `http://tei-host:8080` |
 
-### LLM Tier System
-
-Models are organized into three tiers. Each tier can use a different provider and model:
-
-| Tier | Default Provider | Default Model | Used For |
-|------|-----------------|---------------|----------|
-| **high** | Groq | llama-3.3-70b-versatile | Legal reasoning, response merging, summarization, RAG answers |
-| **medium** | Groq | llama-3.3-70b-versatile | Intent classification, document classification, query rewriting |
-| **low** | Google | gemini-1.5-flash | Output validation, off-topic detection, simple routing |
-
-Use the factory function to get a model:
-
-```python
-from config import get_llm
-
-llm = get_llm("high")                    # Default high-tier model
-llm = get_llm("medium", temperature=0.3) # With override
-```
+---
 
 ## API Reference
 
-All routes are prefixed with `/api/v1/`. Full interactive documentation is available at `/docs` (Swagger) and `/redoc` when the API is running.
+All routes are prefixed with `/api/v1/`. Full interactive docs at `/docs` when the server is running.
 
 ### Endpoints
 
-| Method | Path | Summary | Auth |
-|--------|------|---------|------|
-| GET | `/health` | Service health check | No |
-| POST | `/cases` | Create a new case | Yes |
-| GET | `/cases` | List cases (paginated) | Yes |
-| GET | `/cases/{case_id}` | Get case details | Yes |
-| PATCH | `/cases/{case_id}` | Update case title/status | Yes |
-| DELETE | `/cases/{case_id}` | Soft-delete a case | Yes |
-| POST | `/files/upload` | Upload a file (PDF/image) | Yes |
-| POST | `/cases/{case_id}/documents` | Ingest uploaded files (OCR + classification) | Yes |
-| POST | `/query` | Run supervisor query (SSE stream) | Yes |
-| GET | `/cases/{case_id}/conversations` | List conversations for a case | Yes |
-| GET | `/conversations/{conversation_id}` | Get full conversation history | Yes |
-| DELETE | `/conversations/{conversation_id}` | Delete a conversation | Yes |
-| GET | `/cases/{case_id}/summary` | Get case summary | Yes |
-
-### Pagination
-
-List endpoints accept `skip` (default: 0) and `limit` (default: 20, max: 100) query parameters:
-
-```bash
-GET /api/v1/cases?skip=0&limit=10
-```
-
-Response includes a `total` count:
-```json
-{
-  "cases": [...],
-  "total": 42
-}
-```
+| Method | Path | Description | Auth |
+|---|---|---|---|
+| `GET` | `/health` | Service + DB health check | No |
+| `POST` | `/cases` | Create a new case | Yes |
+| `GET` | `/cases` | List cases (paginated) | Yes |
+| `GET` | `/cases/{case_id}` | Get case details | Yes |
+| `PATCH` | `/cases/{case_id}` | Update case title / status | Yes |
+| `DELETE` | `/cases/{case_id}` | Soft-delete a case | Yes |
+| `POST` | `/files/upload` | Upload file (PDF / image, ≤20MB) | Yes |
+| `DELETE` | `/files/{file_id}` | Delete uploaded file | Yes |
+| `GET` | `/cases/{case_id}/documents` | List documents for a case | Yes |
+| `GET` | `/cases/{case_id}/documents/{doc_id}` | Get document metadata | Yes |
+| `GET` | `/cases/{case_id}/documents/{doc_id}/ocr` | Get OCR text + confidence | Yes |
+| `PATCH` | `/cases/{case_id}/documents/{doc_id}/ocr` | Submit corrected OCR text + re-index | Yes |
+| `POST` | `/query` | Run supervisor query — **SSE stream** | Yes |
+| `GET` | `/cases/{case_id}/conversations` | List conversations | Yes |
+| `GET` | `/conversations/{conversation_id}` | Get full conversation history | Yes |
+| `DELETE` | `/conversations/{conversation_id}` | Delete conversation | Yes |
+| `GET` | `/cases/{case_id}/summary` | Get generated case summary | Yes |
+| `POST` | `/cases/{case_id}/reports/generate` | Kick off async report pipeline | Yes |
+| `GET` | `/cases/{case_id}/reports/{report_id}` | Poll report job status + fetch result | Yes |
+| `GET` | `/cases/{case_id}/reports` | List historical report jobs | Yes |
 
 ### File Upload Constraints
 
 | Constraint | Value |
-|-----------|-------|
-| Max file size | 20 MB |
-| Allowed MIME types | `application/pdf`, `image/png`, `image/jpeg`, `image/tiff`, `image/bmp`, `image/webp` |
-| Upload field name | `file` (multipart form) |
+|---|---|
+| Max file size | 20 MB (`max_upload_bytes: 20971520`) |
+| Allowed MIME types | `application/pdf`, `image/png`, `image/jpeg`, `image/tiff`, `image/bmp`, `image/webp`, `image/gif`, `image/heic`, `image/heif` |
+| Upload field | `file` (multipart/form-data) |
 
-### Error Format
+### Standard Error Envelope
 
-All errors follow a standard envelope:
+All error responses use this shape:
 
 ```json
 {
   "error": {
     "code": "CASE_NOT_FOUND",
-    "detail": "Case not found",
+    "message": "Case not found",
     "status": 404
   }
 }
 ```
 
-| Error Code | HTTP Status | Meaning |
-|------------|-------------|---------|
+| Code | HTTP | Meaning |
+|---|---|---|
 | `UNAUTHORIZED` | 401 | Missing, expired, or invalid JWT |
-| `VALIDATION_ERROR` | 422 | Request body/query validation failed |
+| `VALIDATION_ERROR` | 422 | Request schema validation failed |
 | `CASE_NOT_FOUND` | 404 | Case doesn't exist or belongs to another user |
-| `CONVERSATION_NOT_FOUND` | 404 | Conversation doesn't exist |
+| `DOCUMENT_NOT_FOUND` | 404 | Document not found |
 | `FILE_NOT_FOUND` | 404 | Uploaded file not found |
-| `SUMMARY_NOT_FOUND` | 404 | No summary generated for this case |
+| `REPORT_NOT_FOUND` | 404 | Report job not found |
+| `NO_DOCUMENTS_FOR_CASE` | 404 | No documents uploaded for this case |
+| `SUMMARY_NOT_FOUND` | 404 | No summary generated yet |
 | `INVALID_MIME_TYPE` | 400 | File type not in allowed list |
-| `FILE_TOO_LARGE` | 400 | File exceeds 20 MB limit |
-| `NO_FIELDS_TO_UPDATE` | 400 | PATCH body has no updatable fields |
+| `FILE_TOO_LARGE` | 400 | File exceeds 20 MB |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
 
 ## Authentication
 
-The API uses **JWT Bearer tokens** with HS256 signing.
+JWT Bearer tokens, HS256 signed.
 
-### Token Requirements
+**Required claims:** `user_id` (string), `exp` (expiration timestamp)  
+**Header:** `Authorization: Bearer <token>`
 
-- **Algorithm:** HS256
-- **Required claims:** `user_id` (string), `exp` (expiration timestamp)
-- **Shared secret:** Set via `JA_API_JWT_SECRET` environment variable
-
-### Usage
-
-Include the token in the `Authorization` header:
-
-```
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-```
-
-### Generating a Token (for testing)
+### Generating a Test Token
 
 ```python
-from jose import jwt
-from datetime import datetime, timedelta
+import jwt
+from datetime import datetime, timedelta, timezone
 
 token = jwt.encode(
     {
-        "user_id": "test_user_001",
-        "exp": datetime.utcnow() + timedelta(hours=24),
+        "user_id": "judge_001",
+        "exp": datetime.now(timezone.utc) + timedelta(hours=24),
     },
-    "your-jwt-secret",
+    "your-jwt-secret",   # must match JA_API_JWT_SECRET
     algorithm="HS256",
 )
 print(token)
 ```
 
-Or use the Streamlit UI which auto-generates tokens.
-
-### Example: Full Workflow with curl
+### Example: End-to-End curl Workflow
 
 ```bash
-# Set your variables
 export BASE=http://localhost:8000/api/v1
-export TOKEN="your-jwt-token-here"
-export AUTH="Authorization: Bearer $TOKEN"
+export TOKEN="your-jwt-token"
+export H="Authorization: Bearer $TOKEN"
 
-# 1. Check health
-curl $BASE/health
+# 1. Create a case
+curl -s -X POST $BASE/cases \
+  -H "$H" -H "Content-Type: application/json" \
+  -d '{"title": "قضية مدنية رقم 2024/1234"}' | jq .
 
-# 2. Create a case
-curl -X POST $BASE/cases \
-  -H "$AUTH" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Civil Dispute Case #2024-1234"}'
+# 2. Upload a scanned document
+CASE_ID="<case_id from step 1>"
+FILE_ID=$(curl -s -X POST $BASE/files/upload \
+  -H "$H" -F "file=@/path/to/document.pdf" | jq -r .file_id)
 
-# 3. Upload a document (replace case_id and file path)
-curl -X POST $BASE/files/upload \
-  -H "$AUTH" \
-  -F "file=@/path/to/legal-document.pdf"
-
-# 4. Ingest the document into the case
-curl -X POST "$BASE/cases/{case_id}/documents" \
-  -H "$AUTH" \
-  -H "Content-Type: application/json" \
-  -d '{"file_ids": ["{file_id}"]}'
-
-# 5. Query the case (SSE stream)
+# 3. Query the case (SSE stream)
 curl -N -X POST $BASE/query \
-  -H "$AUTH" \
-  -H "Content-Type: application/json" \
-  -d '{"case_id": "{case_id}", "query": "What are the relevant civil law articles?"}'
+  -H "$H" -H "Content-Type: application/json" \
+  -d "{\"case_id\": \"$CASE_ID\", \"query\": \"ما هي المواد القانونية المنطبقة على هذه القضية؟\"}"
 
-# 6. Get conversation history
-curl "$BASE/cases/{case_id}/conversations" -H "$AUTH"
+# 4. Generate full report (async)
+JOB_ID=$(curl -s -X POST $BASE/cases/$CASE_ID/reports/generate \
+  -H "$H" | jq -r .job_id)
 
-# 7. Get case summary
-curl "$BASE/cases/{case_id}/summary" -H "$AUTH"
+# 5. Poll report status
+curl -s $BASE/cases/$CASE_ID/reports/$JOB_ID -H "$H" | jq .status
 ```
+
+---
 
 ## Streaming Queries (SSE)
 
-The `POST /api/v1/query` endpoint returns a `text/event-stream` response with these event types:
+`POST /api/v1/query` returns `text/event-stream`. The client receives a sequence of typed events.
 
 ### Event Types
 
-**`progress`** -- Emitted as each supervisor node completes:
+**`progress`** — emitted as each supervisor node completes:
 ```
 event: progress
-data: {"step": "classify_intent", "status": "done"}
+data: {"step": "classify_intent", "status": "done", "intent": "civil_law_rag"}
 ```
 
-**`result`** -- The final answer (emitted once):
+**`result`** — the final validated Arabic answer (emitted once):
 ```
 event: result
-data: {"final_response": "...", "sources": [...], "intent": "civil_law_rag", "agents_used": ["civil_law_rag"], "conversation_id": "conv_xxx"}
+data: {
+  "final_response": "وفقاً للمادة 163 من القانون المدني ...",
+  "sources": [{"article": "163", "title": "المادة 163", "book": "الالتزامات"}],
+  "intent": "civil_law_rag",
+  "agents_used": ["civil_law_rag"],
+  "conversation_id": "conv_abc123",
+  "turn_count": 1
+}
 ```
 
-**`error`** -- If something goes wrong:
+**`error`** — if something goes wrong:
 ```
 event: error
 data: {"detail": "An internal error occurred while processing the query"}
 ```
 
-**`done`** -- Always the last event:
+**`done`** — always the last event:
 ```
 event: done
 data: {}
 ```
 
-### JavaScript Example (Frontend Integration)
+### Multi-Turn Conversations
+
+Pass `conversation_id` from a previous `result` event to continue a thread. The supervisor loads prior history from MongoDB and uses `running_summary` to keep context within token limits.
+
+### JavaScript Integration
 
 ```javascript
-const eventSource = new EventSource('/api/v1/query', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    case_id: caseId,
-    query: userQuestion,
-    conversation_id: existingConversationId, // optional, for follow-ups
-  }),
-});
+async function queryCase(caseId, question, conversationId = null) {
+  const response = await fetch('/api/v1/query', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      case_id: caseId,
+      query: question,
+      conversation_id: conversationId,
+    }),
+  });
 
-eventSource.addEventListener('progress', (e) => {
-  const data = JSON.parse(e.data);
-  console.log(`Step: ${data.step} - ${data.status}`);
-});
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
 
-eventSource.addEventListener('result', (e) => {
-  const data = JSON.parse(e.data);
-  displayAnswer(data.final_response);
-  saveConversationId(data.conversation_id);
-});
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
 
-eventSource.addEventListener('error', (e) => {
-  const data = JSON.parse(e.data);
-  showError(data.detail);
-});
-
-eventSource.addEventListener('done', () => {
-  eventSource.close();
-});
+    const chunk = decoder.decode(value);
+    for (const line of chunk.split('\n')) {
+      if (line.startsWith('event: result')) continue;
+      if (line.startsWith('data: ')) {
+        const data = JSON.parse(line.slice(6));
+        if (data.final_response) {
+          displayAnswer(data.final_response);
+          return data.conversation_id;   // pass to next turn
+        }
+      }
+    }
+  }
+}
 ```
+
+---
+
+## Report Generation
+
+The report pipeline runs summarization and case reasoning asynchronously as a background job.
+
+```
+POST /api/v1/cases/{case_id}/reports/generate
+  → HTTP 202 + { "job_id": "..." }
+
+GET  /api/v1/cases/{case_id}/reports/{job_id}
+  → { "status": "pending|running|completed|failed", "summary": {...}, "case_reasoning": {...} }
+```
+
+**Pipeline sequence (background):**
+1. Summarization pipeline (7-node LangGraph) → upsert to `summaries`
+2. Case Reasoner pipeline → upsert to `case_reasonings`
+3. Job status updated to `completed`
+
+**Polling recommendation:** poll every 5–10 seconds; typical completion time is 60–120 seconds depending on document count and issue complexity.
+
+---
+
+## MCP Transport Layer
+
+The Civil Law RAG and Case Doc RAG agents run as isolated FastMCP subprocess servers, communicating over `stdin`/`stdout` using newline-delimited JSON-RPC 2.0.
+
+```
+Supervisor process
+  │
+  ├─── MCPClient("mcp_servers.legal_rag_server")
+  │       │  threading.Lock (serializes calls)
+  │       │  auto-respawn on transport failure (max 1 respawn)
+  │       └─► subprocess: python -m mcp_servers.legal_rag_server
+  │               JSON-RPC: tools/call → search_legal_corpus(query, corpus)
+  │
+  └─── MCPClient("mcp_servers.case_doc_server")
+          │  threading.Lock
+          └─► subprocess: python -m mcp_servers.case_doc_server
+                  JSON-RPC: tools/call → search_case_docs(query, case_id, ...)
+```
+
+**Timeouts:** call timeout 120s · handshake timeout 600s (covers first-run model download)  
+**Warmup:** both servers warm up their LangGraph graph + Qdrant vectorstore + reranker at subprocess boot, before accepting any requests.
+
+---
+
+## LLM Tier System
+
+Three tiers map to task complexity:
+
+| Tier | Model | Used For |
+|---|---|---|
+| **high** | `gemini-2.5-flash` | Legal reasoning, response synthesis, summarization, case briefing, chat reasoner planning/synthesis |
+| **medium** | `gemini-2.5-flash` | Intent classification, document classification, query rewriting, relevance grading |
+| **low** | `gemini-2.5-flash-lite` | Output validation, off-topic routing, thematic clustering |
+
+```python
+from config import get_llm
+
+llm_high   = get_llm("high")
+llm_medium = get_llm("medium")
+llm_low    = get_llm("low")
+```
+
+All tiers use `temperature: 0.0` by default for deterministic legal outputs.
+
+---
 
 ## Testing
 
-The project includes an integration test suite that tests against real MongoDB and the full Supervisor LangGraph -- no mocks.
+The test suite has 100+ tests across 6 categories.
+
+### Test Markers
+
+| Marker | Description |
+|---|---|
+| `unit` | Pure function tests, no external I/O |
+| `integration` | Tests against real MongoDB + Qdrant + LLMs |
+| `behavioral` | E2E multi-turn conversation and agent dispatch scenarios |
+| `performance` | Memory profiling, throughput, cache speedup |
+| `regression` | Boundary cases and known failure modes |
+| `llm_eval` | LLM-as-judge quality evaluations (RAGAS, custom rubrics) |
+| `expensive` | Long-running tests (E2E multi-turn, full pipelines) |
 
 ### Running Tests
 
 ```bash
 # Install test dependencies
-pip install -r api/tests/requirements-test.txt
-
-# Configure test environment
-cp .env.example .env
-# Make sure MONGO_URI, JWT_SECRET, GROQ_API_KEY are set
-
-# Run the full suite (requires running MongoDB)
-cd api && python -m pytest tests/ -v
-
-# Run only fast tests (skip document ingestion + LLM queries)
-cd api && python -m pytest tests/ -v -k "not document and not query and not conversation and not summary"
-
-# Run a single test file
-cd api && python -m pytest tests/test_02_health.py -v
-
-# Run with detailed failure output
-cd api && python -m pytest tests/ -v --tb=short
-```
-
-### Test Coverage
-
-| Area | What's Tested |
-|------|--------------|
-| **Auth** | Missing header, bad format, tampered token, expired token, missing user_id |
-| **Health** | MongoDB connectivity, Chroma connectivity, overall status |
-| **Cases** | Create, list, paginate, get, update title, update status, invalid status, empty patch, user isolation, delete |
-| **Files** | PDF upload, PNG upload, wrong MIME rejected, oversized rejected |
-| **Documents** | Ingest real PDF, case documents updated, nonexistent file error, nonexistent case 404 |
-| **Query** | SSE stream structure, all event types present, non-empty response, conversation_id returned, multi-turn conversations |
-| **Conversations** | List for case, persistence after query, turn structure, turn count, user isolation, delete |
-| **Summaries** | Endpoint reachable, response structure, nonexistent case 404, user isolation |
-| **Error Format** | All error responses match the standard envelope |
-
-### Test Execution Order
-
-Tests run in numbered order, with state flowing between them via session-scoped fixtures:
-
-```
-test_01_auth.py           -> JWT rejection cases
-test_02_health.py         -> MongoDB + Chroma connectivity
-test_03_cases.py          -> Create case (stores case_id)
-test_04_files.py          -> Upload PDF (stores file_id)
-test_05_documents.py      -> Ingest file into case
-test_06_query.py          -> Query case (stores conversation_id)
-test_07_conversations.py  -> Read + manage conversations
-test_08_summaries.py      -> Read generated summary
-test_09_cleanup.py        -> Delete test case
-test_10_error_format.py   -> Validate error envelopes
-```
-
-## Streamlit Testing UI
-
-A Streamlit application is included for manually testing all API endpoints through a web interface.
-
-### Running with Docker
-
-```bash
-docker compose --profile testing up -d
-# Open http://localhost:8501
-```
-
-### Running Locally
-
-```bash
-cd streamlit_app
 pip install -r requirements.txt
-streamlit run app.py
+
+# Run unit tests only (fast, no LLM calls)
+pytest -m unit -v
+
+# Run integration tests (requires all services running)
+pytest -m integration -v
+
+# Run the full suite
+pytest -v
+
+# Skip expensive LLM-eval tests
+pytest -m "not expensive and not llm_eval" -v
+
+# Run a specific subsystem
+pytest tests/supervisor/ -v
+pytest tests/rag/ -v
+pytest tests/summarizer/ -v
+
+# Run with parallel workers
+pytest -n auto -m unit
 ```
 
-### Features
+### Key Quality Thresholds
 
-The Streamlit app provides pages for each API area:
-- **Health** -- Check API and database status
-- **Cases** -- Create, list, update, and delete cases
-- **Files** -- Upload files to cases
-- **Documents** -- Trigger document ingestion
-- **Query** -- Send queries and view SSE stream in real-time
-- **Conversations** -- Browse conversation history
-- **Summaries** -- View generated summaries
+| Metric | Threshold | Test |
+|---|---|---|
+| Supervisor routing accuracy | ≥ 85% | `test_routing_accuracy.py` |
+| RAGAS faithfulness | ≥ 0.80 | `test_rag_quality.py` |
+| RAGAS context recall | ≥ 0.75 | `test_rag_quality.py` |
+| Answer consistency (multi-turn) | ≥ 0.80 | `test_answer_consistency.py` |
+| Cache speedup | ≥ 2× | `test_cache_speedup.py` |
+| Memory peak (summarizer) | ≤ 500 MB | `test_memory_leak.py` |
+| Memory growth ratio | ≤ 1.2× | `test_memory_leak.py` |
+| Ingestion pipeline runtime | ≤ 120s | `test_ingestion_pipeline.py` |
 
-The sidebar lets you configure the API base URL, JWT secret, and user ID. JWT tokens are auto-generated.
+### Test Structure
+
+```
+tests/
+  supervisor/
+    unit/           — state reducers, router functions, node logic
+    integration/    — full supervisor turns with real LLM + MongoDB
+    behavioral/     — multi-turn conversation, intent routing accuracy
+    performance/    — memory profiling, throughput
+    e2e/            — 3-turn conversation, history trimming, retry count reset
+  rag/
+    unit/           — corpus config, cache, validation logic
+    integration/    — retrieval quality, filter application
+    behavioral/     — routing accuracy, boundary cases
+    performance/    — cache speedup, vectorstore load
+  summarizer/
+    unit/           — bullet extraction, aggregation, disambiguation
+    integration/    — full 7-node pipeline
+    behavioral/     — party classification, theme coverage
+    performance/    — memory under load
+    llm_eval/       — LLM-as-judge quality scoring (EV-01 to EV-08)
+  case_reasoner/
+    unit/           — issue extraction, evidence classification
+    integration/    — per-issue branch, consistency check
+    llm_eval/       — CR-EV-01 to CR-EV-12 quality dimensions
+```
+
+---
 
 ## Project Structure
 
 ```
-Judge-Assistant/
-  config/                         # Centralized configuration
-    __init__.py                   #   AppConfig singleton, get_llm() factory
-    settings.yaml                 #   YAML defaults (committed)
-    settings.local.yaml           #   Local overrides (gitignored)
-    api.py                        #   FastAPI Pydantic Settings class
-    ocr.py                        #   OCR pipeline constants
-    supervisor.py                 #   Supervisor agent constants
-    rag.py                        #   RAG constants + default state template
-
-  api/                            # FastAPI application
-    app.py                        #   Application factory, lifespan, error handlers
-    config.py                     #   Shim -> config/api.py
-    dependencies.py               #   Dependency injection (auth, DB, settings)
-    errors.py                     #   Error code constants
-    routers/                      #   Route handlers
-      cases.py                    #     CRUD for cases
-      files.py                    #     File upload
-      documents.py                #     Document ingestion
-      query.py                    #     Supervisor query (SSE)
-      conversations.py            #     Conversation history
-      summaries.py                #     Case summaries
-      health.py                   #     Health check
-    schemas/                      #   Pydantic request/response models
-    services/                     #   Business logic layer
-      auth.py                     #     JWT validation
-      case_service.py             #     Case CRUD operations
-      file_service.py             #     File storage
-      document_service.py         #     Document processing
-      query_service.py            #     Supervisor graph invocation
-      conversation_service.py     #     Conversation management
-      summary_service.py          #     Summary generation
-    db/                           #   Database layer
-      mongodb.py                  #     Motor async MongoDB client
-      collections.py              #     Collection name constants
-    tests/                        #   Integration test suite
-
-  Supervisor/                     # Multi-agent supervisor (LangGraph)
-    graph.py                      #   LangGraph state machine definition
-    main.py                       #   Standalone entry point
-    state.py                      #   SupervisorState TypedDict
-    prompts.py                    #   LLM prompt templates
-    config.py                     #   Shim -> config/supervisor.py
-    agents/                       #   Agent adapters
-      ocr_adapter.py              #     OCR pipeline adapter
-      civil_law_rag_adapter.py    #     Civil law RAG adapter
-      case_doc_rag_adapter.py     #     Case document RAG adapter
-      case_reasoner_adapter.py    #     Legal reasoning adapter
-      summarize_adapter.py        #     Summarization adapter
-    nodes/                        #   Graph node functions
-      classify_intent.py          #     Intent classification
-      dispatch_agents.py          #     Agent dispatch
-      merge_responses.py          #     Response merging
-      validate_output.py          #     Output validation
-      update_memory.py            #     Conversation memory
-      classify_and_store_document.py  # Document classification + storage
-      off_topic.py                #     Off-topic handling
-      fallback.py                 #     Fallback responses
-    services/
-      file_ingestor.py            #   File type detection + ingestion
-
-  OCR/                            # Arabic OCR pipeline
-    engine.py                     #   Surya OCR engine wrapper
-    preprocessor.py               #   Image preprocessing (deskew, denoise, etc.)
-    postprocessor.py              #   Text post-processing (dictionary correction)
-    ocr_pipeline.py               #   Full pipeline orchestration
-    utils.py                      #   Utility functions
-    schemas.py                    #   OCR data models
-    config.py                     #   Shim -> config/ocr.py
-    dictionaries/
-      legal_arabic.txt            #   Arabic legal dictionary for correction
-
-  RAG/                            # Retrieval-Augmented Generation
-    Civil Law RAG/                #   Egyptian civil law RAG
-      graph.py                    #     LangGraph RAG workflow
-      nodes.py                    #     RAG node functions
-      vectorstore.py              #     ChromaDB vector store
-      indexer.py                  #     Document indexing
-      splitter.py                 #     Legal text splitter
-      prompts.py                  #     RAG prompt templates
-      routers.py                  #     Graph routing logic
-      config.py                   #     Shim -> config/rag.py
-      docs/
-        civil_law_clean.txt       #     Egyptian civil law text
-    Case Doc RAG/                 #   Case document RAG
-      rag_docs.py                 #     Document Q&A
-      document_classifier.py      #     Document type classification
-
-  Case Reasoner/                  #   Legal case reasoning
-    case_reasoner.py              #     Reasoning agent
-
-  Summerize/                      #   Document summarization pipeline
-    main.py                       #     Pipeline entry point
-    graph.py                      #     LangGraph summarization workflow
-    schemas.py                    #     Data models
-    node_0.py - node_5.py         #     Pipeline stages
-
-  streamlit_app/                  #   Streamlit testing UI
-    app.py                        #     Main app + sidebar config
-    Dockerfile                    #     Container definition
-    requirements.txt              #     Streamlit dependencies
-    pages/                        #     One page per API area
-    utils/
-      api_client.py               #     HTTP client + JWT generation
-      display.py                  #     Display helpers
-
-  Dockerfile                      # API container definition
-  docker-compose.yml              # Full stack orchestration
-  requirements.txt                # Python dependencies
-  Makefile                        # Convenience commands
-  .env.example                    # Environment variable template
-  .dockerignore                   # Docker build context exclusions
-  CONFIG.md                       # Configuration system documentation
-  docs/
-    API_HANDOFF.md                # Express team integration guide
+Code/
+├── api/                          # FastAPI application
+│   ├── app.py                    #   create_app() factory, lifespan, DB init
+│   ├── dependencies.py           #   JWT auth, DB, settings injection
+│   ├── errors.py                 #   error code constants
+│   ├── routers/                  #   route handlers
+│   │   ├── cases.py
+│   │   ├── files.py
+│   │   ├── documents.py
+│   │   ├── query.py              #   SSE streaming endpoint
+│   │   ├── conversations.py
+│   │   ├── summaries.py
+│   │   ├── reports.py            #   async report generation
+│   │   └── health.py
+│   ├── schemas/                  #   Pydantic request/response models
+│   ├── services/                 #   business logic
+│   │   ├── query_service.py      #   supervisor graph invocation
+│   │   ├── report_service.py     #   background report job
+│   │   └── ...
+│   └── db/                       #   Motor/Qdrant/Redis/MinIO/PostgreSQL clients
+│
+├── Supervisor/                   # Multi-agent supervisor
+│   ├── graph.py                  #   15-node LangGraph StateGraph
+│   ├── state.py                  #   SupervisorState TypedDict + Pydantic schemas
+│   ├── prompts.py                #   LLM prompt templates
+│   ├── agents/                   #   adapter registry + all adapters
+│   │   ├── civil_law_rag_adapter.py
+│   │   ├── case_doc_rag_adapter.py
+│   │   ├── chat_reasoner_adapter.py
+│   │   ├── summarize_adapter.py
+│   │   └── ocr_adapter.py
+│   └── nodes/                    #   one file per graph node
+│       ├── classify_intent.py
+│       ├── dispatch_agents.py
+│       ├── merge_responses.py
+│       ├── validate_output.py
+│       ├── update_memory.py
+│       ├── load_long_term_memory.py
+│       ├── write_long_term_memory.py
+│       ├── summarize_history.py
+│       ├── audit_log.py
+│       ├── enrich_context.py
+│       ├── verify_citations.py
+│       ├── prepare_retry.py
+│       ├── fallback.py
+│       ├── off_topic.py
+│       └── validate_input.py
+│
+├── mcp_servers/                  # MCP subprocess servers
+│   ├── lifecycle.py              #   start_mcp_servers(), get_client()
+│   ├── client.py                 #   MCPClient (JSON-RPC 2.0 / stdio)
+│   ├── legal_rag_server.py       #   FastMCP: search_legal_corpus
+│   ├── case_doc_server.py        #   FastMCP: search_case_docs
+│   └── errors.py                 #   ErrorCode enum, ToolError
+│
+├── RAG/
+│   ├── legal_rag/                # Unified multi-corpus civil law RAG
+│   │   ├── graph.py              #   11-node LangGraph (corpus-agnostic)
+│   │   ├── service.py            #   ask_question() public entry point
+│   │   ├── corpus_config.py      #   CorpusConfig frozen dataclass
+│   │   ├── cache.py              #   SemanticCache
+│   │   ├── state.py
+│   │   ├── nodes/                #   corpus_router, preprocessor, scope_classifier, etc.
+│   │   ├── retrieval/            #   embeddings.py, vectorstore.py, reranker.py
+│   │   ├── civil_law_rag/        #   CIVIL_LAW_CORPUS config + docs
+│   │   ├── evidence_rag/         #   EVIDENCE_CORPUS config + docs
+│   │   └── procedures_rag/       #   PROCEDURES_CORPUS config + docs
+│   └── case_doc_rag/             # Per-case document RAG
+│       ├── graph.py              #   main graph + branch sub-graph
+│       ├── routers.py            #   branchDocSelectorRouter, proceedRouter
+│       ├── state.py              #   AgentState, SubQuestionState
+│       └── nodes/                #   query, selection, retrieval, generation nodes
+│
+├── summarize/                    # 7-node summarization pipeline
+│   ├── graph.py                  #   create_pipeline(), sequential + ThreadPoolExecutor
+│   ├── state.py                  #   SummarizationState, disambiguate_defendants()
+│   └── nodes/                    #   intake, classifier, extractor, aggregator,
+│                                 #   clustering, synthesis, brief
+│
+├── chat_reasoner/                # Adaptive planner-executor
+│   ├── graph.py                  #   build_chat_reasoner_graph()
+│   ├── state.py                  #   ChatReasonerState, ALLOWED_TOOLS, Pydantic schemas
+│   ├── tools.py                  #   tool implementations
+│   ├── prompts.py
+│   └── nodes/                    #   planner, plan_validator, executor, step_worker,
+│                                 #   collector, synthesizer, replanner, trace_writer
+│
+├── CR/                           # Case Reasoner
+│   ├── graph.py                  #   build_case_reasoner_graph(), build_issue_branch()
+│   ├── pipeline.py               #   run_case_reasoning() public entry, CaseReasoningResult
+│   ├── state.py                  #   CaseReasonerState, IssueAnalysisState
+│   ├── routers.py
+│   └── nodes/                    #   extraction, decomposition, retrieval, evidence,
+│                                 #   application, counterargument, validation, package,
+│                                 #   aggregation, consistency, confidence, report
+│
+├── DocumentProcessor/            # Document processing subsystem
+│   ├── pipeline.py               #   top-level orchestration
+│   ├── classifier.py             #   document type classifier
+│   └── OCR/                      #   QARI OCR pipeline
+│       ├── ocr_pipeline.py       #     run_ocr() — main orchestrator
+│       ├── ocr_engine.py         #     QARIEngine (Qwen2VL, 8-bit quantized, singleton)
+│       ├── ingestion.py          #     PDF→PIL pages (400 DPI) + image loading + validation
+│       ├── restoration.py        #     CLAHE contrast normalization on LAB L-channel
+│       ├── perspective_correction.py  # Canny edge-contour + adaptive-threshold dewarp
+│       ├── text_reconstruction.py     # normalize_numerals() — Arabic-Indic digit conversion
+│       ├── confidence.py         #     page-level + per-word token probability scoring
+│       └── models.py             #     OCRPageResult, OCRDocumentResult (Pydantic)
+│
+├── config/                       # Centralized configuration
+│   ├── settings.yaml             #   committed defaults
+│   ├── __init__.py               #   AppConfig singleton, get_llm() factory
+│   ├── api.py                    #   FastAPI Settings (Pydantic)
+│   ├── supervisor.py             #   supervisor constants
+│   └── legal_rag.py              #   RAG constants
+│
+├── tests/                        # Full test suite
+│   ├── supervisor/
+│   ├── rag/
+│   ├── summarizer/
+│   └── case_reasoner/
+│
+├── docs/                         # Documentation
+│   ├── ARCHITECTURE.md
+│   ├── AGENTS.md
+│   ├── API.md
+│   ├── DATABASE.md
+│   ├── SETUP.md
+│   ├── TESTING.md
+│   ├── DECISIONS.md
+│   ├── TROUBLESHOOTING.md
+│   └── diagrams/                 # Mermaid diagrams
+│       ├── architecture.mmd
+│       ├── supervisor.mmd
+│       ├── rag.mmd
+│       ├── summarizer.mmd
+│       ├── chat_reasoner.mmd
+│       ├── case_reasoner.mmd
+│       ├── sequences/            # 9 sequence diagrams
+│       └── activity/             # 11 activity/flow diagrams
+│
+├── Methodology.md                # Academic methodology document
+├── requirements.txt
+└── config/settings.yaml          # Default configuration
 ```
+
+---
+
+## Diagrams
+
+Mermaid diagrams are in `docs/diagrams/`:
+
+| File | Type | Shows |
+|---|---|---|
+| `architecture.mmd` | `graph TD` | Full system: FastAPI → Supervisor → agents → MCP → infra |
+| `supervisor.mmd` | `classDiagram` | SupervisorState, IntentEnum, ValidationResult, adapters |
+| `rag.mmd` | `classDiagram` | LegalRAGGraph, CaseDocRAGGraph, MCPClient, both servers |
+| `summarizer.mmd` | `classDiagram` | SummarizationState, 4 enums, SummarizationGraph |
+| `chat_reasoner.mmd` | `classDiagram` | ChatReasonerState, Plan/PlanStep/ToolEnum hierarchy |
+| `case_reasoner.mmd` | `classDiagram` | CaseReasonerState, IssueAnalysisState, branch + pipeline |
+| `sequences/query_lifecycle.mmd` | `sequenceDiagram` | Full turn: POST /query → SSE → audit_log |
+| `sequences/chat_reasoner_flow.mmd` | `sequenceDiagram` | planner → fan-out → synthesizer/replan loop |
+| `sequences/legal_rag_routing.mmd` | `sequenceDiagram` | corpus_router → scope → embed → rerank → grade → cache |
+| `sequences/case_doc_rag_flow.mmd` | `sequenceDiagram` | questionRewriter → parallel branches → mergeAnswers |
+| `sequences/memory_lifecycle.mmd` | `sequenceDiagram` | load LTM → turn → summarize_history → write LTM |
+| `sequences/report_generation.mmd` | `sequenceDiagram` | 202 → background task → poll |
+| `activity/intent_routing.mmd` | `flowchart TD` | validate → classify → 5-way intent dispatch |
+| `activity/validation_retry.mmd` | `flowchart TD` | 4-criteria check, partial_pass caveat, retry loop |
+| `activity/case_doc_rag_branch.mmd` | `flowchart TD` | 3 branch modes, rephrase loop |
+| `activity/legal_rag_retrieval.mmd` | `flowchart TD` | cache hit/miss, HyDE, rule/LLM grader |
+| `activity/summarization_activity.mmd` | `flowchart TD` | 7 nodes, ThreadPoolExecutor, disambiguate |
+| `activity/chat_reasoner_activity.mmd` | `flowchart TD` | plan → validate → parallel execute → synthesize/replan |
+| `activity/case_reasoner_activity.mmd` | `flowchart TD` | issue fan-out, consistency check, confidence |
+| `activity/document_ingestion_activity.mmd` | `flowchart TD` | MIME/size gates, OCR tiers, embed → Qdrant |
+| `activity/report_generation_activity.mmd` | `flowchart TD` | Background task + polling loop |
+
+---
 
 ## Troubleshooting
 
-### "Connection refused" when calling the API
+### MCP server fails to start / handshake timeout
 
-Make sure the services are running:
+The first spawn of `legal_rag_server` or `case_doc_server` can take 2–10 minutes on a cold start because it downloads and warms up the BAAI/bge-m3 model and the reranker. The handshake timeout is 600s by default. Check subprocess stderr (it inherits the parent's stderr) for progress logs.
+
 ```bash
-docker compose ps
-```
-If the API container is restarting, check logs:
-```bash
-make logs
-# or: docker compose logs api
+# Confirm TEI services are reachable
+curl http://localhost:8080/health
+curl http://localhost:8081/health
 ```
 
-### API starts but health check fails on Chroma
+### Qdrant connection refused
 
-On first run, the ChromaDB directory may not exist. The API creates it automatically, but if you see errors, ensure the `chroma_data/` directory is writable:
+Qdrant must be running before the API starts. The API's lifespan hooks call `ensure_indexed()` at startup.
+
 ```bash
-mkdir -p chroma_data uploads
+docker run -d -p 6333:6333 -p 6334:6334 qdrant/qdrant
 ```
 
-### Embedding model download is slow
+### MongoDB ObjectId serialization errors
 
-The BGE-M3 embedding model (~400MB) is downloaded on first query. The Docker setup caches it in a named volume (`huggingface_cache`), so subsequent starts are fast. For local dev, models are cached in `~/.cache/huggingface/`.
+Ensure Motor is version 3.x and that `bson` is installed from the `pymongo` package, not the standalone `bson` package (they conflict).
 
-### "GROQ_API_KEY not set" or LLM errors
+### OCR confidence always low or CUDA OOM
 
-Make sure your `.env` file has valid API keys:
-```bash
-cat .env | grep -E "GROQ|GOOGLE"
-```
-The high and medium tiers default to Groq; the low tier defaults to Google. You need at least the keys for the providers you're using.
+The OCR engine is QARI (`NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct`), a Qwen2VL vision-language model loaded in 8-bit quantization. It requires a CUDA GPU — CPU inference works but is extremely slow.
 
-### MongoDB authentication errors
+- **CUDA OOM:** the engine catches `torch.cuda.OutOfMemoryError`, flushes the cache, and returns an error entry for that page. Reduce `max_new_tokens` (default 4000) or switch to 4-bit quantization by passing `config={"quantization": "4bit"}` to `run_ocr()`.
+- **Low confidence:** confidence is computed from token softmax probabilities. Blurry or low-contrast images produce lower scores. The pipeline applies CLAHE contrast normalization automatically, but very degraded scans may still score low.
+- **Perspective correction skipped:** if the Canny edge-contour detector and the adaptive-threshold fallback both fail to find a valid page quad — or the safety guards reject the detected quad (output too small, crop ratio < 0.65, area < 35% of original) — the original image is passed through unchanged. Check logs for "Safety guard triggered" or "No page boundary detected".
+- **PDF DPI:** PDFs are rendered at 400 DPI by default. If images are too large for GPU VRAM, lower `pdf_dpi` in config.
+- **No dictionary correction:** the OCR prompt instructs the model to transcribe exactly as written. Spelling normalization is intentionally absent — do not expect it.
 
-The default Docker setup uses MongoDB without authentication. If you're connecting to an authenticated MongoDB instance, set the full URI:
-```bash
-JA_MONGODB_URI=mongodb://user:password@host:27017/dbname?authSource=admin
-```
+### `validator_error` in every response
 
-### Tests fail with "MongoDB not connected"
+This usually means the low-tier LLM (`gemini-2.5-flash-lite`) is rate-limited or the `GOOGLE_API_KEY` is missing. Check logs for the specific LLM exception message.
 
-Make sure MongoDB is running and accessible. For Docker:
-```bash
-docker compose up -d mongo
-```
-For local dev, check that `mongod` is running on port 27017.
+### History grows without bound
 
-### OCR produces poor results
+The `summarize_history` node fires only when `messages_since_last_summary > threshold`. Check `config/supervisor.py` for the `MAX_CONVERSATION_TURNS` constant. If conversations use the non-persistent graph (`get_app()`), history is not checkpointed between API calls — pass `conversation_id` on every request to use the persistent graph.
 
-- Ensure input images are at least 150 DPI (configurable via `JA_OCR_PREPROCESSING_MIN_DPI`)
-- The OCR pipeline is optimized for Arabic legal documents
-- GPU acceleration can be enabled with `JA_OCR_USE_GPU=true` (requires CUDA)
+### Redis connection errors (non-fatal)
 
-## Contributing
+Redis is used for optional caching and rate limiting. If Redis is unavailable, the API continues to function without caching. Errors are logged at WARNING level.
 
-1. Create a feature branch from `main`
-2. Make your changes
-3. Run the test suite: `cd api && python -m pytest tests/ -v`
-4. Submit a pull request
+---
 
-Follow conventional commit messages (`feat:`, `fix:`, `docs:`, etc.).
+## Documentation Index
+
+| Document | Location | Contents |
+|---|---|---|
+| Architecture | `docs/ARCHITECTURE.md` | Full graph diagrams, ADR pointers, component design |
+| Agents | `docs/AGENTS.md` | All 5 agents: triggers, schemas, retrieval strategies |
+| API Reference | `docs/API.md` | All endpoints, request/response schemas, SSE guide |
+| Database | `docs/DATABASE.md` | MongoDB collections, Qdrant indexes, Redis, MinIO, PostgreSQL |
+| Setup | `docs/SETUP.md` | Full env var reference, Docker Compose, local dev |
+| Testing | `docs/TESTING.md` | Test suite structure, markers, writing new tests, CI/CD |
+| Decisions | `docs/DECISIONS.md` | 7 Architecture Decision Records with rationale |
+| Troubleshooting | `docs/TROUBLESHOOTING.md` | 10 known issues with fixes and debugging guide |
+| Methodology | `Methodology.md` | Academic system methodology (Arabic) |
+| Configuration | `config/settings.yaml` | Annotated default configuration |

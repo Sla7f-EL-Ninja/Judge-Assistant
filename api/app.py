@@ -10,7 +10,8 @@ structured error handlers, and all routers mounted.
 import logging
 import os
 from contextlib import asynccontextmanager
-
+import time
+import uuid
 import structlog
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -22,8 +23,12 @@ from api.db.mongodb import close_mongo, connect_mongo
 from api.db.qdrant import close_qdrant, connect_qdrant
 from api.db.redis import close_redis, connect_redis
 from api.db.minio_client import close_minio, connect_minio
-from api.db.postgres import close_postgres, connect_postgres
-from api.errors import INTERNAL_ERROR, UNAUTHORIZED, VALIDATION_ERROR
+from api.errors import (
+    INTERNAL_ERROR, UNAUTHORIZED, VALIDATION_ERROR,
+    NOT_FOUND, CASE_NOT_FOUND, CONVERSATION_NOT_FOUND, FILE_NOT_FOUND,
+    SUMMARY_NOT_FOUND, DOCUMENT_NOT_FOUND, CASE_REASONING_NOT_FOUND,
+    REPORT_NOT_FOUND, INVALID_MIME_TYPE, FILE_TOO_LARGE, NO_FIELDS_TO_UPDATE,
+)
 from api.schemas.common import ErrorDetail, ErrorEnvelope
 
 
@@ -150,20 +155,42 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("MinIO connection failed (non-fatal, using local disk): %s", exc)
 
-    # -- PostgreSQL (optional -- user management disabled if unavailable) ------
-    try:
-        logger.info("Connecting to PostgreSQL ...")
-        await connect_postgres(settings)
-        logger.info("PostgreSQL connected")
-    except Exception as exc:
-        logger.warning("PostgreSQL connection failed (non-fatal, user management disabled): %s", exc)
-
     # -- Civil Law RAG: ensure corpus is indexed (fast no-op if already present)
     try:
         from RAG.civil_law_rag.indexing.indexer import ensure_civil_law_indexed
         ensure_civil_law_indexed()
     except Exception as exc:
         logger.warning("Civil Law RAG indexing check failed (non-fatal): %s", exc)
+
+    # -- BGE-M3 warm-up (single load, GPU) ------------------------------------
+    # _get_vectorstore() loads BGE-M3 onto cuda:0 once. We then expose the
+    # loaded embeddings object over HTTP on :8080 so the two MCP child
+    # processes (legal_rag_server, case_doc_server) can call it instead of
+    # each loading their own copy of the model.
+    try:
+        import asyncio
+        from DocumentProcessor.pipeline import _get_vectorstore
+        logger.info("Warming up BGE-M3 embedding model and Qdrant vectorstore ...")
+        vs = await asyncio.get_event_loop().run_in_executor(None, _get_vectorstore)
+        logger.info("BGE-M3 + Qdrant vectorstore ready")
+
+        from api.embedding_server import start_embedding_server
+        start_embedding_server(vs.embeddings, port=8080)
+        logger.info("Local TEI-compatible embedding server ready on :8080")
+    except Exception as exc:
+        logger.warning("Vectorstore warm-up failed (non-fatal): %s", exc)
+
+    # -- MCP servers (legal_rag + case_doc_rag) --------------------------------
+    # Children probe :8080 first; since it's now up they skip their own model
+    # load entirely — startup is ~20s faster and uses no extra VRAM/RAM.
+    try:
+        import asyncio
+        from mcp_servers.lifecycle import start_mcp_servers
+        logger.info("Spawning MCP child processes (legal_rag, case_doc_rag) ...")
+        await asyncio.get_event_loop().run_in_executor(None, start_mcp_servers)
+        logger.info("MCP servers ready")
+    except Exception as exc:
+        logger.warning("MCP server startup failed (non-fatal): %s", exc)
 
     yield
 
@@ -173,8 +200,18 @@ async def lifespan(app: FastAPI):
     close_qdrant()
     await close_redis()
     close_minio()
-    await close_postgres()
 
+    # -- Shutdown MCP child processes -----------------------------------------
+    try:
+        from mcp_servers.lifecycle import get_client
+        for name in ("legal_rag", "case_doc_rag"):
+            try:
+                get_client(name).shutdown()
+            except Exception:
+                pass
+        logger.info("MCP servers shut down")
+    except Exception as exc:
+        logger.warning("MCP shutdown error (non-fatal): %s", exc)
 
 # -- OpenAPI tag descriptions -------------------------------------------------
 OPENAPI_TAGS = [
@@ -205,6 +242,18 @@ OPENAPI_TAGS = [
     {
         "name": "Summaries",
         "description": "Retrieve auto-generated case summaries produced by the summarization agent.",
+    },
+    {
+        "name": "CaseReasoning",
+        "description": "Retrieve persisted case reasoning results produced by the Case Reasoner.",
+    },
+    {
+        "name": "Reports",
+        "description": "Async report generation: runs summarizer + case reasoner, returns job ID for polling.",
+    },
+    {
+        "name": "LegalSearch",
+        "description": "Direct legal corpus search without invoking the supervisor graph.",
     },
 ]
 
@@ -256,7 +305,7 @@ def create_app() -> FastAPI:
         logger.warning("Prometheus instrumentation failed (non-fatal): %s", exc)
 
     # -- Auth middleware (runs before body parsing so 401 always beats 422) ---
-    _PUBLIC_PATHS = {"/api/v1/health", "/health", "/docs", "/openapi.json", "/redoc"}
+    _PUBLIC_PATHS = {"/api/v1/health", "/health", "/api/v1/ready", "/docs", "/openapi.json", "/redoc", "/metrics"}
 
     @app.middleware("http")
     async def auth_middleware(request: Request, call_next):
@@ -276,36 +325,51 @@ def create_app() -> FastAPI:
                 content=envelope.model_dump(),
             )
         return await call_next(request)
+    
 
     # -- Error handlers -------------------------------------------------------
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
-        code = UNAUTHORIZED if exc.status_code == 401 else INTERNAL_ERROR
-        # Try to infer a better error code from the detail text
-        detail_lower = (exc.detail or "").lower() if isinstance(exc.detail, str) else ""
-        if "not found" in detail_lower:
-            if "case" in detail_lower:
-                code = "CASE_NOT_FOUND"
-            elif "conversation" in detail_lower:
-                code = "CONVERSATION_NOT_FOUND"
-            elif "file" in detail_lower:
-                code = "FILE_NOT_FOUND"
-            elif "summary" in detail_lower:
-                code = "SUMMARY_NOT_FOUND"
-            else:
-                code = "NOT_FOUND"  # generic not-found fallback
-        elif "not allowed" in detail_lower or "mime" in detail_lower:
-            code = "INVALID_MIME_TYPE"
-        elif "exceeds" in detail_lower or "too large" in detail_lower:
-            code = "FILE_TOO_LARGE"
-        elif "no fields" in detail_lower:
-            code = "NO_FIELDS_TO_UPDATE"
-        elif exc.status_code == 422:
-            code = VALIDATION_ERROR
-        elif exc.status_code == 400:
-            code = VALIDATION_ERROR
+        # Prefer structured detail: {"code": "...", "message": "..."}
+        if isinstance(exc.detail, dict) and "code" in exc.detail:
+            code = exc.detail["code"]
+            detail_str = exc.detail.get("message", str(exc.detail))
+            return _error_response(exc.status_code, code, detail_str)
 
+        # Legacy string detail — infer code from status + text
         detail_str = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+        detail_lower = detail_str.lower()
+
+        if exc.status_code == 401:
+            code = UNAUTHORIZED
+        elif "not found" in detail_lower:
+            if "case" in detail_lower:
+                code = CASE_NOT_FOUND
+            elif "conversation" in detail_lower:
+                code = CONVERSATION_NOT_FOUND
+            elif "file" in detail_lower:
+                code = FILE_NOT_FOUND
+            elif "summary" in detail_lower:
+                code = SUMMARY_NOT_FOUND
+            elif "document" in detail_lower:
+                code = DOCUMENT_NOT_FOUND
+            elif "report" in detail_lower:
+                code = REPORT_NOT_FOUND
+            elif "reasoning" in detail_lower:
+                code = CASE_REASONING_NOT_FOUND
+            else:
+                code = NOT_FOUND
+        elif "not allowed" in detail_lower or "mime" in detail_lower:
+            code = INVALID_MIME_TYPE
+        elif "exceeds" in detail_lower or "too large" in detail_lower:
+            code = FILE_TOO_LARGE
+        elif "no fields" in detail_lower:
+            code = NO_FIELDS_TO_UPDATE
+        elif exc.status_code in (400, 422):
+            code = VALIDATION_ERROR
+        else:
+            code = INTERNAL_ERROR
+
         return _error_response(exc.status_code, code, detail_str)
 
     @app.exception_handler(RequestValidationError)
@@ -346,6 +410,9 @@ def create_app() -> FastAPI:
     from api.routers.health import router as health_router
     from api.routers.query import router as query_router
     from api.routers.summaries import router as summaries_router
+    from api.routers.case_reasoning import router as case_reasoning_router
+    from api.routers.reports import router as reports_router
+    from api.routers.legal_search import router as legal_search_router
 
     app.include_router(health_router)
     app.include_router(query_router)
@@ -354,5 +421,8 @@ def create_app() -> FastAPI:
     app.include_router(documents_router)
     app.include_router(summaries_router)
     app.include_router(conversations_router)
+    app.include_router(case_reasoning_router)
+    app.include_router(reports_router)
+    app.include_router(legal_search_router)
 
     return app

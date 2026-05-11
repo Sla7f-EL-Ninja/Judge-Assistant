@@ -14,10 +14,13 @@ os.environ["LANGCHAIN_TRACING_V2"] = "false"  # prevent LangSmith from hanging s
 
 import json
 import logging
+from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 
 from RAG.legal_rag.civil_law_rag.corpus import CIVIL_LAW_CORPUS
+from RAG.legal_rag.evidence_rag.corpus import EVIDENCE_CORPUS
+from RAG.legal_rag.procedures_rag.corpus import PROCEDURES_CORPUS
 from RAG.legal_rag.errors import (
     GenerationError,
     LLMBudgetExceededError,
@@ -28,7 +31,7 @@ from RAG.legal_rag.errors import (
 from RAG.legal_rag.graph import build_graph
 from RAG.legal_rag.retrieval.embeddings import get_client as _get_embeddings
 from RAG.legal_rag.retrieval.vectorstore import load_vectorstore as _load_vectorstore
-from RAG.legal_rag.retrieval.reranker import _probe_reranker, _get_cross_encoder
+from RAG.legal_rag.retrieval.reranker import _probe_reranker
 from mcp_servers.errors import ErrorCode, raise_tool_error
 from dotenv import load_dotenv
 load_dotenv(override=True)
@@ -39,17 +42,17 @@ mcp = FastMCP("legal-rag-server")
 
 # ---------------------------------------------------------------------------
 # Module-level warmup — forces build_graph() once per corpus at child boot.
-# legal_rag.graph.build_graph already memoises per corpus name; this call just
-# ensures the compiled graph is resident before the first tool call.
 # ---------------------------------------------------------------------------
 
-_REGISTERED_CORPORA = [CIVIL_LAW_CORPUS]
+_REGISTERED_CORPORA = [CIVIL_LAW_CORPUS, EVIDENCE_CORPUS, PROCEDURES_CORPUS]
 _CORPUS_MAP = {}
 
 for _c in _REGISTERED_CORPORA:
     _CORPUS_MAP[_c.name] = _c
-    build_graph(_c)
-    logger.info("Warmed legal_rag graph: corpus=%s", _c.name)
+
+# Call build_graph once (it's a singleton now)
+build_graph()
+logger.info("Warmed unified legal_rag graph")
 
 _get_embeddings()
 logger.info("Embedding client ready")
@@ -59,7 +62,6 @@ for _c in _REGISTERED_CORPORA:
     logger.info("Warmed vectorstore: corpus=%s", _c.name)
 
 _probe_reranker()
-_get_cross_encoder()
 logger.info("Reranker ready")
 
 _SERVICE_ERROR_PREFIXES = ("حدث خطأ", "تعذّر", "تعذر", "لم يتمكن", "خطأ في")
@@ -69,7 +71,15 @@ _SERVICE_ERROR_PREFIXES = ("حدث خطأ", "تعذّر", "تعذر", "لم يت
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-async def search_legal_corpus(query: str, corpus: str) -> str:
+async def search_legal_corpus(
+    query: str,
+    corpus: str,
+    # FIX-1: scope_fallback is injected by executor on retry attempts.
+    #   None          → normal two-stage scoping (first attempt)
+    #   "section"     → skip section classification, filter by chapter only
+    #   "chapter"     → skip all scoping, full corpus search
+    scope_fallback: Optional[str] = None,
+) -> str:
     """Search a legal corpus and return a structured JSON answer."""
     import anyio
 
@@ -80,10 +90,16 @@ async def search_legal_corpus(query: str, corpus: str) -> str:
             f"Unknown corpus '{corpus}'. Valid corpora: {list(_CORPUS_MAP)}",
         )
 
+    if scope_fallback not in (None, "section", "chapter"):
+        raise_tool_error(
+            ErrorCode.INVALID_ARG,
+            f"scope_fallback must be None, 'section', or 'chapter'; got '{scope_fallback}'",
+        )
+
     try:
         from RAG.legal_rag.service import ask_question
         result = await anyio.to_thread.run_sync(
-            lambda: ask_question(query, corpus_config),
+            lambda: ask_question(query, scope_fallback=scope_fallback),
             abandon_on_cancel=True,
         )
     except QueryValidationError as e:
@@ -95,7 +111,7 @@ async def search_legal_corpus(query: str, corpus: str) -> str:
     except LLMBudgetExceededError as e:
         raise_tool_error(ErrorCode.LLM_BUDGET, str(e))
     except LLMTimeoutError as e:
-        raise_tool_error(ErrorCode.LLM_TIMEOUT, str(e))
+        raise_tool_error(ErrorCode.LM_TIMEOUT, str(e))
     except Exception as e:
         raise_tool_error(ErrorCode.INTERNAL, f"Unexpected error: {e}")
 
@@ -109,13 +125,13 @@ async def search_legal_corpus(query: str, corpus: str) -> str:
         )
 
     return json.dumps({
-        "answer": result.answer,
-        "sources": result.sources,
-        "classification": result.classification,
+        "answer":               result.answer,
+        "sources":              result.sources,
+        "classification":       result.classification,
         "retrieval_confidence": result.retrieval_confidence,
-        "citation_integrity": result.citation_integrity,
-        "from_cache": result.from_cache,
-        "corpus": result.corpus,
+        "citation_integrity":   result.citation_integrity,
+        "from_cache":           result.from_cache,
+        "corpus":               result.corpus,
     }, ensure_ascii=False)
 
 

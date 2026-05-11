@@ -13,3 +13,10 @@ graph.png
 .graphify*
 .github/
 CLAUDE.original.md
+/uploads_test
+.json
+web/
+Case Sample/
+db/
+logs/
+.vscode/

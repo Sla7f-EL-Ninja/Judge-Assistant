@@ -47,7 +47,10 @@ async def _ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     Indexes are created with ``background=True`` so they don't block
     other operations on existing collections.
     """
-    from api.db.collections import CASES, CONVERSATIONS, FILES, SUMMARIES, DOCUMENTS
+    from api.db.collections import (
+        CASES, CONVERSATIONS, FILES, SUMMARIES, DOCUMENTS,
+        CASE_REASONINGS, REPORT_JOBS,
+    )
 
     try:
         # Cases: user_id + status (list queries), created_at (sorting)
@@ -68,10 +71,21 @@ async def _ensure_indexes(db: AsyncIOMotorDatabase) -> None:
         # Summaries: case_id (lookup)
         await db[SUMMARIES].create_index("case_id", unique=True, background=True)
 
-        # Documents: case_id (filtered retrieval)
+        # Documents: case_id (filtered retrieval), file_id (OCR join)
         await db[DOCUMENTS].create_index("case_id", background=True)
         await db[DOCUMENTS].create_index(
             [("case_id", 1), ("doc_type", 1)], background=True
+        )
+        await db[DOCUMENTS].create_index(
+            "file_id", sparse=True, background=True
+        )
+
+        # Case reasonings: case_id unique (one result per case)
+        await db[CASE_REASONINGS].create_index("case_id", unique=True, background=True)
+
+        # Report jobs: case_id + created_at (list queries)
+        await db[REPORT_JOBS].create_index(
+            [("case_id", 1), ("created_at", -1)], background=True
         )
 
         logger.info("MongoDB indexes ensured on all collections")

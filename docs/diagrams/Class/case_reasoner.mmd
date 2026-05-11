@@ -1,0 +1,86 @@
+classDiagram
+    class EvidenceClassEnum {
+        <<enumeration>>
+        established
+        not_established
+        disputed
+        insufficient_evidence
+    }
+
+    class IssueAnalysisState {
+        <<state>>
+        +str issue_text
+        +str issue_id
+        +list retrieval_queries
+        +list retrieved_law
+        +list retrieved_facts
+        +list classified_evidence
+        +str legal_analysis
+        +list counterarguments
+        +str validation_result
+        +dict packaged_result
+    }
+
+    class CaseReasonerState {
+        <<state>>
+        +str case_brief
+        +str rendered_brief
+        +str judge_query
+        +str case_id
+        +list issues
+        +list issue_analyses
+        +list cross_issue_relationships
+        +list consistency_conflicts
+        +list reconciliation_paragraphs
+        +dict per_issue_confidence
+        +float case_level_confidence
+        +str final_report
+    }
+
+    class IssueAnalysisBranch {
+        +decompose_issue()
+        +generate_retrieval_queries()
+        +retrieve_law()
+        +retrieve_facts()
+        +classify_evidence()
+        +apply_law()
+        +generate_counterarguments()
+        +validate_analysis()
+        +package_result()
+        +build_graph() StateGraph
+    }
+
+    class CaseReasonerGraph {
+        +extract_issues()
+        +issue_dispatch_router()
+        +aggregate_issues()
+        +check_global_consistency()
+        +compute_confidence()
+        +generate_report()
+        +generate_empty_report()
+        +build_graph() StateGraph
+    }
+
+    class CaseReasoningResult {
+        <<dataclass>>
+        +str final_report
+        +list issue_analyses
+        +list cross_issue_relationships
+        +list consistency_conflicts
+        +list reconciliation_paragraphs
+        +dict per_issue_confidence
+        +float case_level_confidence
+        +bool saved_to_db
+        +str case_id
+    }
+
+    class CaseReasoningPipeline {
+        +run_case_reasoning(case_brief, rendered_brief, judge_query, case_id, save_to_db, llm) CaseReasoningResult
+    }
+
+    CaseReasonerGraph --> CaseReasonerState : manages
+    CaseReasonerGraph --> IssueAnalysisBranch : fan-out per issue
+    IssueAnalysisBranch --> IssueAnalysisState : manages
+    IssueAnalysisState --> EvidenceClassEnum : classifies evidence
+    CaseReasoningPipeline --> CaseReasonerGraph : invokes
+    CaseReasoningPipeline --> CaseReasoningResult : returns

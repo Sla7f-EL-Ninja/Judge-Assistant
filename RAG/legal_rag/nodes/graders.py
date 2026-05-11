@@ -107,20 +107,29 @@ def llm_grader_node(state: dict) -> dict:
         for d in docs
     )
 
-    prompt   = LLM_GRADER_PROMPT.format(law_name=law_name, query=query, docs=docs_text)
-    response = _get_llm().invoke(prompt, config={"timeout": LLM_TIMEOUT})
+    prompt = LLM_GRADER_PROMPT.format(law_name=law_name, query=query, docs=docs_text)
+    
+    # Increment count BEFORE the call so it registers even if the LLM times out
     state["llm_call_count"] = state.get("llm_call_count", 0) + 1
 
     try:
+        # The LLM network call is now safely inside the try block
+        response = _get_llm().invoke(prompt, config={"timeout": LLM_TIMEOUT})
+        
         result                  = json.loads(_strip_code_fences(response.content))
         state["llm_pass"]       = result["pass"]
         state["failure_reason"] = result.get("reason", "")
         log_event(logger, "llm_grader",
                   llm_pass=state["llm_pass"], reason=state["failure_reason"])
+                  
     except Exception as exc:
+        # Catches both LLM invoke errors (like timeouts) and JSON parsing errors
         state["llm_pass"]       = False
-        state["failure_reason"] = "فشل تحليل المستندات بسبب خطأ في تنسيق الرد."
+        state["failure_reason"] = "حدث خطأ أثناء تقييم المستندات أو انتهت مهلة الاتصال."
+        
+        # Safely log the error. We use getattr in case response isn't defined yet
+        raw_resp = getattr(exc, "response", "") 
         log_event(logger, "llm_grader_error",
-                  error=str(exc), raw=response.content[:300], level=logging.WARNING)
+                  error=str(exc), raw=str(raw_resp)[:300], level=logging.WARNING)
 
     return state

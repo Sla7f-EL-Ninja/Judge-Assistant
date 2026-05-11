@@ -2,7 +2,6 @@
 summaries.py
 
 Summary endpoints:
-
   GET  /api/v1/cases/{case_id}/summary          — retrieve stored summary
   POST /api/v1/cases/{case_id}/summary/generate — run pipeline and save summary
 """
@@ -15,8 +14,9 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from api.dependencies import get_current_user, get_db
 from api.schemas.common import ErrorEnvelope
-from api.schemas.summaries import GenerateSummaryResponse, SummaryResponse
+from api.schemas.summaries import GenerateSummaryResponse, SummaryResponse, CaseBriefResponse
 from api.services import case_service, summary_service
+from api.errors import CASE_NOT_FOUND, SUMMARY_NOT_FOUND
 from api.db.collections import DOCUMENTS
 from summarize.pipeline import run_summarization, SummarizationResult
 
@@ -96,34 +96,38 @@ async def generate_summary(
     case = await case_service.get_case(db, case_id, user_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
-
-    # 2. Fetch this case's documents from MongoDB
-    documents = await db[DOCUMENTS].find(
+ 
+    # 2. Fetch and MAP this case's documents from MongoDB [FIXED]
+    raw_docs = await db[DOCUMENTS].find(
         {"case_id": case_id},
-        {"_id": 0, "doc_id": 1, "raw_text": 1},
+        {"_id": 1, "text": 1},
     ).to_list(length=None)
 
-    if not documents:
+    if not raw_docs:
         raise HTTPException(
             status_code=404,
             detail="No documents found for this case. Upload documents before generating a summary.",
         )
 
-    # 3. Run the pipeline in a thread (CPU/IO-bound — must not block the event loop)
-    #    save_to_db=False here because the async save_summary below handles persistence
-    #    with the already-open Motor connection, which is more efficient.
+    # Convert the database 'text' field to 'raw_text' as expected by Source 11
+    documents = [
+        {"doc_id": str(d["_id"]), "raw_text": d.get("text", "").strip()} 
+        for d in raw_docs
+    ]
+
+    # 3. Run the pipeline in a thread
     logger.info("Generating summary  case_id='%s'  docs=%d", case_id, len(documents))
     try:
         result: SummarizationResult = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: run_summarization(
-                documents=documents,
+                documents=documents, # Uses the mapped list with 'raw_text' keys
                 case_id=case_id,
-                save_to_db=False,   # we handle persistence below via Motor
+                save_to_db=False,
             ),
         )
     except ValueError as exc:
-        # Empty / invalid documents caught by run_summarization
+        # Now catches actual empty text instead of missing keys
         raise HTTPException(status_code=422, detail=str(exc))
     except RuntimeError as exc:
         logger.error("Pipeline failed  case_id='%s': %s", case_id, exc)
@@ -132,7 +136,7 @@ async def generate_summary(
     if not result.rendered_brief:
         raise HTTPException(status_code=500, detail="Pipeline produced an empty brief.")
 
-    # 4. Persist via the async Motor connection (no extra pymongo client needed)
+    # 4. Persist via the async Motor connection
     await summary_service.save_summary(
         db=db,
         case_id=case_id,
@@ -146,4 +150,43 @@ async def generate_summary(
         case_id=case_id,
         sources_count=len(result.all_sources),
         message="Summary generated and saved successfully.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET — retrieve structured case brief
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/{case_id}/case-brief",
+    response_model=CaseBriefResponse,
+    summary="Retrieve the structured case brief for a case",
+    responses={
+        401: {"model": ErrorEnvelope, "description": "Missing or invalid JWT token"},
+        404: {"model": ErrorEnvelope, "description": "Case or summary not found"},
+    },
+)
+async def get_case_brief(
+    case_id: str,
+    user_id: str = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+) -> CaseBriefResponse:
+    case = await case_service.get_case(db, case_id, user_id)
+    if case is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": CASE_NOT_FOUND, "message": "Case not found"},
+        )
+
+    brief = await summary_service.get_case_brief(db, case_id)
+    if brief is None or not brief.get("case_brief"):
+        raise HTTPException(
+            status_code=404,
+            detail={"code": SUMMARY_NOT_FOUND, "message": "No summary has been generated for this case"},
+        )
+
+    return CaseBriefResponse(
+        case_id=brief["case_id"],
+        case_brief=brief["case_brief"],
+        generated_at=brief["generated_at"],
     )

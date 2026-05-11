@@ -1,0 +1,50 @@
+flowchart TD
+    START([START]) --> recv["receive query from Supervisor\n+ case_id + conversation_history"]
+
+    recv --> planner["planner\ngenerate JSON plan\nsteps · tools · depends_on\n[high-tier LLM]"]
+    planner --> validator["plan_validator\ncheck: unknown tools?\nempty queries? invalid depends_on?\nsteps > 5?"]
+
+    validator --> val_result{valid?}
+    val_result -->|INVALID\nretry_count < 3| planner
+    val_result -->|INVALID\nretry exhausted| fail_hard["return error\nstatus=failed"]
+    fail_hard --> trace_w
+    val_result -->|VALID| fanout_exec
+
+    subgraph fanout_exec["executor_fanout — Parallel Send() per independent step\n(empty depends_on)"]
+        direction LR
+        sw1["step_worker\ncall tool"]
+        sw2["step_worker\ncall tool"]
+        sw3["step_worker\ncall tool"]
+
+        sw1 --> tool1{tool}
+        sw2 --> tool2{tool}
+        sw3 --> tool3{tool}
+
+        tool1 -->|case_doc_rag| r1["CaseDocRAG\nMCPClient.call()"]
+        tool1 -->|civil_law_rag| r2["CivilLawRAG\nMCPClient.call()"]
+        tool1 -->|fetch_summary_report| r3["SummaryReport\nMongoDB fetch"]
+        tool2 -->|any tool| r4["result"]
+        tool3 -->|any tool| r5["result"]
+    end
+
+    fanout_exec --> collector["collector\ngather all step_results\nexecute dependent steps after prereqs"]
+    collector --> col_router{all steps\ndone?}
+
+    col_router -->|more independent steps| fanout_exec
+    col_router -->|tool error — replan| replan_check1{replan_count\n< 2?}
+    replan_check1 -->|YES| replanner["replanner\nrewrite plan\nincrement replan_count\n[high-tier LLM]"]
+    replanner --> replan_status{status =\nfailed?}
+    replan_status -->|YES guard tripped| trace_w
+    replan_status -->|NO| validator
+
+    replan_check1 -->|NO| synthesizer
+
+    col_router -->|all done| synthesizer["synthesizer\nproduce final Arabic answer\n[high-tier LLM]"]
+
+    synthesizer --> suf_check{sufficient?}
+    suf_check -->|YES| trace_w["trace_writer\nwrite to MongoDB\nchat_reasoner_traces"]
+    suf_check -->|NO| replan_check2{replan_count\n< 2?}
+    replan_check2 -->|YES| replanner
+    replan_check2 -->|NO best-effort| trace_w
+
+    trace_w --> END_OK([END — AgentResult to Supervisor])

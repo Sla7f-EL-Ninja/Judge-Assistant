@@ -1,0 +1,44 @@
+%% NOTE: api/routers/documents.py OCR get+correct endpoints not confirmed in source — steps 9-14 inferred from plan spec
+%% OCR engine: QARI (NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct) — Qwen2VL-based VLM, NOT Surya
+sequenceDiagram
+    participant Judge
+    participant FastAPI
+    participant MinIO
+    participant QARIEngine
+    participant Qdrant
+    participant MongoDB
+
+    Judge->>FastAPI: POST /api/v1/files/upload (PDF or image, case_id)
+    FastAPI->>FastAPI: validate MIME type + size (≤20MB API limit)
+    FastAPI->>MinIO: store binary file → object_key
+    MinIO-->>FastAPI: object_key
+
+    FastAPI->>QARIEngine: run_ocr(file_path) [DocumentProcessor.OCR]
+    Note over QARIEngine: ingest: PDF→PIL at 400 DPI or image load
+    QARIEngine->>QARIEngine: restore_image — CLAHE contrast on LAB L-channel
+    QARIEngine->>QARIEngine: perspective_correct — Canny edge-contour\n+ adaptive-threshold fallback + safety guards
+    QARIEngine->>QARIEngine: Qwen2VL inference (8-bit quantized, GPU)\nmax_new_tokens=4000
+    QARIEngine->>QARIEngine: normalize_numerals — Arabic-Indic digit conversion
+    QARIEngine->>QARIEngine: compute_page_confidence from token softmax probabilities
+    QARIEngine-->>FastAPI: OCRDocumentResult (pages: raw_text, normalized_text, confidence, word_confidences)
+
+    Note over FastAPI: confidence tier: high ≥0.85 / medium ≥0.60 / low
+
+    FastAPI->>Qdrant: upsert chunks → case_docs collection (filtered by case_id)
+    Qdrant-->>FastAPI: ack
+    FastAPI->>MongoDB: store document metadata (doc_type, party, confidence, object_key)
+    MongoDB-->>FastAPI: document_id
+    FastAPI-->>Judge: document_id + OCR preview + confidence tier
+
+    Judge->>FastAPI: GET /api/v1/cases/{case_id}/documents/{doc_id}/ocr
+    FastAPI->>MongoDB: fetch document record
+    MongoDB-->>FastAPI: OCR text + confidence
+    FastAPI-->>Judge: OCR text + confidence
+
+    Judge->>FastAPI: PATCH /api/v1/cases/{case_id}/documents/{doc_id}/ocr (corrected_text)
+    FastAPI->>Qdrant: delete old chunks for doc_id
+    FastAPI->>Qdrant: re-index corrected text chunks
+    Qdrant-->>FastAPI: ack
+    FastAPI->>MongoDB: update document record (corrected_text, human_reviewed=true)
+    MongoDB-->>FastAPI: ack
+    FastAPI-->>Judge: confirmation

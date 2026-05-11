@@ -1,0 +1,73 @@
+classDiagram
+    class ToolEnum {
+        <<enumeration>>
+        case_doc_rag
+        civil_law_rag
+        fetch_summary_report
+    }
+
+    class PlanStep {
+        <<dataclass>>
+        +str step_id
+        +str tool
+        +str query
+        +list depends_on
+    }
+
+    class Plan {
+        <<dataclass>>
+        +list~PlanStep~ steps
+        +str parallel_groups_note
+    }
+
+    class PlanValidationResult {
+        <<dataclass>>
+        +bool valid
+        +str feedback
+    }
+
+    class StepResult {
+        <<dataclass>>
+        +str step_id
+        +str tool
+        +str output
+        +bool success
+    }
+
+    class SynthesizerDecision {
+        <<dataclass>>
+        +bool sufficient
+        +str answer
+        +str replan_reason
+    }
+
+    class ChatReasonerState {
+        <<state>>
+        +str judge_query
+        +Plan plan
+        +PlanValidationResult plan_validation
+        +list~StepResult~ step_results
+        +int replan_count
+        +str final_answer
+        +list conversation_history
+    }
+
+    class ChatReasonerGraph {
+        +planner()
+        +plan_validator()
+        +executor_fanout()
+        +step_worker()
+        +collector()
+        +synthesizer()
+        +replanner()
+        +trace_writer()
+        +build_graph() StateGraph
+    }
+
+    ChatReasonerGraph --> ChatReasonerState : manages
+    ChatReasonerState --> Plan : holds
+    ChatReasonerState --> StepResult : accumulates
+    Plan --> PlanStep : contains
+    PlanStep --> ToolEnum : references
+    ChatReasonerGraph --> SynthesizerDecision : evaluates
+    ChatReasonerGraph --> PlanValidationResult : validates with

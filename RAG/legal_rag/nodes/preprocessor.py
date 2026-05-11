@@ -15,7 +15,9 @@ load_dotenv()
 
 from langsmith import traceable
 
-from config.legal_rag import get_llm, MAX_LLM_CALLS, LLM_TIMEOUT
+from config.legal_rag import get_llm, MAX_LLM_CALLS
+from RAG.legal_rag.errors import PreprocessingError
+from RAG.legal_rag.llm_utils import invoke_with_budget_and_timeout
 from RAG.legal_rag.prompts import PREPROCESSOR_PROMPT
 from RAG.legal_rag.indexing.normalizer import normalize
 from RAG.legal_rag.telemetry import get_logger, log_event
@@ -83,9 +85,19 @@ def preprocessor_node(state: dict) -> dict:
         law_name=law_name,
         question=normalized_query,
     )
-    response = _get_llm().invoke(prompt, config={"timeout": LLM_TIMEOUT})
-    state["llm_call_count"] = state.get("llm_call_count", 0) + 1
-    content = _strip_code_fences(response.content.strip())
+    try:
+        response = invoke_with_budget_and_timeout(
+            state, _get_llm(), prompt, node="preprocessor_node"
+        )
+        content = _strip_code_fences(response.content.strip())
+    except Exception as exc:
+        log_event(logger, "preprocessor_llm_error", error=str(exc), level=logging.ERROR)
+        state["error"] = {
+            "type":    PreprocessingError.__name__,
+            "node":    "preprocessor_node",
+            "message": str(exc),
+        }
+        return state
 
     try:
         data = json.loads(content)

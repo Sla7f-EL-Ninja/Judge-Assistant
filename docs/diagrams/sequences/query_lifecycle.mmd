@@ -1,0 +1,69 @@
+sequenceDiagram
+    participant Judge
+    participant FastAPI
+    participant Supervisor
+    participant MongoDB
+    participant IntentClassifier
+    participant MCPClient
+    participant CaseDocRAGAgent
+    participant CivilLawRAGAgent
+    participant ChatReasonerAgent
+
+    Judge->>FastAPI: POST /api/v1/query (JWT)
+    FastAPI->>Supervisor: dispatch(query, conversation_id, user_id)
+    Supervisor->>MongoDB: load long-term memory + conversation history
+    MongoDB-->>Supervisor: semantic_facts, procedural_prefs, history
+    Supervisor->>IntentClassifier: classify(query) [medium LLM]
+    IntentClassifier-->>Supervisor: intent + target_agents
+
+    alt off_topic
+        Supervisor-->>FastAPI: off_topic_response
+    else civil_law_rag or case_doc_rag
+        Supervisor->>MongoDB: enrich context (case summary, doc titles)
+        MongoDB-->>Supervisor: enriched context
+        Supervisor->>MCPClient: call(tool, query, context)
+        alt case_doc_rag
+            MCPClient->>CaseDocRAGAgent: JSON-RPC tools/call
+            CaseDocRAGAgent-->>MCPClient: answer + sources
+        else civil_law_rag
+            MCPClient->>CivilLawRAGAgent: JSON-RPC tools/call
+            CivilLawRAGAgent-->>MCPClient: answer + sources
+        end
+        MCPClient-->>Supervisor: AgentResult
+    else reason
+        Supervisor->>MongoDB: enrich context
+        MongoDB-->>Supervisor: enriched context
+        Supervisor->>ChatReasonerAgent: invoke(query, context)
+        ChatReasonerAgent-->>Supervisor: AgentResult
+    else multi
+        Supervisor->>MongoDB: enrich context
+        MongoDB-->>Supervisor: enriched context
+        par parallel Send()
+            Supervisor->>MCPClient: call(civil_law_rag, query)
+        and
+            Supervisor->>MCPClient: call(case_doc_rag, query)
+        end
+        MCPClient-->>Supervisor: AgentResults[]
+    end
+
+    Supervisor->>Supervisor: merge_responses [high LLM]
+    Supervisor->>Supervisor: verify_citations
+    Supervisor->>Supervisor: validate_output [low LLM]
+
+    alt pass or partial_pass
+        Supervisor->>MongoDB: update_memory (append turn)
+    else retry (retry_count < max_retries)
+        Supervisor->>Supervisor: prepare_retry (append validation_feedback)
+        Supervisor->>Supervisor: re-dispatch agents
+        Supervisor->>Supervisor: merge + verify + validate
+        Supervisor->>MongoDB: update_memory
+    else fallback
+        Supervisor->>Supervisor: fallback_response
+        Supervisor->>MongoDB: update_memory
+    end
+
+    Supervisor->>MongoDB: write_long_term_memory
+    Supervisor->>Supervisor: summarize_history (if threshold exceeded)
+    Supervisor->>MongoDB: audit_log
+    Supervisor-->>FastAPI: final_response
+    FastAPI-->>Judge: SSE result event + done event

@@ -1,0 +1,60 @@
+﻿@startuml chat_reasoner_activity
+
+|Supervisor|
+start
+:Dispatch to ChatReasonerAdapter\nquery + case_id + conversation_history;
+
+|ChatReasonerGraph|
+:planner\ngenerate JSON plan\nsteps · tools · depends_on\n[high-tier LLM];
+:plan_validator\ncheck: unknown tools?\nempty queries? invalid depends_on?\nsteps > 5?;
+if (Valid?) then (INVALID\nretry_count < 3)
+  :retry planner;
+  note right: loops back to planner
+elseif (INVALID\nretry exhausted) then ()
+  :Return error status=failed;
+  |MongoDB|
+  :trace_writer\nwrite to chat_reasoner_traces;
+  |Supervisor|
+  stop
+endif
+
+|ChatReasonerGraph|
+fork
+  :step_worker\ncall tool for step 1;
+  if (tool?) then (case_doc_rag)
+    |Tools|
+    :CaseDocRAG\nMCPClient.call();
+  elseif (civil_law_rag) then ()
+    |Tools|
+    :CivilLawRAG\nMCPClient.call();
+  else (fetch_summary_report)
+    |Tools|
+    :SummaryReport\nMongoDB fetch;
+  endif
+  |ChatReasonerGraph|
+  :step result;
+fork again
+  :step_worker\n[ steps 2…N with empty\ndepends_on — same logic ];
+end fork
+:collector\ngather all step_results\nexecute dependent steps after prereqs;
+:synthesizer\nproduce final Arabic answer\n[high-tier LLM];
+if (sufficient?) then (YES)
+  |MongoDB|
+  :trace_writer\nwrite to chat_reasoner_traces;
+  |Supervisor|
+  :Return AgentResult;
+  stop
+else (NO)
+  |ChatReasonerGraph|
+  if (replan_count < 2?) then (YES)
+    :replanner\nrewrite plan\nincrement replan_count\n[high-tier LLM];
+    note right: loops back\nto executor_fanout
+  else (NO — best-effort)
+    |MongoDB|
+    :trace_writer;
+    |Supervisor|
+    :Return best-effort AgentResult;
+    stop
+  endif
+endif
+@enduml

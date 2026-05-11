@@ -35,9 +35,7 @@ _mongo_collection = None
 # without acquiring the lock; the slow path acquires the lock and rechecks.
 _singleton_lock = threading.RLock()
 
-
 def get_embedding_function():
-    """Return the shared HuggingFaceEmbeddings instance (lazy, thread-safe)."""
     global _embedding_fn
     if _embedding_fn is not None:
         return _embedding_fn
@@ -47,7 +45,10 @@ def get_embedding_function():
 
             model_name = cfg.embedding.get("model", "BAAI/bge-m3")
             logger.info("Initializing HuggingFaceEmbeddings with model=%s", model_name)
-            _embedding_fn = HuggingFaceEmbeddings(model_name=model_name)
+            _embedding_fn = HuggingFaceEmbeddings(
+                model_name=model_name,
+                model_kwargs={"device": "cpu"},  # GPU is owned by legal_rag_server
+            )
     return _embedding_fn
 
 
