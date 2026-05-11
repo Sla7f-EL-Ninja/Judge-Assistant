@@ -1,0 +1,54 @@
+﻿@startuml intent_routing
+
+|Supervisor|
+start
+:validate_input;
+if (Empty or invalid query?) then (YES)
+  :Return 422 Validation Error;
+  stop
+endif
+:load_long_term_memory;
+:classify_intent\n[medium-tier LLM];
+if (Injection detected?) then (YES)
+  :off_topic_response;
+  stop
+endif
+if (Intent = off_topic?) then (YES)
+  :off_topic_response;
+  stop
+endif
+if (target_agents empty?) then (YES)
+  :off_topic_response;
+  stop
+endif
+:enrich_context\nload case summary + doc titles;
+if (Intent = multi?) then (YES)
+  fork
+    |CivilLawRAGAdapter|
+    :CivilLawRAGAdapter\nvia MCPClient;
+  fork again
+    |CaseDocRAGAdapter|
+    :CaseDocRAGAdapter\nvia MCPClient;
+  fork again
+    |ChatReasonerAdapter|
+    :ChatReasonerAdapter\ndirect invocation;
+  end fork
+else (NO)
+  |Supervisor|
+  if (Intent = civil_law_rag?) then (YES)
+    |CivilLawRAGAdapter|
+    :CivilLawRAGAdapter\nvia MCPClient;
+  elseif (Intent = case_doc_rag?) then (YES)
+    |CaseDocRAGAdapter|
+    :CaseDocRAGAdapter\nvia MCPClient;
+  else (reason)
+    |ChatReasonerAdapter|
+    :ChatReasonerAdapter\ndirect invocation;
+  endif
+endif
+|Supervisor|
+:merge_responses\n[high-tier LLM];
+:verify_citations;
+:validate_output\n[low-tier LLM];
+stop
+@enduml

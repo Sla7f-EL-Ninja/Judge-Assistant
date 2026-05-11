@@ -1,0 +1,103 @@
+classDiagram
+    class CorpusConfig {
+        <<dataclass>>
+        +str name
+        +str collection_name
+        +str source_filter_value
+        +str docs_path
+        +str law_display_name
+        +str corpus_version
+        +str prompts_version
+    }
+
+    class LegalRAGService {
+        +validate_query(query) str
+        +ask_question(query) LegalRAGResult
+        +clear_cache(corpus_config)
+        +clear_all_caches()
+    }
+
+    class LegalRAGResult {
+        <<dataclass>>
+        +str answer
+        +list sources
+        +str classification
+        +float retrieval_confidence
+        +str citation_integrity
+        +bool from_cache
+        +str corpus
+        +list corpus_routing_scores
+    }
+
+    class LegalRAGGraph {
+        +corpus_router_node()
+        +preprocessor_node()
+        +off_topic_node()
+        +scope_classifier_node()
+        +textual_node()
+        +cannot_answer_node()
+        +retrieve_node()
+        +rule_grader_node()
+        +generate_answer_node()
+        +refine_node()
+        +llm_grader_node()
+        +build_graph() StateGraph
+    }
+
+    class DocSelectorModeEnum {
+        <<enumeration>>
+        retrieve_specific_doc
+        restrict_to_doc
+        no_doc_specified
+    }
+
+    class CaseDocRAGGraph {
+        +questionRewriter()
+        +questionClassifier()
+        +documentSelector()
+        +offTopicResponse()
+        +errorResponse()
+        +branchDocSelector()
+        +retrieve()
+        +retrievalGrader()
+        +generateAnswer()
+        +refineQuestion()
+        +cannotAnswer()
+        +mergeAnswers()
+        +build_graph() StateGraph
+    }
+
+    class MCPClient {
+        +str name
+        +call(tool, params) str
+        +start()
+        +stop()
+        +respawn()
+    }
+
+    class LegalRAGMCPServer {
+        <<server>>
+        +search_legal_corpus(query, corpus) str
+    }
+
+    class CaseDocMCPServer {
+        <<server>>
+        +search_case_docs(query, case_id, conversation_history, request_id) str
+    }
+
+    class EmbeddingService {
+        +embed(texts) list
+        +rerank(query, docs) list
+    }
+
+    LegalRAGService --> LegalRAGGraph : invokes
+    LegalRAGService --> LegalRAGResult : returns
+    LegalRAGService --> CorpusConfig : uses
+    LegalRAGGraph --> CorpusConfig : resolves at runtime
+    CaseDocRAGGraph --> DocSelectorModeEnum : routes via
+    MCPClient --> LegalRAGMCPServer : calls via stdio
+    MCPClient --> CaseDocMCPServer : calls via stdio
+    LegalRAGMCPServer --> LegalRAGService : delegates to
+    LegalRAGMCPServer --> EmbeddingService : uses
+    CaseDocMCPServer --> CaseDocRAGGraph : invokes
+    CaseDocMCPServer --> EmbeddingService : uses

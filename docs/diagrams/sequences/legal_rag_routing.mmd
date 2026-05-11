@@ -1,0 +1,79 @@
+%% NOTE: Redis cache layer in LegalRAGService not confirmed in service.py — SemanticCache uses in-process dict; Redis step is speculative
+%% NOTE: HyDE implementation detail (multi-paraphrase expansion) inferred from rag config hyde_enabled flag
+sequenceDiagram
+    participant MCPClient
+    participant LegalRAGServer
+    participant LegalRAGService
+    participant SemanticCache
+    participant CorpusRouter
+    participant ScopeClassifier
+    participant TEIEmbedding
+    participant Qdrant
+    participant TEIReranker
+    participant RuleGrader
+    participant LLMGrader
+    participant AnswerGenerator
+
+    MCPClient->>LegalRAGServer: JSON-RPC tools/call(search_legal_corpus, query, corpus)
+    LegalRAGServer->>LegalRAGService: ask_question(query)
+
+    LegalRAGService->>LegalRAGService: validate_query (Arabic ratio, length)
+
+    LegalRAGService->>SemanticCache: lookup(query, corpus_version, prompt_version)
+
+    alt cache hit
+        SemanticCache-->>LegalRAGService: cached answer
+        LegalRAGService-->>LegalRAGServer: LegalRAGResult(from_cache=true)
+        LegalRAGServer-->>MCPClient: JSON-RPC response
+    else cache miss
+        SemanticCache-->>LegalRAGService: miss
+
+        LegalRAGService->>CorpusRouter: corpus_router_node — score query vs corpora [LLM]
+        Note over CorpusRouter: Civil Law / Evidence / Procedures
+        CorpusRouter-->>LegalRAGService: selected corpus_config + confidence scores
+
+        LegalRAGService->>LegalRAGService: preprocessor_node — normalize query
+
+        LegalRAGService->>ScopeClassifier: scope_classifier_node — classify chapter/section [LLM]
+        ScopeClassifier-->>LegalRAGService: scope filter (chapter + section thresholds)
+
+        alt HyDE disabled (default)
+            LegalRAGService->>TEIEmbedding: embed(query) via BAAI/bge-m3
+            TEIEmbedding-->>LegalRAGService: query_vector[1024]
+        else HyDE enabled
+            LegalRAGService->>LegalRAGService: generate hypothetical article [LLM]
+            LegalRAGService->>TEIEmbedding: embed(hypothetical_texts)
+            TEIEmbedding-->>LegalRAGService: expanded_vectors[]
+        end
+
+        LegalRAGService->>Qdrant: search(vector, collection, scope_filter)
+        Qdrant-->>LegalRAGService: candidate_chunks[]
+
+        LegalRAGService->>TEIReranker: rerank(query, candidate_chunks)
+        TEIReranker-->>LegalRAGService: reranked_chunks[]
+
+        LegalRAGService->>RuleGrader: rule_grader_node — fast heuristic grade
+        RuleGrader-->>LegalRAGService: pass/fail per chunk
+
+        alt chunks pass rule grader
+            LegalRAGService->>AnswerGenerator: generate_answer_node [high LLM]
+            AnswerGenerator-->>LegalRAGService: answer + cited articles
+        else chunks need semantic check
+            LegalRAGService->>LLMGrader: llm_grader_node — semantic grade [LLM]
+            LLMGrader-->>LegalRAGService: final graded chunks
+            alt graded chunks sufficient
+                LegalRAGService->>AnswerGenerator: generate_answer_node
+                AnswerGenerator-->>LegalRAGService: answer + cited articles
+            else insufficient
+                LegalRAGService->>LegalRAGService: refine_node → retry scope_classifier
+                LegalRAGService->>Qdrant: refined search
+                Qdrant-->>LegalRAGService: refined_chunks[]
+                LegalRAGService->>AnswerGenerator: generate_answer_node
+                AnswerGenerator-->>LegalRAGService: answer + cited articles
+            end
+        end
+
+        LegalRAGService->>SemanticCache: set(query, answer, corpus_config)
+        LegalRAGService-->>LegalRAGServer: LegalRAGResult(answer, sources, corpus, from_cache=false)
+        LegalRAGServer-->>MCPClient: JSON-RPC response (answer, sources, citation_integrity)
+    end

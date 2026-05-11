@@ -1,0 +1,69 @@
+﻿@startuml legal_rag_retrieval
+
+|LegalRAGService|
+start
+:Receive query + corpus hint;
+:validate_query\nArabic ratio + length check;
+if (Valid?) then (NO)
+  :QueryValidationError;
+  stop
+endif
+
+|SemanticCache|
+:Lookup\nquery + corpus_version + prompt_version;
+if (Cache hit?) then (YES)
+  :Return cached answer\nfrom_cache=true;
+  stop
+endif
+
+|LegalRAGService|
+:corpus_router_node\nscore query vs 3 corpora [LLM]\nCivil / Evidence / Procedures;
+if (Off-topic for all corpora?) then (YES)
+  :off_topic_node;
+  stop
+endif
+:preprocessor_node\nnormalize + clean query;
+if (Query type?) then (textual)
+  :textual_node\nanswer from statute text directly;
+  stop
+elseif (off-topic after preprocess) then ()
+  :off_topic_node;
+  stop
+else (scope query)
+  :scope_classifier_node\nclassify chapter + section [LLM];
+endif
+if (HyDE enabled?) then (YES)
+  :Generate hypothetical article\n+ paraphrases [LLM];
+  |TEI / Qdrant|
+  :TEI embed hypothetical texts\nBAAI/bge-m3;
+else (NO)
+  |TEI / Qdrant|
+  :TEI embed query\nBAAI/bge-m3;
+endif
+:Qdrant vector search\nwith scope filter;
+:TEI reranker\nre-score candidate chunks;
+
+|LegalRAGService|
+:rule_grader_node\nfast heuristic grade per chunk;
+if (All chunks pass rule grader?) then (YES)
+  :generate_answer_node\ncite specific articles\n[high-tier LLM];
+else (SOME / NONE)
+  :llm_grader_node\nsemantic grade [medium-tier LLM];
+  if (Sufficient chunks?) then (YES)
+    :generate_answer_node\n[high-tier LLM];
+  elseif (First attempt?) then (YES)
+    :refine_node\nbroaden scope;
+    note right: retry from\nscope_classifier
+  else (After refine)
+    :cannot_answer_node;
+    stop
+  endif
+endif
+
+|SemanticCache|
+:Write answer + metadata\nto cache;
+
+|LegalRAGService|
+:Return LegalRAGResult;
+stop
+@enduml

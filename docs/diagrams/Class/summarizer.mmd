@@ -1,0 +1,74 @@
+classDiagram
+    class SummarizationState {
+        <<state>>
+        +list documents
+        +list chunks
+        +list classified_chunks
+        +list bullets
+        +dict role_aggregations
+        +list themed_roles
+        +dict role_theme_summaries
+        +str case_brief
+        +list all_sources
+        +str rendered_brief
+        +dict party_manifest
+        +disambiguate_defendants() dict
+    }
+
+    class DocTypeEnum {
+        <<enumeration>>
+        صحيفة_دعوى
+        مذكرة_دفاع
+        مذكرة_رد
+        حافظة_مستندات
+        محضر_جلسة
+        حكم_تمهيدي
+        غير_محدد
+    }
+
+    class PartyEnum {
+        <<enumeration>>
+        المدعى_عليه
+        المدعي
+        النيابة
+        المحكمة
+        خبير
+        غير_محدد
+    }
+
+    class LegalRoleEnum {
+        <<enumeration>>
+        claimant
+        defendant
+        court
+        expert
+        prosecution
+        unknown
+    }
+
+    class BulletClassEnum {
+        <<enumeration>>
+        claim
+        defense
+        evidence
+        procedural
+        ruling
+        other
+    }
+
+    class SummarizationGraph {
+        +node_0_document_intake() low-tier LLM
+        +node_1_chunk_classifier() low-tier LLM
+        +node_2_bullet_extractor() high-tier LLM
+        +node_3_role_aggregator() high-tier LLM
+        +node_4a_theme_router() low-tier LLM
+        +node_4b_theme_summarizer() high-tier LLM
+        +node_5_brief_renderer() high-tier LLM
+        +build_graph() StateGraph
+    }
+
+    SummarizationGraph --> SummarizationState : manages
+    SummarizationState --> DocTypeEnum : classifies docs
+    SummarizationState --> PartyEnum : assigns parties
+    SummarizationState --> LegalRoleEnum : maps roles
+    SummarizationState --> BulletClassEnum : labels bullets

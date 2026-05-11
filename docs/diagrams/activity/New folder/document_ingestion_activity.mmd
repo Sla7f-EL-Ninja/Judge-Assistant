@@ -1,0 +1,37 @@
+flowchart TD
+    START([START]) --> upload["POST /api/v1/files/upload\nfile + case_id"]
+
+    upload --> mime_check{MIME type\nallowed?\nPDF PNG JPEG\nTIFF BMP WebP\nGIF HEIC}
+    mime_check -->|NO| err400["Return 400\nInvalid MIME type"]
+    err400 --> END_400([END])
+
+    mime_check -->|YES| size_check{File size\n≤ 20 MB?}
+    size_check -->|NO| err413["Return 413\nFile too large"]
+    err413 --> END_413([END])
+
+    size_check -->|YES| minio["Store binary in MinIO\nobject_key returned"]
+
+    minio --> text_check{Image-based\nor PDF?}
+
+    text_check -->|Image PNG/JPEG/TIFF/BMP| restore["restore_image\nCLAHE contrast on LAB L-channel\nresize if > 4000px"]
+    restore --> persp["perspective_correct\n① Canny edge-contour detection\n② adaptive-threshold fallback\ndewarp + safety guards"]
+    persp --> qari["QARI Qwen2VL inference\nNAMAA-Space/Qari-OCR-v0.3-VL-2B\n8-bit quantized · GPU · max 4000 tokens\nstrict transcription — no correction"]
+    qari --> norm["normalize_numerals\nArabic-Indic digit conversion"]
+    norm --> confidence["compute_page_confidence\ntoken softmax probabilities\npage-level + per-word"]
+    confidence --> conf_tier{Tier}
+    conf_tier -->|high| accept_hi["Accept — no flag"]
+    conf_tier -->|medium| accept_med["Accept with\nreview recommended flag"]
+    conf_tier -->|low| flag_low["Flag for\nmanual correction"]
+    accept_hi --> chunk
+    accept_med --> chunk
+    flag_low --> chunk
+
+    text_check -->|PDF with text layer| extract_text["Extract text layer\ndirectly — no OCR"]
+    extract_text --> chunk
+
+    chunk["Segment text into chunks"]
+    chunk --> embed["TEI embed chunks\nBAAI/bge-m3 (1024-dim)"]
+    embed --> qdrant["Upsert vectors to Qdrant\ncase_docs collection\nfiltered by case_id"]
+    qdrant --> mongo["Store metadata in MongoDB\ndoc_type · party · confidence_tier\nobject_key · chunk_ids"]
+    mongo --> END_OK["Return 201\ndocument_id + confidence_tier"]
+    END_OK --> END([END])

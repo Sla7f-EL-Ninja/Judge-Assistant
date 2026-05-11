@@ -1,0 +1,42 @@
+%% OCR engine: QARI (NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct) — Qwen2VL-based VLM, NOT Surya
+%% NOTE: OCR integration at upload time inferred from DocumentProcessor pipeline; save_upload in file_service.py delegates details
+sequenceDiagram
+    participant Judge
+    participant FastAPI
+    participant MinIO
+    participant QARIEngine
+    participant TEIEmbedding
+    participant Qdrant
+    participant MongoDB
+
+    Judge->>FastAPI: POST /api/v1/files/upload (file, case_id)
+    FastAPI->>FastAPI: validate MIME type (PDF/PNG/JPEG/TIFF/BMP/WebP) + size ≤20MB
+
+    FastAPI->>MinIO: store binary → object_key
+    MinIO-->>FastAPI: object_key
+
+    alt image-based or PDF document
+        FastAPI->>QARIEngine: run_ocr(file_path) [DocumentProcessor.OCR.ocr_pipeline]
+        Note over QARIEngine: PDF rendered at 400 DPI per page
+        QARIEngine->>QARIEngine: restore_image — CLAHE contrast normalization (LAB L-channel)
+        QARIEngine->>QARIEngine: perspective_correct — Canny edge-contour\n+ adaptive-threshold fallback + safety guards
+        QARIEngine->>QARIEngine: Qwen2VL inference (8-bit, GPU) — strict transcription\nno spelling correction, no dictionary lookup
+        QARIEngine->>QARIEngine: normalize_numerals — Arabic-Indic digit normalization
+        QARIEngine->>QARIEngine: compute_page_confidence — token softmax probabilities\n(page-level + per-word)
+        QARIEngine-->>FastAPI: OCRDocumentResult (normalized_text, confidence per page)
+    end
+
+    FastAPI->>FastAPI: segment text into chunks
+
+    FastAPI->>TEIEmbedding: embed(chunks) via BAAI/bge-m3
+    TEIEmbedding-->>FastAPI: vectors[1024-dim]
+
+    FastAPI->>Qdrant: upsert vectors + metadata → case_docs collection
+    Note over Qdrant: metadata: case_id, doc_id, chunk_index, doc_type, party
+    Qdrant-->>FastAPI: chunk_ids[]
+
+    FastAPI->>MongoDB: store document record
+    Note over MongoDB: doc_type, party, confidence_tier, object_key, chunk_ids[], case_id
+    MongoDB-->>FastAPI: document_id
+
+    FastAPI-->>Judge: document_id + confidence tier

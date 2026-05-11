@@ -1,0 +1,45 @@
+flowchart TD
+    START([START]) --> entry["run_case_reasoning()\ncase_brief + rendered_brief\n+ judge_query + case_id"]
+
+    entry --> extract["extract_issues\nidentify distinct legal issues\n[high-tier LLM]"]
+
+    extract --> issues_check{Issues\nidentified?}
+    issues_check -->|NO| empty_rep["generate_empty_report\nno issues found"]
+    empty_rep --> END_EMPTY([END])
+
+    issues_check -->|YES| issue_fanout
+
+    subgraph issue_fanout["Parallel Send() — one branch per issue"]
+        direction TB
+        decomp["decompose_issue\nidentify required legal elements"]
+        decomp --> gen_q["generate_retrieval_queries\nproduce law + fact queries per element"]
+
+        gen_q --> ret_law["retrieve_law\ncivil_law_rag MCP tool"]
+        ret_law --> ret_facts["retrieve_facts\ncase_doc_rag MCP tool"]
+
+        ret_facts --> classify_ev["classify_evidence\nper element:\nestablished / not_established\ndisputed / insufficient_evidence"]
+
+        classify_ev --> apply_law["apply_law\nArabic legal reasoning\ncite specific articles\n[high-tier LLM]"]
+
+        apply_law --> counterargs["generate_counterarguments\nplaintiff + defendant analyses\n[high-tier LLM]"]
+
+        counterargs --> val_analysis["validate_analysis\ncitation check + logical consistency\n+ completeness\n[medium-tier LLM]"]
+
+        val_analysis --> pkg["package_result\nstructured IssueAnalysis dict"]
+    end
+
+    pkg --> aggregate["aggregate_issues\ncombine all branch results"]
+
+    aggregate --> consistency["check_global_consistency\ndetect cross-issue conflicts\n[high-tier LLM]"]
+
+    consistency --> conflicts{Conflicts\ndetected?}
+    conflicts -->|YES| reconcile["generate reconciliation paragraphs\n[high-tier LLM]"]
+    reconcile --> confidence
+    conflicts -->|NO| confidence["compute_confidence\nper-issue + case-level scores"]
+
+    confidence --> gen_rep["generate_report\nfinal Arabic legal analysis\n[high-tier LLM]"]
+
+    gen_rep --> db_check{save_to_db?}
+    db_check -->|YES| mongodb["upsert to MongoDB\ncase_reasonings collection"]
+    mongodb --> END_OK([END — CaseReasoningResult])
+    db_check -->|NO| END_OK

@@ -1,0 +1,35 @@
+graph TD
+    Client["Client\n(Browser / API Consumer)"]
+    API["FastAPI\napi/app.py"]
+    Supervisor["Supervisor\nLangGraph"]
+    Summarizer["Summarizer\nLangGraph"]
+    CaseReasoner["Case Reasoner\nLangGraph"]
+    ChatReasoner["Chat Reasoner\nLangGraph"]
+    MCPLayer["MCP Transport Layer\nmcp_servers/"]
+    LegalRAGServer["Legal RAG Server\nFastMCP subprocess"]
+    CaseDocServer["Case Doc Server\nFastMCP subprocess"]
+
+    MongoDB[("MongoDB\ncases · conversations\nsummaries · documents")]
+    Qdrant[("Qdrant\njudicial_docs\ncase_docs")]
+    Redis[("Redis\ncache · rate-limit")]
+    MinIO[("MinIO\nfile storage")]
+    PostgreSQL[("PostgreSQL\nusers · audit log")]
+    TEI["TEI\nbge-m3 embeddings\nreranker"]
+
+    Client -->|"JWT Bearer\nPOST /api/v1/query"| API
+    API -->|"SSE stream"| Client
+    API --> Supervisor
+    Supervisor --> Summarizer
+    Supervisor --> CaseReasoner
+    Supervisor --> ChatReasoner
+    Supervisor --> MCPLayer
+    MCPLayer -->|"stdio JSON-RPC 2.0"| LegalRAGServer
+    MCPLayer -->|"stdio JSON-RPC 2.0"| CaseDocServer
+    LegalRAGServer --> Qdrant
+    CaseDocServer --> Qdrant
+    LegalRAGServer --> TEI
+    CaseDocServer --> TEI
+    Supervisor --> MongoDB
+    Supervisor --> Redis
+    API --> MinIO
+    API --> PostgreSQL
