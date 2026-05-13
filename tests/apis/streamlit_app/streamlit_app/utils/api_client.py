@@ -118,6 +118,9 @@ class JudgeAssistantClient:
     def update_case(self, case_id: str, updates: dict) -> tuple[int, dict, float]:
         return self._request("PATCH", f"/api/v1/cases/{case_id}", json=updates)
 
+    def get_case_stats(self) -> tuple[int, dict, float]:
+        return self._request("GET", "/api/v1/cases/stats")
+
     def delete_case(self, case_id: str) -> tuple[int, dict, float]:
         return self._request("DELETE", f"/api/v1/cases/{case_id}")
 

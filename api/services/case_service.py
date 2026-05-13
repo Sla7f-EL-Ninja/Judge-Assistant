@@ -95,6 +95,25 @@ async def soft_delete_case(
     return result.modified_count > 0
 
 
+async def count_cases_by_status(
+    db: AsyncIOMotorDatabase,
+    user_id: str,
+) -> Dict[str, int]:
+    """Return a per-status count for all non-deleted cases owned by user_id.
+
+    Deleted cases are excluded. Statuses with zero cases are omitted from the
+    result dict; callers should treat a missing key as 0.
+    """
+    pipeline = [
+        {"$match": {"user_id": user_id, "status": {"$ne": "deleted"}}},
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}},
+    ]
+    results: Dict[str, int] = {}
+    async for doc in db[CASES].aggregate(pipeline):
+        results[doc["_id"]] = doc["count"]
+    return results
+
+
 async def add_document_to_case(
     db: AsyncIOMotorDatabase,
     case_id: str,
