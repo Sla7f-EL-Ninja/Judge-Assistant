@@ -263,7 +263,7 @@ async def correct_document_ocr(
     if corrected_by:
         update["corrected_by"] = corrected_by
     if not doc.get("original_text"):
-        update["original_text"] = doc.get("text", "")
+        update["original_text"] = doc.get("text") or ""
 
     try:
         oid = ObjectId(mongo_id)

@@ -12,6 +12,7 @@ from api.schemas.cases import (
     CaseCreate,
     CaseListResponse,
     CaseResponse,
+    CaseStatusCountsResponse,
     CaseUpdate,
 )
 from api.schemas.common import ErrorEnvelope, MessageResponse
@@ -42,9 +43,7 @@ def _enrich(doc: dict, conv_count: int = 0) -> dict:
         "Create a new case for the authenticated user. The case groups documents, "
         "conversations, and summaries together. Requires a non-empty title."
     ),
-    responses={
-        **_AUTH_ERRORS,
-    },
+    responses={**_AUTH_ERRORS},
 )
 async def create_case(
     body: CaseCreate,
@@ -65,9 +64,7 @@ async def create_case(
         "Returns a paginated list of cases belonging to the authenticated user. "
         "Soft-deleted cases are excluded. Each case includes a `conversation_count` field."
     ),
-    responses={
-        **_AUTH_ERRORS,
-    },
+    responses={**_AUTH_ERRORS},
 )
 async def list_cases(
     skip: int = Query(0, ge=0),
@@ -81,6 +78,27 @@ async def list_cases(
         cnt = await count_conversations_for_case(db, c["_id"])
         enriched.append(_enrich(c, cnt))
     return {"cases": enriched, "total": total}
+
+
+# NOTE: /stats must be registered BEFORE /{case_id} so FastAPI doesn't try to
+# resolve "stats" as a case_id path parameter.
+@router.get(
+    "/stats",
+    response_model=CaseStatusCountsResponse,
+    summary="Count cases by status",
+    description=(
+        "Returns the number of cases per status (active, archived, closed) for the "
+        "authenticated user. Soft-deleted cases are excluded. Statuses with zero "
+        "cases are omitted from `counts`."
+    ),
+    responses={**_AUTH_ERRORS},
+)
+async def get_case_status_counts(
+    user_id: str = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    counts = await case_service.count_cases_by_status(db, user_id)
+    return CaseStatusCountsResponse(counts=counts, total=sum(counts.values()))
 
 
 @router.get(

@@ -60,8 +60,8 @@ async def save_upload(
     Raises ``ValueError`` for invalid MIME type or oversized files.
     """
     # Validate MIME type
-    logger.info("Received mime_type: '%s'", mime_type)  # ADD THIS
-    logger.info("Allowed types: %s", settings.allowed_mime_type_list)  # ADD THIS
+    logger.info("Received mime_type: '%s'", mime_type)
+    logger.info("Allowed types: %s", settings.allowed_mime_type_list)
     if mime_type not in settings.allowed_mime_type_list:
         raise ValueError(
             f"MIME type '{mime_type}' is not allowed. "
@@ -179,6 +179,62 @@ async def open_file_stream(
     if disk_path and os.path.exists(disk_path):
         sync_gen = _disk_chunk_generator(disk_path)
         return iterate_in_threadpool(sync_gen), meta
+
+    return None
+
+
+async def get_file_bytes(
+    db: AsyncIOMotorDatabase,
+    file_id: str,
+) -> Optional[Tuple[bytes, dict]]:
+    """Return the full file content as bytes along with metadata.
+
+    Used when the caller needs the raw bytes before responding
+    (e.g. image format conversion for browser rendering).
+    Returns None if the file record or its storage object is missing.
+    """
+    file_rec = await db[FILES].find_one({"_id": file_id})
+    if file_rec is None:
+        return None
+
+    meta = {
+        "mime_type": file_rec.get("mime_type", "application/octet-stream"),
+        "filename": file_rec.get("filename", "file"),
+        "size_bytes": file_rec.get("size_bytes", 0),
+    }
+
+    if file_rec.get("storage_backend") == "minio" and file_rec.get("minio_object"):
+        try:
+            from api.db.minio_client import get_minio, get_bucket
+
+            minio_client = get_minio()
+            if minio_client is not None:
+                bucket = get_bucket()
+                object_name = file_rec["minio_object"]
+
+                def _read_minio() -> bytes:
+                    response = minio_client.get_object(bucket, object_name)
+                    try:
+                        return response.read()
+                    finally:
+                        response.close()
+                        response.release_conn()
+
+                data = await asyncio.to_thread(_read_minio)
+                return data, meta
+        except Exception as exc:
+            logger.warning(
+                "MinIO get_bytes failed for %s: %s — trying local disk", file_id, exc
+            )
+
+    disk_path = file_rec.get("disk_path", "")
+    if disk_path and os.path.exists(disk_path):
+        def _read_disk() -> bytes:
+            with open(disk_path, "rb") as f:
+                return f.read()
+
+        data = await asyncio.to_thread(_read_disk)
+        return data, meta
 
     return None
 

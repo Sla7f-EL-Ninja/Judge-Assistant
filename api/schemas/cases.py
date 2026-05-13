@@ -7,23 +7,29 @@ Schemas for case management CRUD endpoints.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
-
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 class CaseDocumentRef(BaseModel):
-    """Reference to an ingested document within a case."""
-
     file_id: str
-    filename: str
+    filename: str = ""                          # optional — backfilled below
+    filenames: List[str] = Field(default_factory=list)
+    file_ids: List[str] = Field(default_factory=list)
     classification: Dict[str, Any] = Field(default_factory=dict)
     ingested_at: Optional[datetime] = None
-    # Add this validator block:
+
     @field_validator("classification", mode="before")
     @classmethod
     def handle_legacy_strings(cls, v):
         if isinstance(v, str):
-            # If the DB returns a string (like ""), convert it to an empty dict
-            return {} 
+            return {}
+        return v
+
+    @model_validator(mode="before")
+    @classmethod
+    def backfill_filename(cls, v):
+        if not v.get("filename"):
+            filenames = v.get("filenames") or []
+            v["filename"] = filenames[0] if filenames else ""
         return v
 
 
@@ -70,4 +76,20 @@ class CaseListResponse(BaseModel):
     """Paginated list of cases."""
 
     cases: List[CaseResponse]
+    total: int
+
+
+class CaseStatusCountsResponse(BaseModel):
+    """Count of cases per status for the authenticated user.
+
+    Example response:
+        {
+          "counts": {"active": 5, "archived": 2},
+          "total": 7
+        }
+
+    Statuses with zero cases are omitted from ``counts``.
+    """
+
+    counts: Dict[str, int]
     total: int

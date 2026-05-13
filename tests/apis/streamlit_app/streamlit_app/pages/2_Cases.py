@@ -11,8 +11,8 @@ if not client:
     st.error("Configure API connection in the sidebar first.")
     st.stop()
 
-tab_create, tab_list, tab_get, tab_update, tab_delete = st.tabs(
-    ["Create", "List", "Get", "Update", "Delete"]
+tab_create, tab_list, tab_get, tab_update, tab_delete, tab_stats = st.tabs(
+    ["Create", "List", "Get", "Update", "Delete", "Stats"]
 )
 
 # -- Create -------------------------------------------------------------------
@@ -91,3 +91,21 @@ with tab_delete:
     if st.button("Delete Case", type="primary"):
         status, body, elapsed = client.delete_case(case_id_del)
         show_response(status, body, elapsed)
+
+# -- Stats --------------------------------------------------------------------
+with tab_stats:
+    st.subheader("Case Status Counts")
+    st.markdown("`GET /api/v1/cases/stats`")
+
+    if st.button("Fetch Stats"):
+        status, body, elapsed = client.get_case_stats()
+        show_response(status, body, elapsed)
+
+        if status == 200 and body.get("counts"):
+            st.divider()
+            counts = body["counts"]
+            cols = st.columns(len(counts) + 1)
+            color_map = {"active": "green", "archived": "orange", "closed": "gray"}
+            for i, (s, n) in enumerate(counts.items()):
+                cols[i].metric(s.capitalize(), n)
+            cols[-1].metric("Total", body.get("total", 0))

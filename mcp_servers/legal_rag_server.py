@@ -57,9 +57,19 @@ logger.info("Warmed unified legal_rag graph")
 _get_embeddings()
 logger.info("Embedding client ready")
 
+# AFTER
 for _c in _REGISTERED_CORPORA:
-    _load_vectorstore(_c.collection_name)
-    logger.info("Warmed vectorstore: corpus=%s", _c.name)
+    try:
+        _load_vectorstore(_c.collection_name)
+        logger.info("Warmed vectorstore: corpus=%s", _c.name)
+    except Exception as _vs_err:
+        logger.warning("Vectorstore warm-up failed for corpus=%s (non-fatal): %s", _c.name, _vs_err)
+
+try:
+    _probe_reranker()
+    logger.info("Reranker ready")
+except Exception as _rr_err:
+    logger.warning("Reranker probe failed (non-fatal): %s", _rr_err)
 
 _probe_reranker()
 logger.info("Reranker ready")

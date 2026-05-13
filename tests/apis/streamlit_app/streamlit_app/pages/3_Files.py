@@ -1,6 +1,9 @@
 """File upload and delete page."""
 
+import base64
+
 import streamlit as st
+import streamlit.components.v1 as components
 from utils.display import show_response
 
 st.title("Files")
@@ -69,7 +72,76 @@ with tab_view:
             elif content_type.startswith("image/"):
                 st.image(data)
             elif "pdf" in content_type:
-                st.info("PDF rendering not supported inline — use the download button.")
+                b64 = base64.b64encode(data).decode("utf-8")
+                pdf_html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{ background:#525659; font-family:sans-serif; }}
+  #toolbar {{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 12px; background:#404040; color:#fff; font-size:13px;
+  }}
+  #toolbar button {{
+    background:#666; border:none; color:#fff; padding:3px 10px;
+    border-radius:3px; cursor:pointer; font-size:13px;
+  }}
+  #toolbar button:hover {{ background:#888; }}
+  #canvas-container {{
+    overflow-y:auto; height:calc(100vh - 38px);
+    display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 0;
+  }}
+  canvas {{ box-shadow:0 2px 8px rgba(0,0,0,0.5); }}
+</style></head>
+<body>
+<div id="toolbar">
+  <button onclick="changePage(-1)">&#9664;</button>
+  <span id="page-info">Page 1 of ?</span>
+  <button onclick="changePage(1)">&#9654;</button>
+  <span style="margin-left:12px;">Zoom:</span>
+  <button onclick="changeZoom(-0.25)">&#8722;</button>
+  <span id="zoom-info">150%</span>
+  <button onclick="changeZoom(0.25)">+</button>
+</div>
+<div id="canvas-container"></div>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  const raw = atob("{b64}");
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  let pdfDoc = null, currentPage = 1, scale = 1.5;
+  const container = document.getElementById("canvas-container");
+  const pageInfo  = document.getElementById("page-info");
+  const zoomInfo  = document.getElementById("zoom-info");
+  pdfjsLib.getDocument({{ data: arr }}).promise.then(pdf => {{
+    pdfDoc = pdf;
+    renderPage(currentPage);
+  }});
+  function renderPage(num) {{
+    container.innerHTML = "";
+    pdfDoc.getPage(num).then(page => {{
+      const vp = page.getViewport({{ scale }});
+      const canvas = document.createElement("canvas");
+      canvas.width = vp.width; canvas.height = vp.height;
+      container.appendChild(canvas);
+      page.render({{ canvasContext: canvas.getContext("2d"), viewport: vp }});
+      pageInfo.textContent = "Page " + currentPage + " of " + pdfDoc.numPages;
+      zoomInfo.textContent = Math.round(scale * 100) + "%";
+    }});
+  }}
+  function changePage(d) {{
+    const n = currentPage + d;
+    if (n < 1 || n > pdfDoc.numPages) return;
+    currentPage = n; renderPage(currentPage);
+  }}
+  function changeZoom(d) {{
+    scale = Math.max(0.5, Math.min(3.0, scale + d));
+    renderPage(currentPage);
+  }}
+</script></body></html>"""
+                components.html(pdf_html, height=820, scrolling=False)
                 st.download_button(
                     "Download PDF",
                     data=data,
