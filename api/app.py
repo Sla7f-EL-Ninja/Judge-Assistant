@@ -157,8 +157,8 @@ async def lifespan(app: FastAPI):
 
     # -- Civil Law RAG: ensure corpus is indexed (fast no-op if already present)
     try:
-        from RAG.civil_law_rag.indexing.indexer import ensure_civil_law_indexed
-        ensure_civil_law_indexed()
+        from RAG.legal_rag.indexing.indexer import ensure_indexed
+        ensure_indexed()
     except Exception as exc:
         logger.warning("Civil Law RAG indexing check failed (non-fatal): %s", exc)
 
