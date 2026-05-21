@@ -230,6 +230,7 @@ def _store_in_mongo(
         "case_id": case_id,
         "source_file": source_file,
         "text": text,
+        "original_text": text,  # preserved forever; never overwritten by corrections
         "classification_confidence": confidence,
         "classification_explanation": explanation,
         "file_type": file_type,

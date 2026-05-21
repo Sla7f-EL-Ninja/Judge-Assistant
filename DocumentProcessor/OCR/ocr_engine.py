@@ -21,6 +21,31 @@ logger = logging.getLogger(__name__)
 _engine_instance: Optional["QARIEngine"] = None
 _engine_lock = threading.Lock()
 
+# Errors that indicate the quantized model won't fit on GPU and we should
+# fall back to a full-precision CPU run instead of crashing.
+_GPU_OFFLOAD_ERRORS = (
+    "dispatched on the CPU or the disk",
+    "llm_int8_enable_fp32_cpu_offload",
+)
+
+
+def _build_bnb_config(quantization: str):
+    """Return a BitsAndBytesConfig for the requested quantization, or None."""
+    from transformers import BitsAndBytesConfig
+
+    if quantization == "8bit":
+        return BitsAndBytesConfig(
+            load_in_8bit=True,
+            llm_int8_enable_fp32_cpu_offload=True,
+        )
+    if quantization == "4bit":
+        return BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_quant_type="nf4",
+        )
+    return None
+
 
 class QARIEngine:
     """Wrapper around the QARI (Qwen2VL-based) OCR model."""
@@ -29,7 +54,7 @@ class QARIEngine:
         self,
         model_name: str = "NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct",
         max_new_tokens: int = 4000,
-        quantization: str = "8bit",
+        quantization: str = "4bit",
         torch_dtype_str: str = "float16",
         use_gpu: bool = True,
     ) -> None:
@@ -48,34 +73,50 @@ class QARIEngine:
 
         from transformers import (
             AutoProcessor,
-            BitsAndBytesConfig,
             Qwen2VLForConditionalGeneration,
         )
 
-        if quantization == "8bit":
-            bnb_config = BitsAndBytesConfig(load_in_8bit=True)
-        elif quantization == "4bit":
-            bnb_config = BitsAndBytesConfig(load_in_4bit=True)
-        else:
-            bnb_config = None
-
+        bnb_config = _build_bnb_config(quantization) if use_gpu else None
         device_map = "auto" if use_gpu else "cpu"
 
-        load_kwargs = {
-            "torch_dtype": self.torch_dtype,
+        load_kwargs: dict = {
+            "dtype": self.torch_dtype,   # replaces deprecated torch_dtype
             "device_map": device_map,
         }
         if bnb_config is not None:
             load_kwargs["quantization_config"] = bnb_config
 
-        self.model = Qwen2VLForConditionalGeneration.from_pretrained(
-            model_name, **load_kwargs,
-        )
+        # --- Attempt 1: GPU + quantization (or plain GPU) ---
+        try:
+            self.model = Qwen2VLForConditionalGeneration.from_pretrained(
+                model_name, **load_kwargs,
+            )
+        except (ValueError, RuntimeError) as exc:
+            exc_str = str(exc)
+            if use_gpu and any(marker in exc_str for marker in _GPU_OFFLOAD_ERRORS):
+                logger.warning(
+                    "GPU VRAM too small for quantized model (%s). "
+                    "Falling back to full-precision CPU inference.",
+                    exc,
+                )
+                # --- Attempt 2: CPU fallback, no quantization ---
+                self.use_gpu = False
+                cpu_kwargs: dict = {
+                    "dtype": torch.float32,
+                    "device_map": "cpu",
+                }
+                self.model = Qwen2VLForConditionalGeneration.from_pretrained(
+                    model_name, **cpu_kwargs,
+                )
+                logger.info("Model loaded on CPU (float32, no quantization).")
+            else:
+                raise
+
         self.processor = AutoProcessor.from_pretrained(
             model_name, use_fast=False,
         )
 
-        logger.info("QARI model loaded successfully.")
+        logger.info("QARI model loaded successfully (use_gpu=%s).", self.use_gpu)
 
     def ocr_page(
         self,
@@ -102,7 +143,12 @@ class QARIEngine:
             )
             image_inputs, video_inputs = process_vision_info(messages)
 
-            device = "cuda" if self.use_gpu and torch.cuda.is_available() else "cpu"
+            # Use GPU only if it was successfully initialised.
+            device = (
+                "cuda"
+                if self.use_gpu and torch.cuda.is_available()
+                else "cpu"
+            )
 
             inputs = self.processor(
                 text=[text],
@@ -167,7 +213,7 @@ class QARIEngine:
 def get_engine(
     model_name: str = "NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct",
     max_new_tokens: int = 4000,
-    quantization: str = "8bit",
+    quantization: str = "4bit",
     torch_dtype_str: str = "float16",
     use_gpu: bool = True,
 ) -> QARIEngine:

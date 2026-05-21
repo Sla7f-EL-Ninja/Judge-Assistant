@@ -75,6 +75,10 @@ def _configure_logging(debug: bool = False) -> None:
     for noisy in ("httpx", "httpcore", "urllib3", "multipart"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
+    # Silence uvicorn's built-in access logger — request tracing is handled
+    # by our own middleware which emits structured structlog events instead.
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
 
 def _configure_langsmith() -> None:
     """Activate LangSmith tracing if LANGCHAIN_API_KEY is set (P1.7.3)."""
@@ -325,7 +329,32 @@ def create_app() -> FastAPI:
                 content=envelope.model_dump(),
             )
         return await call_next(request)
-    
+
+    @app.middleware("http")
+    async def request_tracing_middleware(request: Request, call_next):
+        """Log every request with method, path, status code, and duration."""
+        request_id = uuid.uuid4().hex[:8]
+        start = time.perf_counter()
+
+        structlog.contextvars.clear_contextvars()
+        structlog.contextvars.bind_contextvars(request_id=request_id)
+
+        logger.info("%s %s started", request.method, request.url.path)
+
+        response = await call_next(request)
+
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        logger.info(
+            "%s %s %s (%.1fms)",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+        )
+
+        response.headers["X-Request-ID"] = request_id
+        return response
+
 
     # -- Error handlers -------------------------------------------------------
     @app.exception_handler(HTTPException)

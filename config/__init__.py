@@ -31,6 +31,8 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
+from dotenv import load_dotenv
+load_dotenv()
 
 import yaml
 
