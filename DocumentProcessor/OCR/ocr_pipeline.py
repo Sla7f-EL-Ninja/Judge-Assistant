@@ -30,6 +30,11 @@ _DEFAULT_OCR_PROMPT = (
     "Preserve all text exactly character by character."
 )
 
+import re
+
+def strip_html(text):
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', text)
 
 def run_ocr(
     file_path: str,
@@ -119,6 +124,7 @@ def run_ocr(
             error = ocr_result.get("error")
 
             normalized_text = normalize_numerals(raw_text) if raw_text else ""
+            clean_text = strip_html(normalized_text)
 
             elapsed = time.time() - t0_page
             logger.info(
@@ -168,7 +174,7 @@ def _resolve_config(config: Optional[dict] = None) -> dict:
     defaults = {
         "model_name": "NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct",
         "max_new_tokens": 4000,
-        "quantization": "8bit",
+        "quantization": "4bit",
         "torch_dtype": "float16",
         "use_gpu": True,
         "max_image_dimension": 4000,

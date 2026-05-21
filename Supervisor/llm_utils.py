@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from config import cfg as _cfg
-    _LLM_TIMEOUT_S: int = int(_cfg.supervisor.get("llm_timeout_seconds", 60))
+    _LLM_TIMEOUT_S: int = int(_cfg.supervisor.get("llm_timeout_seconds", 160))
     _LLM_MAX_RETRIES: int = int(_cfg.supervisor.get("llm_max_retries", 2))
     _LLM_BACKOFF_S: float = float(_cfg.supervisor.get("llm_retry_backoff_seconds", 2.0))
 except Exception:
