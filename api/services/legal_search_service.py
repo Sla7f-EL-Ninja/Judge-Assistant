@@ -102,7 +102,7 @@ async def lookup_articles(
         }
         for p in results
     ]
-    articles.sort(key=lambda a: a["index"] or 0)
+    articles.sort(key=lambda a: a["index"] if a["index"] is not None else float("inf"))
 
     return {
         "corpus": corpus,
@@ -197,32 +197,67 @@ async def get_corpus_tree(corpus: str) -> dict:
             _section(_chapter(_part(book_node, part), chapter), section).append(article)
 
     # ---------------------------------------------------------------------------
-    # Serialize to list structure
+    # Serialize to list structure — all levels sorted by minimum article index
+    # so the output order matches the legislative sequence, not Arabic
+    # lexicographic order.
     # ---------------------------------------------------------------------------
 
     def _sort(lst):
-        return sorted(lst, key=lambda a: a["index"] or 0)
+        """Sort article dicts by index; None indices go last."""
+        return sorted(lst, key=lambda a: a["index"] if a["index"] is not None else float("inf"))
+
+    # ── min-index helpers ────────────────────────────────────────────────────
+
+    def _min_idx(articles):
+        idxs = [a["index"] for a in articles if a.get("index") is not None]
+        return min(idxs) if idxs else float("inf")
+
+    def _chapter_min(ch_data):
+        arts = list(ch_data["direct"])
+        for sec_arts in ch_data["sections"].values():
+            arts.extend(sec_arts)
+        return _min_idx(arts)
+
+    def _part_min(part_data):
+        arts = list(part_data["direct"])
+        for ch_data in part_data["chapters"].values():
+            arts.extend(ch_data["direct"])
+            for sec_arts in ch_data["sections"].values():
+                arts.extend(sec_arts)
+        return _min_idx(arts)
+
+    def _book_min(book_data):
+        arts = list(book_data["direct"])
+        for part_data in book_data["parts"].values():
+            arts.extend(part_data["direct"])
+            for ch_data in part_data["chapters"].values():
+                arts.extend(ch_data["direct"])
+                for sec_arts in ch_data["sections"].values():
+                    arts.extend(sec_arts)
+        return _min_idx(arts)
 
     result_tree = []
-    for book_name, book_data in sorted(books.items()):
+    for book_name, book_data in sorted(books.items(), key=lambda kv: _book_min(kv[1])):
         book_node = {
             "book": book_name,
             "direct_articles": _sort(book_data["direct"]),
             "parts": [],
         }
-        for part_name, part_data in sorted(book_data["parts"].items()):
+        for part_name, part_data in sorted(book_data["parts"].items(), key=lambda kv: _part_min(kv[1])):
             part_node = {
                 "part": part_name,
                 "direct_articles": _sort(part_data["direct"]),
                 "chapters": [],
             }
-            for chapter_name, chapter_data in sorted(part_data["chapters"].items()):
+            for chapter_name, chapter_data in sorted(part_data["chapters"].items(), key=lambda kv: _chapter_min(kv[1])):
                 chapter_node = {
                     "chapter": chapter_name,
                     "direct_articles": _sort(chapter_data["direct"]),
                     "sections": [],
                 }
-                for section_name, articles in sorted(chapter_data["sections"].items()):
+                for section_name, articles in sorted(
+                    chapter_data["sections"].items(), key=lambda kv: _min_idx(kv[1])
+                ):
                     chapter_node["sections"].append({
                         "section": section_name,
                         "articles": _sort(articles),
