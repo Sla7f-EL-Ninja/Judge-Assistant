@@ -8,11 +8,6 @@
 # -------------------------------------------------------
 # LLM Tier Configuration
 # -------------------------------------------------------
-# Three tiers based on task complexity:
-#   high   - Complex reasoning, synthesis, legal analysis
-#   medium - Classification, grading, structured extraction
-#   low    - Simple routing, validation, fallback tasks
-# -------------------------------------------------------
 llm:
   high:
     provider: google            # groq | google
@@ -48,7 +43,7 @@ mongodb:
   server_selection_timeout_ms: 5000
 
 # -------------------------------------------------------
-# Vector Store - Qdrant (replaces ChromaDB)
+# Vector Store - Qdrant
 # -------------------------------------------------------
 qdrant:
   host: localhost
@@ -60,7 +55,7 @@ qdrant:
   prefer_grpc: true
 
 # -------------------------------------------------------
-# Redis - Caching, Rate Limiting, Sessions
+# Redis
 # -------------------------------------------------------
 redis:
   url: redis://localhost:6379/0
@@ -70,7 +65,7 @@ redis:
   rate_limit_window_seconds: 60
 
 # -------------------------------------------------------
-# MinIO - Object/File Storage (S3-compatible)
+# MinIO
 # -------------------------------------------------------
 minio:
   endpoint: localhost:9000
@@ -80,7 +75,7 @@ minio:
   secure: false
 
 # -------------------------------------------------------
-# PostgreSQL - Users, Roles, Audit Logging
+# PostgreSQL
 # -------------------------------------------------------
 postgresql:
   url: postgresql+asyncpg://postgres:postgres@localhost:5432/judge_assistant
@@ -95,7 +90,7 @@ api:
   app_name: Judge Assistant API
   app_version: 0.1.0
   debug: false
-  cors_origins: "http://localhost:3000"   # restrict to actual frontend origin in production
+  cors_origins: "http://localhost:3000"
   jwt_secret: "123456"     # override via JA_API_JWT_SECRET env var — never commit real value
   jwt_algorithm: HS256
   max_upload_bytes: 20971520
@@ -116,10 +111,7 @@ supervisor:
     - reason
 
 # -------------------------------------------------------
-# OCR Pipeline
-# -------------------------------------------------------
-# -------------------------------------------------------
-# TEI (Text Embeddings Inference) remote services
+# TEI (Text Embeddings Inference)
 # -------------------------------------------------------
 tei:
   embedding_url: http://localhost:8080
@@ -143,13 +135,55 @@ rag:
     global_retrieval_enabled: true
     global_k: 5
 
-
 # -------------------------------------------------------
 # OCR Pipeline
 # -------------------------------------------------------
 ocr:
   language: ar
   use_gpu: false
+
+  # Active OCR engine.
+  # "gcv" = Google Cloud Vision (current, production).
+  # "qari" = retired QARI/Qwen2VL model (kept as reference label only).
+  engine:
+    provider: gcv
+
+  # ------------------------------------------------------------------
+  # Google Cloud Vision
+  # ------------------------------------------------------------------
+  gcv:
+    feature: DOCUMENT_TEXT_DETECTION   # DOCUMENT_TEXT_DETECTION | TEXT_DETECTION
+    # Path to a GCP service-account JSON key file.
+    # Leave blank to rely on the GOOGLE_APPLICATION_CREDENTIALS env var
+    # (recommended for production) or Workload Identity on GKE/Cloud Run.
+    credentials_file: ""
+
+  # ------------------------------------------------------------------
+  # LLM refinement (Classical Arabic correction + punctuation)
+  # ------------------------------------------------------------------
+  # Toggle A/B switches:
+  #   refinement.enabled            — LLM post-processing on/off
+  #   refinement.preprocessing_enabled — image restore+deskew on/off
+  #
+  # Override at runtime without redeployment:
+  #   JA_OCR_REFINEMENT_ENABLED=false
+  #   JA_OCR_REFINEMENT_PREPROCESSING_ENABLED=false
+  # ------------------------------------------------------------------
+  refinement:
+    enabled: true
+    timeout_seconds: 60        # LLM call timeout per page
+    preprocessing_enabled: true  # image restore + perspective correction
+
+  # ------------------------------------------------------------------
+  # Confidence thresholds for word-level colour bands
+  #   ≥ high_threshold  → "high"  → green
+  #   ≥ mid_threshold   → "mid"   → orange
+  #   < mid_threshold   → "low"   → red
+  # ------------------------------------------------------------------
+  confidence:
+    high_threshold: 0.90    # updated from 0.85
+    medium_threshold: 0.65  # updated from 0.60
+
   preprocessing:
     enable_resolution_check: true
     min_dpi: 150
@@ -157,13 +191,12 @@ ocr:
     enable_denoise: false
     enable_border_removal: true
     enable_contrast_enhancement: true
-  confidence:
-    high_threshold: 0.85
-    medium_threshold: 0.60
+
   postprocessing:
     enable_dictionary_correction: true
     max_levenshtein_distance: 2
     normalize_digits: arabic_indic
+
   security:
     max_file_size_mb: 50
     allowed_extensions:
@@ -173,6 +206,8 @@ ocr:
       - .tiff
       - .bmp
       - .pdf
+      - .webp
+
   performance:
     surya_batch_size: 4
     batch_workers: 4

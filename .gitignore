@@ -20,3 +20,5 @@ Case Sample/
 db/
 logs/
 .vscode/
+ai-judge-credentials.json
+tests/ocr/test_samples
