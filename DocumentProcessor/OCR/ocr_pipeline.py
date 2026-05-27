@@ -42,9 +42,17 @@ from DocumentProcessor.OCR.text_reconstruction import normalize_numerals
 logger = logging.getLogger(__name__)
 
 
+<<<<<<< HEAD
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+=======
+import re
+
+def strip_html(text):
+    clean = re.compile('<.*?>')
+    return re.sub(clean, '', text)
+>>>>>>> f3e4a2844e5b1434dce0841bc183f94f48c89672
 
 def run_ocr(
     file_path: str,
@@ -106,6 +114,7 @@ def run_ocr(
 
             # ---- Numeral normalisation ------------------------------------
             normalized_text = normalize_numerals(raw_text) if raw_text else ""
+            clean_text = strip_html(normalized_text)
 
             # ---- LLM refinement ------------------------------------------
             # Refinement is skipped automatically when the OCR stage errored
@@ -216,6 +225,7 @@ def _preprocess(page_img, cfg: dict, page_num: int):
 # ---------------------------------------------------------------------------
 
 def _resolve_config(config: Optional[dict] = None) -> dict:
+<<<<<<< HEAD
     """Build a complete config dict from settings.yaml defaults + overrides."""
     from config.ocr import (  # noqa: PLC0415
         ALLOWED_EXTENSIONS,
@@ -234,6 +244,15 @@ def _resolve_config(config: Optional[dict] = None) -> dict:
         # Preprocessing toggle (stages: restore + perspective-correct)
         "preprocessing_enabled": PREPROCESSING_ENABLED,
         # Image preprocessing parameters
+=======
+    """Build a complete config dict with defaults, optionally overridden."""
+    defaults = {
+        "model_name": "NAMAA-Space/Qari-OCR-v0.3-VL-2B-Instruct",
+        "max_new_tokens": 4000,
+        "quantization": "4bit",
+        "torch_dtype": "float16",
+        "use_gpu": True,
+>>>>>>> f3e4a2844e5b1434dce0841bc183f94f48c89672
         "max_image_dimension": 4000,
         "clahe_clip_limit": 2.0,
         "clahe_tile_grid_size": [8, 8],

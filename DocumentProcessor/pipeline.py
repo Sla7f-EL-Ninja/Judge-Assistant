@@ -317,9 +317,14 @@ def _store_in_mongo(
         "doc_type": doc_type,
         "case_id": case_id,
         "source_file": source_file,
+<<<<<<< HEAD
         "text": text,                               # canonical (refined) text
         "raw_ocr_text": raw_ocr_text,              # verbatim GCV output
         "word_confidences": word_confidences or [], # per-word confidence for UI
+=======
+        "text": text,
+        "original_text": text,  # preserved forever; never overwritten by corrections
+>>>>>>> f3e4a2844e5b1434dce0841bc183f94f48c89672
         "classification_confidence": confidence,
         "classification_explanation": explanation,
         "file_type": file_type,
@@ -694,6 +699,7 @@ def process_document(
             "source_file": file_path,
             "file_id": file_id,
         },
+<<<<<<< HEAD
     }
 
 
@@ -722,3 +728,6 @@ def reindex_document(
         mongo_id=mongo_id,
         file_id=doc_meta.get("file_id"),
     )
+=======
+    }
+>>>>>>> f3e4a2844e5b1434dce0841bc183f94f48c89672
