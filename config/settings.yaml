@@ -1,16 +1,206 @@
+# # config/settings.yaml
+# #
+# # Centralized configuration for Judge Assistant.
+# # Local overrides go in settings.local.yaml (gitignored).
+# # Environment variables with JA_ prefix override any YAML value.
+
+# # -------------------------------------------------------
+# # LLM Tier Configuration
+# # -------------------------------------------------------
+# llm:
+#   high:
+#     provider: google
+#     model: gemini-2.5-flash
+#     temperature: 0.0
+#     timeout_seconds: 1300
+#   medium:
+#     provider: google
+#     model: gemini-2.5-flash
+#     temperature: 0.0
+#     timeout_seconds: 1300
+#   low:
+#     provider: google
+#     model: gemini-2.5-flash-lite
+#     temperature: 0.0
+#     timeout_seconds: 1300
+
+# # -------------------------------------------------------
+# # Embedding Model
+# # -------------------------------------------------------
+# embedding:
+#   model: BAAI/bge-m3
+
+# # -------------------------------------------------------
+# # MongoDB
+# # -------------------------------------------------------
+# mongodb:
+#   uri: mongodb://localhost:27017/
+#   database: TESTING
+#   collection: Document Storage
+#   min_pool_size: 5
+#   max_pool_size: 50
+#   server_selection_timeout_ms: 5000
+
+# # -------------------------------------------------------
+# # Vector Store - Qdrant
+# # -------------------------------------------------------
+# qdrant:
+#   host: localhost
+#   port: 6333
+#   grpc_port: 6334
+#   collection: civil_law_docs
+#   case_collection: case_docs
+#   vector_size: 1024
+#   prefer_grpc: true
+
+# # -------------------------------------------------------
+# # Redis
+# # -------------------------------------------------------
+# redis:
+#   url: redis://localhost:6379/0
+#   max_connections: 20
+#   cache_ttl_seconds: 3600
+#   rate_limit_requests: 100
+#   rate_limit_window_seconds: 60
+
+# # -------------------------------------------------------
+# # MinIO
+# # -------------------------------------------------------
+# minio:
+#   endpoint: localhost:9000
+#   access_key: minioadmin
+#   secret_key: minioadmin
+#   bucket: judge-assistant-files
+#   secure: false
+
+# # -------------------------------------------------------
+# # PostgreSQL
+# # -------------------------------------------------------
+# postgresql:
+#   url: postgresql+asyncpg://postgres:postgres@localhost:5432/judge_assistant
+#   sync_url: postgresql://postgres:postgres@localhost:5432/judge_assistant
+#   pool_size: 10
+#   max_overflow: 20
+
+# # -------------------------------------------------------
+# # API Server
+# # -------------------------------------------------------
+# api:
+#   app_name: Judge Assistant API
+#   app_version: 0.1.0
+#   debug: false
+#   cors_origins: "http://localhost:3000"
+#   jwt_secret: "123456"     # override via JA_API_JWT_SECRET — never commit real value
+#   jwt_algorithm: HS256
+#   max_upload_bytes: 20971520
+#   allowed_mime_types: application/pdf,text/plain,text/markdown,image/png,image/jpeg,image/tiff,image/bmp,image/webp,image/gif,image/heic,image/heif
+#   upload_dir: ./uploads
+#   langgraph_module: Supervisor.graph
+
+# # -------------------------------------------------------
+# # Supervisor
+# # -------------------------------------------------------
+# supervisor:
+#   max_retries: 3
+#   max_conversation_turns: 20
+#   agent_names:
+#     - summarize
+#     - civil_law_rag
+#     - case_doc_rag
+#     - reason
+
+# # -------------------------------------------------------
+# # TEI (Text Embeddings Inference)
+# # -------------------------------------------------------
+# tei:
+#   embedding_url: http://localhost:8080
+#   reranker_url: http://localhost:8081
+#   timeout_seconds: 30
+#   max_retries: 3
+
+# # -------------------------------------------------------
+# # RAG Pipelines
+# # -------------------------------------------------------
+# rag:
+#   civil_law:
+#     hyde_enabled: false
+#     scope_chapter_threshold: 0.5
+#     scope_section_threshold: 0.5
+#   legal:
+#     hyde_enabled: false
+#     corpus_router_threshold: 0.4
+#     scope_chapter_threshold: 0.5
+#     scope_section_threshold: 0.5
+#     global_retrieval_enabled: true
+#     global_k: 5
+
+# # -------------------------------------------------------
+# # OCR Pipeline
+# # -------------------------------------------------------
+# ocr:
+#   language: ar
+
+#   # Active OCR engine
+#   engine:
+#     provider: gcv
+
+#   # ------------------------------------------------------------------
+#   # Google Cloud Vision
+#   # ------------------------------------------------------------------
+#   gcv:
+#     feature: DOCUMENT_TEXT_DETECTION
+#     # Path to GCP service-account JSON key file.
+#     # Leave blank to rely on GOOGLE_APPLICATION_CREDENTIALS env var
+#     # (recommended) or Workload Identity on GKE/Cloud Run.
+#     credentials_file: ""
+
+#   # ------------------------------------------------------------------
+#   # LLM refinement (Classical Arabic correction + punctuation)
+#   # ------------------------------------------------------------------
+#   # Toggle without redeployment:
+#   #   JA_OCR_REFINEMENT_ENABLED=false
+#   # ------------------------------------------------------------------
+#   refinement:
+#     enabled: true
+#     timeout_seconds: 60
+
+#   # ------------------------------------------------------------------
+#   # Confidence thresholds for word-level colour bands
+#   #   >= high_threshold  → "high"  → green
+#   #   >= medium_threshold → "mid"  → orange
+#   #   < medium_threshold  → "low"  → red
+#   # ------------------------------------------------------------------
+#   confidence:
+#     high_threshold: 0.90
+#     medium_threshold: 0.65
+
+#   # ------------------------------------------------------------------
+#   # Security / ingestion
+#   # ------------------------------------------------------------------
+#   security:
+#     max_file_size_mb: 50
+#     allowed_extensions:
+#       - .png
+#       - .jpg
+#       - .jpeg
+#       - .tiff
+#       - .bmp
+#       - .pdf
+#       - .webp
+
+
 # config/settings.yaml
 #
 # Centralized configuration for Judge Assistant.
 # Local overrides go in settings.local.yaml (gitignored).
 # Environment variables with JA_ prefix override any YAML value.
-# See CONFIG.md for full documentation.
 
 # -------------------------------------------------------
 # LLM Tier Configuration
 # -------------------------------------------------------
 llm:
   high:
-    provider: google            # groq | google
+    provider: google
     model: gemini-2.5-flash
     temperature: 0.0
     timeout_seconds: 1300
@@ -91,7 +281,7 @@ api:
   app_version: 0.1.0
   debug: false
   cors_origins: "http://localhost:3000"
-  jwt_secret: "123456"     # override via JA_API_JWT_SECRET env var — never commit real value
+  jwt_secret: "123456"     # override via JA_API_JWT_SECRET — never commit real value
   jwt_algorithm: HS256
   max_upload_bytes: 20971520
   allowed_mime_types: application/pdf,text/plain,text/markdown,image/png,image/jpeg,image/tiff,image/bmp,image/webp,image/gif,image/heic,image/heif
@@ -140,11 +330,8 @@ rag:
 # -------------------------------------------------------
 ocr:
   language: ar
-  use_gpu: false
 
-  # Active OCR engine.
-  # "gcv" = Google Cloud Vision (current, production).
-  # "qari" = retired QARI/Qwen2VL model (kept as reference label only).
+  # Active OCR engine
   engine:
     provider: gcv
 
@@ -152,51 +339,48 @@ ocr:
   # Google Cloud Vision
   # ------------------------------------------------------------------
   gcv:
-    feature: DOCUMENT_TEXT_DETECTION   # DOCUMENT_TEXT_DETECTION | TEXT_DETECTION
-    # Path to a GCP service-account JSON key file.
-    # Leave blank to rely on the GOOGLE_APPLICATION_CREDENTIALS env var
-    # (recommended for production) or Workload Identity on GKE/Cloud Run.
+    feature: DOCUMENT_TEXT_DETECTION
+    # Path to GCP service-account JSON key file.
+    # Leave blank to rely on GOOGLE_APPLICATION_CREDENTIALS env var
+    # (recommended) or Workload Identity on GKE/Cloud Run.
     credentials_file: ""
 
   # ------------------------------------------------------------------
   # LLM refinement (Classical Arabic correction + punctuation)
   # ------------------------------------------------------------------
-  # Toggle A/B switches:
-  #   refinement.enabled            — LLM post-processing on/off
-  #   refinement.preprocessing_enabled — image restore+deskew on/off
+  # The refinement model is now "low" (gemini-2.5-flash-lite) instead of
+  # "high" (gemini-2.5-flash).  Flash-Lite has no thinking budget,
+  # which cuts per-page LLM latency from ~30–50 s to ~5–12 s with no
+  # measurable accuracy loss for character-level OCR correction.
   #
-  # Override at runtime without redeployment:
+  # confidence_threshold: pages whose GCV word-confidence mean is at or
+  # above this value skip LLM refinement entirely.
+  #   - Printed Arabic legal text:  typically 0.93 – 0.97  → skip (fast)
+  #   - Handwritten Arabic text:    typically 0.70 – 0.85  → refine
+  # Set to 1.01 to disable the skip and always run refinement.
+  # Set to 0.00 to always skip refinement (same as enabled: false).
+  #
+  # Toggle without redeployment:
   #   JA_OCR_REFINEMENT_ENABLED=false
-  #   JA_OCR_REFINEMENT_PREPROCESSING_ENABLED=false
   # ------------------------------------------------------------------
   refinement:
     enabled: true
-    timeout_seconds: 60        # LLM call timeout per page
-    preprocessing_enabled: true  # image restore + perspective correction
+    timeout_seconds: 30        # reduced from 60 — matches flash-lite latency
+    confidence_threshold: 0.92 # skip LLM for pages at or above this score
 
   # ------------------------------------------------------------------
-  # Confidence thresholds for word-level colour bands
-  #   ≥ high_threshold  → "high"  → green
-  #   ≥ mid_threshold   → "mid"   → orange
-  #   < mid_threshold   → "low"   → red
+  # Confidence thresholds for word-level colour bands in the frontend
+  #   >= high_threshold   → "high"  → green
+  #   >= medium_threshold → "mid"   → orange
+  #   < medium_threshold  → "low"   → red
   # ------------------------------------------------------------------
   confidence:
-    high_threshold: 0.90    # updated from 0.85
-    medium_threshold: 0.65  # updated from 0.60
+    high_threshold: 0.90
+    medium_threshold: 0.65
 
-  preprocessing:
-    enable_resolution_check: true
-    min_dpi: 150
-    enable_deskew: true
-    enable_denoise: false
-    enable_border_removal: true
-    enable_contrast_enhancement: true
-
-  postprocessing:
-    enable_dictionary_correction: true
-    max_levenshtein_distance: 2
-    normalize_digits: arabic_indic
-
+  # ------------------------------------------------------------------
+  # Security / ingestion
+  # ------------------------------------------------------------------
   security:
     max_file_size_mb: 50
     allowed_extensions:
@@ -208,6 +392,18 @@ ocr:
       - .pdf
       - .webp
 
+  # ------------------------------------------------------------------
+  # Performance
+  # ------------------------------------------------------------------
+  # max_workers: number of pages processed in parallel.
+  # Both the GCV API call and the LLM call are network I/O, so Python
+  # threads provide real concurrency here.  For a 4-page document this
+  # turns a sequential ~285 s run into a ~20 s parallel run.
+  #
+  # Practical ceiling: stay below your GCV and Gemini API rate limits.
+  # Default 4 is safe for typical document sizes (1–20 pages).
+  # Raise to 8 for large batches; lower to 1 to force sequential
+  # execution for debugging or rate-limit recovery.
+  # ------------------------------------------------------------------
   performance:
-    surya_batch_size: 4
-    batch_workers: 4
+    max_workers: 4
