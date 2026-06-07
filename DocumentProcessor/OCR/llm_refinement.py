@@ -1,156 +1,3 @@
-# """
-# DocumentProcessor.OCR.llm_refinement
-# --------------------------------------
-# LLM post-processing layer for Arabic OCR output.
-
-# Responsibilities
-# ----------------
-# 1. Fix character-level OCR confusions common in Arabic script
-#    (ر/ز، ط/ظ، ه/ة، و/ؤ، ي/ئ، ا/أ/إ/آ … etc.)
-# 2. Insert correct Classical Arabic punctuation (، ؛ ؟ : . " ")
-# 3. Fix spacing anomalies introduced by OCR segmentation
-
-# Hard constraints enforced via system prompt
-# -------------------------------------------
-# - No words may be added or removed.
-# - Legal terminology, party names, dates, and numbers must not change.
-# - The model returns only the corrected text — no commentary.
-
-# Graceful degradation
-# --------------------
-# Any LLM failure (timeout, quota, network) returns ``raw_text`` unchanged
-# so the OCR pipeline always produces usable output.  Failures are logged
-# at WARNING level with enough context for post-mortem analysis.
-# """
-
-# from __future__ import annotations
-
-# import logging
-# import re
-# from typing import Optional
-
-# logger = logging.getLogger(__name__)
-
-# # ---------------------------------------------------------------------------
-# # Prompt
-# # ---------------------------------------------------------------------------
-
-# _SYSTEM_PROMPT = """\
-# أنت محرر نصوص قانونية متخصص في اللغة العربية الفصحى الكلاسيكية.
-# مهمتك الوحيدة: تصحيح مخرجات OCR الخاصة بالمستندات القانونية المصرية.
-
-# القواعد الصارمة التي لا استثناء فيها:
-# ١. لا تُضف أي كلمة لم تكن موجودة في النص الأصلي.
-# ٢. لا تحذف أي كلمة من النص الأصلي.
-# ٣. لا تغيّر المصطلحات القانونية أو أسماء الأطراف أو التواريخ أو الأرقام.
-# ٤. صحّح فقط ما يلي:
-#    - الأخطاء الحرفية الناتجة عن OCR
-#      أمثلة: (ر ↔ ز)، (ط ↔ ظ)، (ه ↔ ة)، (و ↔ ؤ)، (ي ↔ ئ)، (ا ↔ أ ↔ إ ↔ آ)
-#    - علامات الترقيم العربية الناقصة أو الخاطئة: ، ؛ ؟ : . " "
-#    - المسافات الزائدة أو الناقصة بين الكلمات.
-# ٥. أعد النص المصحح فقط — بدون أي مقدمة أو تعليق أو تفسير.\
-# """
-
-# # Strip any preamble the model may produce despite the prompt (defensive)
-# _PREAMBLE_RE = re.compile(
-#     r"^(النص المصحح|المخرج|الإجابة|الناتج)\s*[:\-]\s*",
-#     re.MULTILINE,
-# )
-
-
-# # ---------------------------------------------------------------------------
-# # Public API
-# # ---------------------------------------------------------------------------
-
-# def refine_ocr_text(
-#     raw_text: str,
-#     page_number: int = 1,
-#     timeout: int = 60,
-#     enabled: bool = True,
-# ) -> str:
-#     """Apply LLM refinement to a page of OCR output.
-
-#     Parameters
-#     ----------
-#     raw_text:
-#         Text as produced by the OCR engine (after numeral normalisation).
-#     page_number:
-#         Used for log messages only.
-#     timeout:
-#         LLM call timeout in seconds.  Passed to ``get_llm`` via
-#         ``request_timeout`` override.
-#     enabled:
-#         Master switch.  When ``False`` the function is a no-op and returns
-#         ``raw_text`` immediately (zero overhead).
-
-#     Returns
-#     -------
-#     str
-#         LLM-refined text, or ``raw_text`` on any failure/bypass.
-#     """
-#     if not enabled:
-#         return raw_text
-
-#     if not raw_text or not raw_text.strip():
-#         return raw_text
-
-#     try:
-#         refined = _call_llm(raw_text, timeout=timeout)
-#     except Exception as exc:
-#         logger.warning(
-#             "LLM refinement failed for page %d (%s: %s) — using raw OCR text",
-#             page_number,
-#             type(exc).__name__,
-#             exc,
-#         )
-#         return raw_text
-
-#     if not refined or not refined.strip():
-#         logger.warning(
-#             "LLM refinement returned empty output for page %d — using raw OCR text",
-#             page_number,
-#         )
-#         return raw_text
-
-#     logger.info(
-#         "LLM refinement complete — page %d: %d chars → %d chars",
-#         page_number,
-#         len(raw_text),
-#         len(refined),
-#     )
-#     return refined
-
-
-# # ---------------------------------------------------------------------------
-# # Internal
-# # ---------------------------------------------------------------------------
-
-# def _call_llm(raw_text: str, timeout: int) -> str:
-#     """Invoke the high-tier LLM and return the stripped response text."""
-#     from config import get_llm  # noqa: PLC0415 — deferred to avoid circular import
-#     from langchain_core.messages import HumanMessage, SystemMessage  # noqa: PLC0415
-
-#     llm = get_llm("high", request_timeout=timeout, temperature=0.0)
-
-#     messages = [
-#         SystemMessage(content=_SYSTEM_PROMPT),
-#         HumanMessage(content=f"النص الأصلي:\n{raw_text}"),
-#     ]
-
-#     response = llm.invoke(messages)
-
-#     # LangChain chat models return an AIMessage; plain string otherwise
-#     text: str = (
-#         response.content  # type: ignore[attr-defined]
-#         if hasattr(response, "content")
-#         else str(response)
-#     )
-
-#     # Strip any preamble the model added despite the prompt
-#     text = _PREAMBLE_RE.sub("", text.strip()).strip()
-#     return text
-
-
 """
 DocumentProcessor.OCR.llm_refinement
 --------------------------------------
@@ -163,37 +10,30 @@ Responsibilities
 2. Insert correct Classical Arabic punctuation (، ؛ ؟ : . " ")
 3. Fix spacing anomalies introduced by OCR segmentation
 
-Hard constraints enforced via system prompt
--------------------------------------------
-- No words may be added or removed.
-- Legal terminology, party names, dates, and numbers must not change.
-- The model returns only the corrected text — no commentary.
+Content-length guard (added this version)
+-----------------------------------------
+The LLM is instructed never to add words, but models are non-deterministic
+and occasionally hallucinate content.  In one observed run, page 20 grew
+from 900 → 1,247 characters (+38 %) — fabricated text in a legal document
+is unacceptable regardless of how rare it is.
 
-Graceful degradation
---------------------
-Any LLM failure (timeout, quota, network) returns ``raw_text`` unchanged
-so the OCR pipeline always produces usable output.  Failures are logged
-at WARNING level with enough context for post-mortem analysis.
+After every LLM call, the refined text is validated against two thresholds:
+
+    char ratio  = len(refined) / len(raw)   ≤ MAX_CHAR_RATIO  (1.15)
+    word ratio  = words(refined) / words(raw) ≤ MAX_WORD_RATIO  (1.10)
+
+If either limit is exceeded, the raw OCR text is returned unchanged and a
+WARNING is logged.  Thresholds were calibrated against 10 observed
+refinements across multiple runs — the highest legitimate ratio was 1.023
+(page 9 diacritics).  A 15 % char / 10 % word margin gives comfortable
+headroom for punctuation normalisation while catching the +38 % case.
 
 Performance
 -----------
-Two changes from the original implementation:
-
-1. **Model tier** — uses ``"low"`` (``gemini-2.5-flash-lite``) instead of
-   ``"high"`` (``gemini-2.5-flash``).  The "high" tier activates Gemini's
-   extended thinking, which runs a hidden reasoning chain before producing
-   output — unnecessary for the pattern-matching task of OCR character
-   correction.  Flash-Lite achieves equivalent correction quality at roughly
-   4–5× lower latency (8–12 s vs 30–50 s per page).
-
-   To switch back to the full model (e.g. for very low-confidence pages),
-   set ``OCR_REFINEMENT_LLM_TIER = "high"`` in ``config/ocr.py`` or
-   override per-call via ``refine_ocr_text(..., llm_tier="high")``.
-
-2. **Singleton LLM** — the LLM client is constructed once per process and
-   reused across all page calls.  With parallel page processing this avoids
-   4 concurrent constructor calls and removes the per-call initialisation
-   overhead of the underlying gRPC / HTTP transport.
+- Model tier ``"low"`` (gemini-2.5-flash-lite) — no thinking budget.
+  Typical call time: 2–5 s per page.
+- LLM client is a module-level singleton.  Call ``prewarm_llm()`` at
+  startup so the ~18 s init runs in the background during GCV processing.
 """
 
 from __future__ import annotations
@@ -201,12 +41,18 @@ from __future__ import annotations
 import logging
 import re
 import threading
-from typing import TYPE_CHECKING, Optional
-
-if TYPE_CHECKING:
-    pass
+from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Content-length guard thresholds
+# ---------------------------------------------------------------------------
+# Reject refined text whose length exceeds the raw text by more than these
+# ratios.  Validated against observed data — all legitimate corrections
+# stayed below 1.03 char ratio.  Set to > 2.0 to disable (not recommended).
+MAX_CHAR_RATIO = 1.15   # max allowed  len(refined) / len(raw)
+MAX_WORD_RATIO = 1.10   # max allowed  words(refined) / words(raw)
 
 # ---------------------------------------------------------------------------
 # Prompt
@@ -228,46 +74,26 @@ _SYSTEM_PROMPT = """\
 ٥. أعد النص المصحح فقط — بدون أي مقدمة أو تعليق أو تفسير.\
 """
 
-# Strip any preamble the model may produce despite the prompt (defensive)
 _PREAMBLE_RE = re.compile(
     r"^(النص المصحح|المخرج|الإجابة|الناتج)\s*[:\-]\s*",
     re.MULTILINE,
 )
 
 # ---------------------------------------------------------------------------
-# LLM singleton
+# Singleton LLM
 # ---------------------------------------------------------------------------
-# The LLM client is expensive to construct (gRPC channel / HTTP session
-# establishment).  We build it once and reuse across all pages, including
-# concurrent page workers in the thread pool.  LangChain's ChatGoogleGenerativeAI
-# is stateless per-call, so sharing it across threads is safe.
 
 _llm_instance = None
 _llm_lock = threading.Lock()
 
 
-def _get_llm(llm_tier: str = "low", timeout: int = 30):
-    """Return (and cache) the singleton LLM used for OCR refinement.
-
-    The instance is built on first call and reused for the process lifetime.
-    Thread-safe via a double-checked lock.
-
-    Parameters
-    ----------
-    llm_tier:
-        LangChain tier key from settings.yaml.  Default ``"low"``
-        (``gemini-2.5-flash-lite``).  Pass ``"high"`` to use the full
-        thinking model when accuracy is more important than latency.
-    timeout:
-        Request timeout forwarded to ``get_llm``.  Only applied at
-        construction time; ignored after the singleton is initialised.
-    """
+def _get_llm(llm_tier: str = "low", timeout: int = 60):
+    """Return (and cache) the singleton LLM used for OCR refinement."""
     global _llm_instance
     if _llm_instance is None:
         with _llm_lock:
             if _llm_instance is None:
                 from config import get_llm  # noqa: PLC0415
-
                 _llm_instance = get_llm(
                     llm_tier,
                     request_timeout=timeout,
@@ -275,10 +101,23 @@ def _get_llm(llm_tier: str = "low", timeout: int = 30):
                 )
                 logger.info(
                     "LLM refinement client initialised (tier=%s, timeout=%ds)",
-                    llm_tier,
-                    timeout,
+                    llm_tier, timeout,
                 )
     return _llm_instance
+
+
+def prewarm_llm(timeout: int = 60, llm_tier: str = "low") -> None:
+    """Initialise the LLM singleton in a background thread.
+
+    Call this at the start of ``run_ocr`` so the ~18 s initialisation
+    overlaps with GCV chunk processing rather than blocking after it.
+    Safe to call from any thread.
+    """
+    try:
+        _get_llm(llm_tier=llm_tier, timeout=timeout)
+        logger.debug("LLM singleton pre-warmed successfully")
+    except Exception as exc:
+        logger.warning("LLM pre-warm failed (non-fatal): %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -288,35 +127,17 @@ def _get_llm(llm_tier: str = "low", timeout: int = 30):
 def refine_ocr_text(
     raw_text: str,
     page_number: int = 1,
-    timeout: int = 30,
+    timeout: int = 60,
     enabled: bool = True,
     llm_tier: str = "low",
 ) -> str:
     """Apply LLM refinement to a page of OCR output.
 
-    Parameters
-    ----------
-    raw_text:
-        Text as produced by the OCR engine.
-    page_number:
-        Used for log messages only.
-    timeout:
-        LLM call timeout in seconds.
-    enabled:
-        Master switch.  When ``False`` returns ``raw_text`` immediately
-        with zero overhead.
-    llm_tier:
-        LangChain tier key.  ``"low"`` (default) uses the fast Flash-Lite
-        model.  Override to ``"high"`` for the thinking model when needed.
-
-    Returns
-    -------
-    str
-        LLM-refined text, or ``raw_text`` on any failure/bypass.
+    Returns the refined text, or ``raw_text`` on any failure, empty
+    response, or content-length guard rejection.
     """
     if not enabled:
         return raw_text
-
     if not raw_text or not raw_text.strip():
         return raw_text
 
@@ -325,24 +146,42 @@ def refine_ocr_text(
     except Exception as exc:
         logger.warning(
             "LLM refinement failed for page %d (%s: %s) — using raw OCR text",
-            page_number,
-            type(exc).__name__,
-            exc,
+            page_number, type(exc).__name__, exc,
         )
         return raw_text
 
     if not refined or not refined.strip():
         logger.warning(
-            "LLM refinement returned empty output for page %d — using raw OCR text",
+            "LLM returned empty output for page %d — using raw OCR text",
             page_number,
+        )
+        return raw_text
+
+    # ---- Content-length guard --------------------------------------------
+    # Protects against hallucinations where the model adds content despite
+    # the system prompt forbidding it.  Observed case: page 20 grew 900 →
+    # 1,247 chars (+38 %) in a single run.  Raw text is safer in that case.
+    raw_chars  = max(len(raw_text), 1)
+    raw_words  = max(len(raw_text.split()), 1)
+    ref_chars  = len(refined)
+    ref_words  = len(refined.split())
+    char_ratio = ref_chars / raw_chars
+    word_ratio = ref_words / raw_words
+
+    if char_ratio > MAX_CHAR_RATIO or word_ratio > MAX_WORD_RATIO:
+        logger.warning(
+            "Page %d: LLM output rejected — "
+            "char ratio=%.2f (limit %.2f), word ratio=%.2f (limit %.2f) — "
+            "likely hallucination; falling back to raw OCR text",
+            page_number,
+            char_ratio, MAX_CHAR_RATIO,
+            word_ratio, MAX_WORD_RATIO,
         )
         return raw_text
 
     logger.info(
         "LLM refinement complete — page %d: %d chars → %d chars",
-        page_number,
-        len(raw_text),
-        len(refined),
+        page_number, len(raw_text), len(refined),
     )
     return refined
 
@@ -352,25 +191,15 @@ def refine_ocr_text(
 # ---------------------------------------------------------------------------
 
 def _call_llm(raw_text: str, timeout: int, llm_tier: str = "low") -> str:
-    """Invoke the refinement LLM and return the stripped response text."""
     from langchain_core.messages import HumanMessage, SystemMessage  # noqa: PLC0415
 
     llm = _get_llm(llm_tier=llm_tier, timeout=timeout)
-
     messages = [
         SystemMessage(content=_SYSTEM_PROMPT),
         HumanMessage(content=f"النص الأصلي:\n{raw_text}"),
     ]
-
     response = llm.invoke(messages)
-
-    # LangChain chat models return an AIMessage; plain string otherwise
     text: str = (
-        response.content  # type: ignore[attr-defined]
-        if hasattr(response, "content")
-        else str(response)
+        response.content if hasattr(response, "content") else str(response)
     )
-
-    # Strip any preamble the model added despite the prompt
-    text = _PREAMBLE_RE.sub("", text.strip()).strip()
-    return text
+    return _PREAMBLE_RE.sub("", text.strip()).strip()

@@ -21,4 +21,6 @@ db/
 logs/
 .vscode/
 ai-judge-credentials.json
-tests/ocr/test_samples
+tests/ocr/test_samples/
+tests/voice/test_samples/
+Voice Samples/

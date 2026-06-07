@@ -259,6 +259,10 @@ OPENAPI_TAGS = [
         "name": "LegalSearch",
         "description": "Direct legal corpus search without invoking the supervisor graph.",
     },
+    {
+        "name": "Voice",
+        "description": "Arabic speech-to-text transcription. Converts voice recordings to text for chat input.",
+    },
 ]
 
 
@@ -442,6 +446,8 @@ def create_app() -> FastAPI:
     from api.routers.case_reasoning import router as case_reasoning_router
     from api.routers.reports import router as reports_router
     from api.routers.legal_search import router as legal_search_router
+    from api.routers.voice import router as voice_router
+    
 
     app.include_router(health_router)
     app.include_router(query_router)
@@ -453,5 +459,6 @@ def create_app() -> FastAPI:
     app.include_router(case_reasoning_router)
     app.include_router(reports_router)
     app.include_router(legal_search_router)
-
+    app.include_router(voice_router)
+    
     return app
