@@ -272,20 +272,20 @@ def _extract_text(
     file_type: str,
     case_id: str,
 ) -> _OCRExtraction:
-    """Extract text from any supported file type.
-
-    Always returns ``_OCRExtraction`` for a uniform caller interface.
-    Non-OCR paths (text, PDF) set ``raw_ocr_text`` and ``word_confidences``
-    to empty values.
-    """
     if file_type == "text":
         return _OCRExtraction(text=_extract_text_from_file(file_path))
     if file_type == "pdf":
-        return _OCRExtraction(text=_extract_text_from_pdf(file_path))
+        pdf_text = _extract_text_from_pdf(file_path)
+        if pdf_text.strip():
+            return _OCRExtraction(text=pdf_text)
+        # Scanned / image-only PDF — no embedded text, route to OCR
+        logger.info(
+            "PDF has no embedded text — routing to OCR pipeline: %s", file_path
+        )
+        return _extract_text_via_ocr(file_path, doc_id=case_id)
     if file_type == "image":
         return _extract_text_via_ocr(file_path, doc_id=case_id)
 
-    # Unknown — try plain text as a best-effort fallback
     try:
         return _OCRExtraction(text=_extract_text_from_file(file_path))
     except Exception:
