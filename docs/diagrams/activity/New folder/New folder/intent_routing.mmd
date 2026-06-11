@@ -1,0 +1,43 @@
+%%{init: {'theme': 'default', 'flowchart': {'htmlLabels': false}}}%%
+flowchart TD
+    START([START]) --> validate_input[validate_input]
+
+    validate_input --> valid_check{Empty or invalid\nquery?}
+    valid_check -->|YES| val_err[Return 422\nValidation Error]
+    val_err --> END1([END])
+
+    valid_check -->|NO| load_mem[load_long_term_memory]
+    load_mem --> classify[classify_intent\nmedium-tier LLM]
+
+    classify --> off_check{Intent =\noff_topic?}
+    off_check -->|YES| off_topic[off_topic_response]
+    off_topic --> END2([END])
+
+    off_check -->|NO| agents_check{target_agents\nempty?}
+    agents_check -->|YES guard| off_topic
+
+    agents_check -->|NO| enrich[enrich_context\nload case summary + doc titles]
+
+    enrich --> intent_branch{Intent}
+
+    intent_branch -->|civil_law_rag| civil[Dispatch\nCivilLawRAGAdapter\nvia MCPClient]
+    intent_branch -->|case_doc_rag| casedoc[Dispatch\nCaseDocRAGAdapter\nvia MCPClient]
+    intent_branch -->|reason| reason[Dispatch\nChatReasonerAdapter\ndirect invocation]
+    intent_branch -->|multi| multi_fork
+
+    subgraph multi_fork[Parallel Send Fan-out]
+        direction LR
+        mf1[CivilLawRAGAdapter]
+        mf2[CaseDocRAGAdapter]
+        mf3[ChatReasonerAdapter]
+    end
+
+    civil --> join_merge
+    casedoc --> join_merge
+    reason --> join_merge
+    multi_fork --> join_merge
+
+    join_merge[merge_responses\nhigh-tier LLM]
+    join_merge --> verify[verify_citations]
+    verify --> validate[validate_output\nlow-tier LLM]
+    validate --> END3([END - to validation_retry])

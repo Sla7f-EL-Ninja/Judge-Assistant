@@ -1,0 +1,51 @@
+%%{init: {'theme': 'default', 'flowchart': {'htmlLabels': false}}}%%
+flowchart TD
+    START([START]) --> receive[receive query + corpus hint]
+    receive --> validate_q[validate_query\nArabic ratio + length check]
+    validate_q --> val_fail{Valid?}
+    val_fail -->|NO| END_INVALID([END - QueryValidationError])
+
+    val_fail -->|YES| cache_check[SemanticCache lookup\nquery + corpus_version + prompt_version]
+    cache_check --> cache_hit{Cache hit?}
+    cache_hit -->|YES| return_cached[Return cached answer\nfrom_cache=true]
+    return_cached --> END_CACHE([END])
+
+    cache_hit -->|MISS| corpus_router[corpus_router_node\nscore query vs 3 corpora LLM\nCivil / Evidence / Procedures]
+    corpus_router --> corpus_off{Query off-topic\nfor all corpora?}
+    corpus_off -->|YES| off_topic_node[off_topic_node]
+    off_topic_node --> END_OT([END])
+
+    corpus_off -->|NO| preprocessor[preprocessor_node\nnormalize + clean query]
+    preprocessor --> top_router{Query type}
+
+    top_router -->|textual - no article ref| textual_node[textual_node\nanswer from statute text directly]
+    textual_node --> END_TXT([END])
+
+    top_router -->|off-topic after preprocess| off_topic_node
+
+    top_router -->|scope query| scope_cls[scope_classifier_node\nclassify chapter + section LLM]
+    scope_cls --> hyde_check{HyDE enabled?}
+
+    hyde_check -->|YES| hyde[Generate hypothetical article\n+ paraphrases LLM]
+    hyde --> embed_hyde[TEI embed hypothetical texts\nBAAI/bge-m3]
+    embed_hyde --> qdrant_search[Qdrant vector search\nwith scope filter]
+
+    hyde_check -->|NO| embed_q[TEI embed query\nBAAI/bge-m3]
+    embed_q --> qdrant_search
+
+    qdrant_search --> rerank[TEI reranker\nre-score candidate chunks]
+    rerank --> rule_grader[rule_grader_node\nfast heuristic grade per chunk]
+
+    rule_grader --> rule_result{Chunks\npass rule grader?}
+    rule_result -->|ALL PASS| gen_answer[generate_answer_node\ncite specific articles high-tier LLM]
+    rule_result -->|SOME / NONE| llm_grader[llm_grader_node\nsemantic grade medium-tier LLM]
+
+    llm_grader --> llm_result{Sufficient\nchunks?}
+    llm_result -->|YES| gen_answer
+    llm_result -->|NO - first attempt| refine_node[refine_node\nbroaden scope -> retry retrieve]
+    refine_node --> scope_cls
+    llm_result -->|NO - after refine| cannot[cannot_answer_node]
+    cannot --> END_CANNOT([END])
+
+    gen_answer --> cache_write[SemanticCache write\nstore answer + metadata]
+    cache_write --> END_OK([END - return LegalRAGResult])

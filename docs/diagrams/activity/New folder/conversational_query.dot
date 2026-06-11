@@ -1,0 +1,94 @@
+digraph conversational_query {
+    rankdir=TB
+    newrank=true
+    fontname="Helvetica"
+    fontsize=12
+    splines=polyline
+    nodesep=0.6
+    ranksep=0.75
+    node [fontname="Helvetica" fontsize=11 margin="0.25,0.12"]
+    edge [fontname="Helvetica" fontsize=10]
+
+    { rank=source; START }
+
+    START   [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="START"]
+    END_401 [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_OT  [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_OK  [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+
+    post_q        [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="POST /api/v1/query\nquery + conversation_id + case_id"]
+    err401        [shape=rect style="filled,rounded" fillcolor="#ffd5d5"
+                   label="Return 401\nUnauthorized"]
+    sse_open      [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="Open SSE stream\nmedia_type=text/event-stream"]
+    emit_prog     [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="Emit SSE progress event"]
+    supervisor    [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="Supervisor\nload MongoDBSaver checkpoint\nrestore conversation_history"]
+    intent_disp   [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="Intent Classification + Dispatch\n[see intent_routing.mmd]"]
+    emit_offtopic [shape=rect style="filled,rounded" fillcolor="#ffd5d5"
+                   label="Emit SSE result event\nrefusal message in Arabic"]
+    emit_done1    [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="Emit SSE done event"]
+    save_chk1     [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+                   label="Save MongoDBSaver\ncheckpoint"]
+    agents_run    [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="Dispatch Agents\nCollect AgentResults"]
+    merge_val     [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="Merge + Verify Citations\n+ Validate Output\n[see validation_retry.mmd]"]
+    emit_result   [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+                   label="Emit SSE result event\nArabic response"]
+    emit_fallback [shape=rect style="filled,rounded" fillcolor="#ffd5d5"
+                   label="Emit SSE result event\nfallback Arabic message"]
+    emit_done2    [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="Emit SSE done event"]
+    save_chk2     [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+                   label="Save MongoDBSaver\ncheckpoint"]
+    update_turn   [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+                   label="update_memory\nappend turn to MongoDB"]
+    run_sum       [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="summarize_history\ncompress older turns → running_summary\n[high-tier LLM]"]
+    write_ltm     [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+                   label="write_long_term_memory\nupsert semantic_facts + prefs"]
+    audit         [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+                   label="audit_log\nwrite to MongoDB"]
+
+    jwt_check     [shape=diamond style=filled fillcolor="#fff3c7" label="JWT valid?"]
+    off_check     [shape=diamond style=filled fillcolor="#ffecc7" label="off_topic?"]
+    outcome       [shape=diamond style=filled fillcolor="#ffecc7" label="Outcome"]
+    sum_threshold [shape=diamond style=filled fillcolor="#ffecc7"
+                   label="messages_since\nlast_summary\n> threshold?"]
+
+    { rank=same; emit_result emit_fallback }
+
+    START         -> post_q
+    post_q        -> jwt_check
+    jwt_check     -> err401       [label="NO"  color="#cc0000" fontcolor="#cc0000"]
+    err401        -> END_401
+    jwt_check     -> sse_open     [label="YES" color="#336633" fontcolor="#336633"]
+    sse_open      -> emit_prog
+    emit_prog     -> supervisor
+    supervisor    -> intent_disp
+    intent_disp   -> off_check
+    off_check     -> emit_offtopic [label="YES" color="#cc0000" fontcolor="#cc0000"]
+    emit_offtopic -> emit_done1
+    emit_done1    -> save_chk1
+    save_chk1     -> END_OT
+    off_check     -> agents_run   [label="NO"  color="#336633" fontcolor="#336633"]
+    agents_run    -> merge_val
+    merge_val     -> outcome
+    outcome       -> emit_result  [label="pass or\npartial_pass" color="#336633" fontcolor="#336633"]
+    outcome       -> emit_fallback [label="fallback\ntriggered"  color="#cc0000" fontcolor="#cc0000"]
+    emit_result   -> emit_done2
+    emit_fallback -> emit_done2
+    emit_done2    -> save_chk2
+    save_chk2     -> update_turn
+    update_turn   -> sum_threshold
+    sum_threshold -> run_sum      [label="YES" color="#cc6600" fontcolor="#cc6600"]
+    run_sum       -> write_ltm
+    sum_threshold -> write_ltm    [label="NO"  color="#336633" fontcolor="#336633"]
+    write_ltm     -> audit
+    audit         -> END_OK
+}

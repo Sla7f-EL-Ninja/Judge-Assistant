@@ -1,0 +1,114 @@
+digraph legal_rag_retrieval {
+    rankdir=TB
+    newrank=true
+    fontname="Helvetica"
+    fontsize=12
+    splines=polyline
+    nodesep=0.6
+    ranksep=0.75
+    node [fontname="Helvetica" fontsize=11 margin="0.25,0.12"]
+    edge [fontname="Helvetica" fontsize=10]
+
+    { rank=source; START }
+
+    START       [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="START"]
+    END_INVALID [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END — QueryValidationError"]
+    END_CACHE   [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_OT      [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_TXT     [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_CANNOT  [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_OK      [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END — return LegalRAGResult"]
+
+    receive       [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="receive query + corpus hint"]
+    validate_q    [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="validate_query\nArabic ratio + length check"]
+    cache_check   [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="SemanticCache lookup\n(query + corpus_version + prompt_version)"]
+    return_cached [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+                   label="Return cached answer\nfrom_cache=true"]
+    corpus_router [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="corpus_router_node\nscore query vs 3 corpora [LLM]\nCivil / Evidence / Procedures"]
+    off_topic_node[shape=rect style="filled,rounded" fillcolor="#ffd5d5"
+                   label="off_topic_node"]
+    preprocessor  [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="preprocessor_node\nnormalize + clean query"]
+    textual_node  [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="textual_node\nanswer from statute text directly"]
+    scope_cls     [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="scope_classifier_node\nclassify chapter + section [LLM]"]
+    hyde          [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="Generate hypothetical article\n+ paraphrases [LLM]"]
+    embed_hyde    [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="TEI embed hypothetical texts\nBAAI/bge-m3"]
+    embed_q       [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="TEI embed query\nBAAI/bge-m3"]
+    qdrant_search [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="Qdrant vector search\nwith scope filter"]
+    rerank        [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="TEI reranker\nre-score candidate chunks"]
+    rule_grader   [shape=rect style="filled,rounded" fillcolor="#ffecc7"
+                   label="rule_grader_node\nfast heuristic grade per chunk"]
+    llm_grader    [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="llm_grader_node\nsemantic grade [medium-tier LLM]"]
+    gen_answer    [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="generate_answer_node\ncite specific articles [high-tier LLM]"]
+    refine_node   [shape=rect style="filled,rounded" fillcolor="#ffecc7"
+                   label="refine_node\nbroaden scope → retry retrieve"]
+    cannot        [shape=rect style="filled,rounded" fillcolor="#ffd5d5"
+                   label="cannot_answer_node"]
+    cache_write   [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+                   label="SemanticCache write\nstore answer + metadata"]
+
+    val_fail    [shape=diamond style=filled fillcolor="#fff3c7" label="Valid?"]
+    cache_hit   [shape=diamond style=filled fillcolor="#ffecc7" label="Cache hit?"]
+    corpus_off  [shape=diamond style=filled fillcolor="#ffecc7" label="Query off-topic\nfor all corpora?"]
+    top_router  [shape=diamond style=filled fillcolor="#ffecc7" label="Query type"]
+    hyde_check  [shape=diamond style=filled fillcolor="#ffecc7" label="HyDE enabled?"]
+    rule_result [shape=diamond style=filled fillcolor="#ffecc7" label="Chunks pass\nrule grader?"]
+    llm_result  [shape=diamond style=filled fillcolor="#ffecc7" label="Sufficient\nchunks?"]
+
+    { rank=same; embed_hyde embed_q }
+
+    START         -> receive
+    receive       -> validate_q
+    validate_q    -> val_fail
+    val_fail      -> END_INVALID   [label="NO"   color="#cc0000" fontcolor="#cc0000"]
+    val_fail      -> cache_check   [label="YES"  color="#336633" fontcolor="#336633"]
+    cache_check   -> cache_hit
+    cache_hit     -> return_cached [label="YES"  color="#336633" fontcolor="#336633"]
+    return_cached -> END_CACHE
+    cache_hit     -> corpus_router [label="MISS"]
+    corpus_router -> corpus_off
+    corpus_off    -> off_topic_node [label="YES" color="#cc0000" fontcolor="#cc0000"]
+    off_topic_node-> END_OT
+    corpus_off    -> preprocessor  [label="NO"   color="#336633" fontcolor="#336633"]
+    preprocessor  -> top_router
+    top_router    -> textual_node  [label="textual —\nno article ref"]
+    textual_node  -> END_TXT
+    top_router    -> off_topic_node [label="off-topic after\npreprocess" color="#cc0000" fontcolor="#cc0000"]
+    top_router    -> scope_cls     [label="scope query" color="#336633" fontcolor="#336633"]
+    scope_cls     -> hyde_check
+    hyde_check    -> hyde          [label="YES"  color="#336633" fontcolor="#336633"]
+    hyde          -> embed_hyde
+    embed_hyde    -> qdrant_search
+    hyde_check    -> embed_q       [label="NO"]
+    embed_q       -> qdrant_search
+    qdrant_search -> rerank
+    rerank        -> rule_grader
+    rule_grader   -> rule_result
+    rule_result   -> gen_answer    [label="ALL PASS" color="#336633" fontcolor="#336633"]
+    rule_result   -> llm_grader    [label="SOME / NONE"]
+    llm_grader    -> llm_result
+    llm_result    -> gen_answer    [label="YES"  color="#336633" fontcolor="#336633"]
+    llm_result    -> refine_node   [label="NO —\nfirst attempt" color="#cc6600" fontcolor="#cc6600"]
+    llm_result    -> cannot        [label="NO —\nafter refine"  color="#cc0000" fontcolor="#cc0000"]
+    cannot        -> END_CANNOT
+
+    // back-edge: refine → retry scope_cls
+    refine_node -> scope_cls [xlabel="retry" style=dashed color="#cc6600" fontcolor="#cc6600"
+                               constraint=false minlen=0]
+
+    gen_answer    -> cache_write
+    cache_write   -> END_OK
+}

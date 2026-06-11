@@ -1,0 +1,41 @@
+%%{init: {'theme': 'default', 'flowchart': {'htmlLabels': false}}}%%
+flowchart TD
+    START([START]) --> post_q[POST /api/v1/query\nquery + conversation_id + case_id]
+
+    post_q --> jwt_check{JWT valid?}
+    jwt_check -->|NO| err401[Return 401\nUnauthorized]
+    err401 --> END_401([END])
+
+    jwt_check -->|YES| sse_open[Open SSE stream\nmedia_type=text/event-stream]
+    sse_open --> emit_prog[Emit SSE progress event]
+
+    emit_prog --> supervisor[Supervisor\nload MongoDBSaver checkpoint\nrestore conversation_history]
+
+    supervisor --> intent_dispatch[Intent Classification + Dispatch\nsee intent_routing.mmd]
+
+    intent_dispatch --> off_check{off_topic?}
+    off_check -->|YES| emit_offtopic[Emit SSE result event\nrefusal message in Arabic]
+    emit_offtopic --> emit_done1[Emit SSE done event]
+    emit_done1 --> save_chk1[Save MongoDBSaver\ncheckpoint]
+    save_chk1 --> END_OT([END])
+
+    off_check -->|NO| agents_run[Dispatch Agents\nCollect AgentResults]
+    agents_run --> merge_val[Merge + Verify Citations\n+ Validate Output\nsee validation_retry.mmd]
+
+    merge_val --> outcome{Outcome}
+    outcome -->|pass or partial_pass| emit_result[Emit SSE result event\nArabic response]
+    outcome -->|fallback triggered| emit_fallback[Emit SSE result event\nfallback Arabic message]
+
+    emit_result --> emit_done2[Emit SSE done event]
+    emit_fallback --> emit_done2
+
+    emit_done2 --> save_chk2[Save MongoDBSaver\ncheckpoint]
+    save_chk2 --> update_turn[update_memory\nappend turn to MongoDB]
+
+    update_turn --> sum_threshold{messages_since\nlast_summary\n> threshold?}
+    sum_threshold -->|YES| run_sum[summarize_history\ncompress older turns -> running_summary\nhigh-tier LLM]
+    run_sum --> write_ltm
+    sum_threshold -->|NO| write_ltm[write_long_term_memory\nupsert semantic_facts + prefs]
+
+    write_ltm --> audit[audit_log\nwrite to MongoDB]
+    audit --> END_OK([END])
