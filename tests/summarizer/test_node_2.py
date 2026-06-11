@@ -89,8 +89,13 @@ class TestProcessBatch:
                 for i in range(3)
             ]
         )
-        node = make_node2(parser_result=batch_result)
+        parser = MagicMock()
+        parser.invoke.return_value = batch_result
+        llm = MagicMock()
+        llm.with_structured_output.return_value = parser
+        node = Node2_BulletExtractor(llm)
         results = node.process_batch(chunks, "الوقائع")
+        parser.invoke.assert_called()
         output_chunk_ids = {r["chunk_id"] for r in results}
         assert output_chunk_ids == {"c0", "c1", "c2"}
 
@@ -150,8 +155,13 @@ class TestProcessBatch:
         batch_result = BatchBulletResult(
             extractions=[ChunkBullets(chunk_id="c1", bullets=["نقطة"])]
         )
-        node = make_node2(parser_result=batch_result)
+        parser = MagicMock()
+        parser.invoke.return_value = batch_result
+        llm = MagicMock()
+        llm.with_structured_output.return_value = parser
+        node = Node2_BulletExtractor(llm)
         results = node.process_batch(chunks, "الوقائع")
+        parser.invoke.assert_called()
         required = {"bullet_id", "role", "bullet", "source", "party", "chunk_id"}
         for r in results:
             assert required.issubset(r.keys())
@@ -162,8 +172,13 @@ class TestProcessBatch:
         batch_result = BatchBulletResult(
             extractions=[ChunkBullets(chunk_id="c1", bullets=["نقطة"])]
         )
-        node = make_node2(parser_result=batch_result)
+        parser = MagicMock()
+        parser.invoke.return_value = batch_result
+        llm = MagicMock()
+        llm.with_structured_output.return_value = parser
+        node = Node2_BulletExtractor(llm)
         results = node.process_batch(chunks, "الوقائع")
+        parser.invoke.assert_called()
         assert isinstance(results[0]["source"], list)
         assert results[0]["source"][0] == "doc-A ص2 ف5"
 
@@ -218,8 +233,13 @@ class TestProcess:
                 for i in range(10)
             ]
         )
-        node = make_node2(parser_result=batch_result)
+        parser = MagicMock()
+        parser.invoke.return_value = batch_result
+        llm = MagicMock()
+        llm.with_structured_output.return_value = parser
+        node = Node2_BulletExtractor(llm)
         result = node.process({"classified_chunks": chunks})
+        parser.invoke.assert_called()
         ids = [b["bullet_id"] for b in result["bullets"]]
         assert len(set(ids)) == len(ids)
 
@@ -229,6 +249,11 @@ class TestProcess:
         batch_result = BatchBulletResult(
             extractions=[ChunkBullets(chunk_id="c1", bullets=["نقطة"])]
         )
-        node = make_node2(parser_result=batch_result)
+        parser = MagicMock()
+        parser.invoke.return_value = batch_result
+        llm = MagicMock()
+        llm.with_structured_output.return_value = parser
+        node = Node2_BulletExtractor(llm)
         result = node.process({"classified_chunks": chunks})
+        parser.invoke.assert_called()
         assert result["bullets"][0]["party"] == "خبير"

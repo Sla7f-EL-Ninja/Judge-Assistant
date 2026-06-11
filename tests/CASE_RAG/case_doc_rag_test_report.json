@@ -1,0 +1,1114 @@
+{
+  "meta": {
+    "title": "Case Doc RAG — Integration Test & Accuracy Report",
+    "generated_at": "2026-06-09T19:45:54.041995+00:00",
+    "test_case_id": "test_case_rag_9cbf495dfa75",
+    "session_duration_s": 387.726,
+    "pytest_version": "9.0.2",
+    "python_version": "3.12.7 (tags/v3.12.7:0b05ead, Oct  1 2024, 03:06:41) [MSC v.1941 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26100-SP0",
+    "pytest_exit_code": 2,
+    "total_tests": 19,
+    "passed": 18,
+    "failed": 1,
+    "errors": 0,
+    "skipped": 0,
+    "pass_rate_pct": 94.7
+  },
+  "layers": {
+    "A_ingestion_quality": {
+      "description": "Layer A — File ingestion correctness. Verifies that all 7 fixture files are ingested with correct mongo_id, title, doc_type, Qdrant vectors, and confidence >= 50. No LLM calls. Hard-fail on broken ingestion aborts the session.",
+      "outcomes_summary": {
+        "passed": 4,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "total": 4,
+        "pass_rate_pct": 100.0,
+        "status": "PASS"
+      },
+      "layer_metrics": {
+        "pass_rate": 1.0,
+        "pass_rate_pct": 100.0,
+        "total_tests": 4,
+        "passed_tests": 4,
+        "total_duration_s": 0.002,
+        "mean_duration_s": 0.001,
+        "max_duration_s": 0.001,
+        "slowest_test": "test_all_files_ingested",
+        "all_passed": true,
+        "note": "Layer A is purely structural (no LLM calls). A single failure here means ingestion is broken and all downstream layers may produce unreliable results."
+      },
+      "tests": [
+        {
+          "test_id": "test_all_files_ingested",
+          "nodeid": "test_ingestion_quality.py::test_all_files_ingested",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 0.0006,
+          "timeout_mark_s": null
+        },
+        {
+          "test_id": "test_mongodb_records_exist",
+          "nodeid": "test_ingestion_quality.py::test_mongodb_records_exist",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 0.0005,
+          "timeout_mark_s": null
+        },
+        {
+          "test_id": "test_qdrant_payload_and_metadata",
+          "nodeid": "test_ingestion_quality.py::test_qdrant_payload_and_metadata",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 0.0005,
+          "timeout_mark_s": null
+        },
+        {
+          "test_id": "test_titles_match_doc_types",
+          "nodeid": "test_ingestion_quality.py::test_titles_match_doc_types",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 0.0005,
+          "timeout_mark_s": null
+        }
+      ]
+    },
+    "B_happy_path": {
+      "description": "Layer B — On-topic retrieval (happy path). 7 queries covering simple and harder cross-document reasoning. Each query has expected_keywords; the LLM answer is checked for keyword presence. Captures full answer text, keyword hit/miss, and branch recall.",
+      "outcomes_summary": {
+        "passed": 7,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "total": 7,
+        "pass_rate_pct": 100.0,
+        "status": "PASS"
+      },
+      "layer_metrics": {
+        "pass_rate": 1.0,
+        "pass_rate_pct": 100.0,
+        "total_tests": 7,
+        "passed_tests": 7,
+        "total_duration_s": 129.817,
+        "mean_duration_s": 18.545,
+        "max_duration_s": 33.22,
+        "slowest_test": "B6",
+        "keyword_hit_rate": 1.0,
+        "keyword_hit_rate_pct": 100.0,
+        "keyword_coverage_rate": 0.4839,
+        "keyword_coverage_rate_pct": 48.4,
+        "total_expected_keywords": 31,
+        "total_found_keywords": 15,
+        "total_missing_keywords": 16,
+        "per_test_keyword_summary": [
+          {
+            "test_id": "B1",
+            "any_hit": true,
+            "coverage_rate": 0.5,
+            "found": [
+              "السكة الحديد",
+              "عرايشية"
+            ],
+            "missing": [
+              "73",
+              "الإسماعيلية"
+            ]
+          },
+          {
+            "test_id": "B2",
+            "any_hit": true,
+            "coverage_rate": 1.0,
+            "found": [
+              "محمد",
+              "أحمد",
+              "علي"
+            ],
+            "missing": []
+          },
+          {
+            "test_id": "B3",
+            "any_hit": true,
+            "coverage_rate": 0.3333,
+            "found": [
+              "محمد"
+            ],
+            "missing": [
+              "إبراهيم",
+              "سعيد"
+            ]
+          },
+          {
+            "test_id": "B4",
+            "any_hit": true,
+            "coverage_rate": 0.25,
+            "found": [
+              "۱۹۳",
+              "۲۰۲۰"
+            ],
+            "missing": [
+              "17",
+              "١٧",
+              "193",
+              "١٩٣",
+              "2020",
+              "٢٠٢٠"
+            ]
+          },
+          {
+            "test_id": "B5",
+            "any_hit": true,
+            "coverage_rate": 0.5,
+            "found": [
+              "شروخ",
+              "سطحية"
+            ],
+            "missing": [
+              "ترميم",
+              "بياض"
+            ]
+          },
+          {
+            "test_id": "B6",
+            "any_hit": true,
+            "coverage_rate": 0.2,
+            "found": [
+              "البناء الموحد"
+            ],
+            "missing": [
+              "119",
+              "2008",
+              "90",
+              "92"
+            ]
+          },
+          {
+            "test_id": "B7",
+            "any_hit": true,
+            "coverage_rate": 1.0,
+            "found": [
+              "انعدام",
+              "صفة",
+              "توكيل",
+              "ملكية"
+            ],
+            "missing": []
+          }
+        ],
+        "mean_branch_recall": 1.0,
+        "min_branch_recall": 1.0,
+        "max_branch_recall": 1.0,
+        "mean_answer_length": 271.0,
+        "min_answer_length": 55,
+        "max_answer_length": 655
+      },
+      "tests": [
+        {
+          "test_id": "B1",
+          "nodeid": "test_happy_path.py::test_query_property_address",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "B",
+          "duration_s": 8.1926,
+          "timeout_mark_s": 150,
+          "query": "ما هو عنوان العقار محل النزاع بالتفصيل؟",
+          "on_topic": true,
+          "sub_answers_summary": {
+            "total_branches": 1,
+            "found_branches": 1,
+            "not_found_branches": 0,
+            "branch_recall": 1.0
+          },
+          "sub_answers_detail": [
+            {
+              "question": "ما هو عنوان العقار محل النزاع بالتفصيل؟",
+              "found": true,
+              "answer_length": 117,
+              "answer_preview": "عنوان العقار محل النزاع هو: العقار رقم ٧٣ شارع السكة الحديد سابقا ٨٢ شارع شحته حاليا عرايشية مصر - ثان - الاسماعيلية.",
+              "sources": [
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 1.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_2",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mo3ayna.pdf:chunk_1",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_1",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 2.pdf:chunk_0"
+              ]
+            }
+          ],
+          "keyword_analysis": {
+            "expected": [
+              "73",
+              "السكة الحديد",
+              "الإسماعيلية",
+              "عرايشية"
+            ],
+            "found": [
+              "السكة الحديد",
+              "عرايشية"
+            ],
+            "missing": [
+              "73",
+              "الإسماعيلية"
+            ],
+            "hit_count": 2,
+            "expected_count": 4,
+            "coverage_rate": 0.5,
+            "any_hit": true
+          },
+          "answer_text": "عنوان العقار محل النزاع هو: العقار رقم ٧٣ شارع السكة الحديد سابقا ٨٢ شارع شحته حاليا عرايشية مصر - ثان - الاسماعيلية.",
+          "answer_length": 117,
+          "doc_selection": {
+            "actual_mode": "no_doc_specified",
+            "expected_mode": null,
+            "correct": null
+          },
+          "rephrase_loop_triggered": false
+        },
+        {
+          "test_id": "B2",
+          "nodeid": "test_happy_path.py::test_query_owner_name",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "B",
+          "duration_s": 8.6317,
+          "timeout_mark_s": 150,
+          "query": "من هو مالك العقار المذكور في الأوراق؟",
+          "on_topic": true,
+          "sub_answers_summary": {
+            "total_branches": 1,
+            "found_branches": 1,
+            "not_found_branches": 0,
+            "branch_recall": 1.0
+          },
+          "sub_answers_detail": [
+            {
+              "question": "من هو مالك العقار المذكور في الأوراق؟",
+              "found": true,
+              "answer_length": 55,
+              "answer_preview": "مالك العقار المذكور في الأوراق هو السيد/ محمد أحمد علي.",
+              "sources": [
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 4.pdf:chunk_1",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mo3ayna.pdf:chunk_1",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\حافظه المستندات.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 1.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_1",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 5.pdf:chunk_0"
+              ]
+            }
+          ],
+          "keyword_analysis": {
+            "expected": [
+              "محمد",
+              "أحمد",
+              "علي"
+            ],
+            "found": [
+              "محمد",
+              "أحمد",
+              "علي"
+            ],
+            "missing": [],
+            "hit_count": 3,
+            "expected_count": 3,
+            "coverage_rate": 1.0,
+            "any_hit": true
+          },
+          "answer_text": "مالك العقار المذكور في الأوراق هو السيد/ محمد أحمد علي.",
+          "answer_length": 55,
+          "doc_selection": {
+            "actual_mode": "no_doc_specified",
+            "expected_mode": null,
+            "correct": null
+          },
+          "rephrase_loop_triggered": false
+        },
+        {
+          "test_id": "B3",
+          "nodeid": "test_happy_path.py::test_query_tenant_name",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "B",
+          "duration_s": 12.8168,
+          "timeout_mark_s": 150,
+          "query": "من هو المستأجر الرئيسي أو الطاعن في هذه القضية؟",
+          "on_topic": true,
+          "sub_answers_summary": {
+            "total_branches": 1,
+            "found_branches": 1,
+            "not_found_branches": 0,
+            "branch_recall": 1.0
+          },
+          "sub_answers_detail": [
+            {
+              "question": "من هو المستأجر الرئيسي أو الطاعن في هذه القضية؟",
+              "found": true,
+              "answer_length": 69,
+              "answer_preview": "المستأجر الرئيسي أو الطاعن في هذه القضية هو السيد/ محمد محمد ابراهيم.",
+              "sources": [
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_13",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_1",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 3.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_14",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_5",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_15"
+              ]
+            }
+          ],
+          "keyword_analysis": {
+            "expected": [
+              "محمد",
+              "إبراهيم",
+              "سعيد"
+            ],
+            "found": [
+              "محمد"
+            ],
+            "missing": [
+              "إبراهيم",
+              "سعيد"
+            ],
+            "hit_count": 1,
+            "expected_count": 3,
+            "coverage_rate": 0.3333,
+            "any_hit": true
+          },
+          "answer_text": "المستأجر الرئيسي أو الطاعن في هذه القضية هو السيد/ محمد محمد ابراهيم.",
+          "answer_length": 69,
+          "doc_selection": {
+            "actual_mode": "no_doc_specified",
+            "expected_mode": null,
+            "correct": null
+          },
+          "rephrase_loop_triggered": false
+        },
+        {
+          "test_id": "B4",
+          "nodeid": "test_happy_path.py::test_query_eviction_decision",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "B",
+          "duration_s": 32.7982,
+          "timeout_mark_s": 150,
+          "query": "ما هو رقم قرار الإخلاء الإداري الصادر من حي ثان الإسماعيلية للعقار؟",
+          "on_topic": true,
+          "sub_answers_summary": {
+            "total_branches": 1,
+            "found_branches": 1,
+            "not_found_branches": 0,
+            "branch_recall": 1.0
+          },
+          "sub_answers_detail": [
+            {
+              "question": "ما هو رقم قرار الإخلاء الإداري الصادر من حي ثان الإسماعيلية للعقار؟",
+              "found": true,
+              "answer_length": 76,
+              "answer_preview": "رقم قرار الإخلاء الإداري الصادر من رئيس حي ثان الإسماعيلية هو ۱۹۳ لسنة ۲۰۲۰.",
+              "sources": [
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 4.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 4.pdf:chunk_1",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_1",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 2.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\حافظه المستندات.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 5.pdf:chunk_1",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 1.pdf:chunk_0"
+              ]
+            }
+          ],
+          "keyword_analysis": {
+            "expected": [
+              "17",
+              "١٧",
+              "193",
+              "١٩٣",
+              "۱۹۳",
+              "2020",
+              "٢٠٢٠",
+              "۲۰۲۰"
+            ],
+            "found": [
+              "۱۹۳",
+              "۲۰۲۰"
+            ],
+            "missing": [
+              "17",
+              "١٧",
+              "193",
+              "١٩٣",
+              "2020",
+              "٢٠٢٠"
+            ],
+            "hit_count": 2,
+            "expected_count": 8,
+            "coverage_rate": 0.25,
+            "any_hit": true
+          },
+          "answer_text": "رقم قرار الإخلاء الإداري الصادر من رئيس حي ثان الإسماعيلية هو ۱۹۳ لسنة ۲۰۲۰.",
+          "answer_length": 76,
+          "doc_selection": {
+            "actual_mode": "no_doc_specified",
+            "expected_mode": null,
+            "correct": null
+          },
+          "rephrase_loop_triggered": false
+        },
+        {
+          "test_id": "B5",
+          "nodeid": "test_happy_path.py::test_query_engineer_conclusion",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "B",
+          "duration_s": 24.0774,
+          "timeout_mark_s": 150,
+          "query": "ما هو الرأي الفني في التقرير الهندسي الاستشاري للمهندس برسوم شنودة بشأن العقار؟",
+          "on_topic": true,
+          "sub_answers_summary": {
+            "total_branches": 1,
+            "found_branches": 1,
+            "not_found_branches": 0,
+            "branch_recall": 1.0
+          },
+          "sub_answers_detail": [
+            {
+              "question": "ما هو الرأي الفني الوارد في التقرير الهندسي الاستشاري للمهندس برسوم شنودة بشأن العقار؟",
+              "found": true,
+              "answer_length": 655,
+              "answer_preview": "الرأي الفني الوارد في التقرير الهندسي الاستشاري للمهندس برسوم شنودة سدراك بشأن العقار رقم 73 شارع السكة الحديد بعراشية مصر، هو ما تبين بالمعاينة على الطبيعة كالتالي:\n*   العقار عبارة عن دور أرضي وثلاث",
+              "sources": [
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mostanad 5.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_3",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_2",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mo3ayna.pdf:chunk_2",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_13"
+              ]
+            }
+          ],
+          "keyword_analysis": {
+            "expected": [
+              "ترميم",
+              "شروخ",
+              "سطحية",
+              "بياض"
+            ],
+            "found": [
+              "شروخ",
+              "سطحية"
+            ],
+            "missing": [
+              "ترميم",
+              "بياض"
+            ],
+            "hit_count": 2,
+            "expected_count": 4,
+            "coverage_rate": 0.5,
+            "any_hit": true
+          },
+          "answer_text": "الرأي الفني الوارد في التقرير الهندسي الاستشاري للمهندس برسوم شنودة سدراك بشأن العقار رقم 73 شارع السكة الحديد بعراشية مصر، هو ما تبين بالمعاينة على الطبيعة كالتالي:\n*   العقار عبارة عن دور أرضي وثلاثة أدوار علوية مباني حوائط حاملة وأسقف خرسانة مسلحة وسلم درج موزايكو تركيب، وكل دور شقتين إحداهما على الواجهة والأخرى داخلية.\n*   يوجد شروخ بحوائط مدخل العقار والسلم وتضرر بعض درج السلم.\n*   يوجد آثار رشح قديم حول مواسير الصرف الصحي الخارجي بمنور العقار.\n*   يوجد مخلفات مباني عشش فراخ أعلى سطح العقار.\n*   بمعاينة الشقة الكائنة بالدور الثالث علوي والتي تطل على شارع السكة الحديد والساكن بها السيد / أحمد حامد نصر، تبين وجود شروخ خفيفة وسطحية بمصيص الأسقف.",
+          "answer_length": 655,
+          "doc_selection": {
+            "actual_mode": "no_doc_specified",
+            "expected_mode": null,
+            "correct": null
+          },
+          "rephrase_loop_triggered": false
+        },
+        {
+          "test_id": "B6",
+          "nodeid": "test_happy_path.py::test_query_defense_legal_basis",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "B",
+          "duration_s": 33.2204,
+          "timeout_mark_s": 150,
+          "query": "ما هي الأسانيد القانونية التي استندت إليها مذكرة دفاع المالك لتبرير صحة قرار لجنة التظلمات بالإزالة؟",
+          "on_topic": true,
+          "sub_answers_summary": {
+            "total_branches": 1,
+            "found_branches": 1,
+            "not_found_branches": 0,
+            "branch_recall": 1.0
+          },
+          "sub_answers_detail": [
+            {
+              "question": "ما هي الأسانيد القانونية التي استندت إليها مذكرة دفاع المالك لتبرير صحة قرار لجنة التظلمات بالإزالة؟",
+              "found": true,
+              "answer_length": 434,
+              "answer_preview": "استندت مذكرة دفاع المالك لتبرير صحة قرار لجنة التظلمات بالإزالة إلى الأسانيد التالية:\n\n1.  نص مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸ الصادر في ۱۱ مايو ۲۰۰۸ - تقرير لجنة التظلمات الصادر في ۲۰۲۰/۷/٤ برقم ١٥٠ لس",
+              "sources": [
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_0",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_9",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_3",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\mozakert aldefa3.pdf:chunk_13",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_5"
+              ]
+            }
+          ],
+          "keyword_analysis": {
+            "expected": [
+              "119",
+              "2008",
+              "البناء الموحد",
+              "90",
+              "92"
+            ],
+            "found": [
+              "البناء الموحد"
+            ],
+            "missing": [
+              "119",
+              "2008",
+              "90",
+              "92"
+            ],
+            "hit_count": 1,
+            "expected_count": 5,
+            "coverage_rate": 0.2,
+            "any_hit": true
+          },
+          "answer_text": "استندت مذكرة دفاع المالك لتبرير صحة قرار لجنة التظلمات بالإزالة إلى الأسانيد التالية:\n\n1.  نص مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸ الصادر في ۱۱ مايو ۲۰۰۸ - تقرير لجنة التظلمات الصادر في ۲۰۲۰/۷/٤ برقم ١٥٠ لسنة ٢٠٢٠.\n2.  نصوص المواد رقم ۹۰، ۹۱، ۹۲، ۹۳، ٩٦ من قانون البناء الموحد ۱۱۹ لسنة ۲۰۰۸.\n3.  بعد سرد مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸، نجد بأن القرار المطعون عليه صدر وصحيح ويجب تنفيذه بإزالة العقار حتى سطح الأرض بعد إخلاء شاغليه من السكن.",
+          "answer_length": 434,
+          "doc_selection": {
+            "actual_mode": "no_doc_specified",
+            "expected_mode": null,
+            "correct": null
+          },
+          "rephrase_loop_triggered": false
+        },
+        {
+          "test_id": "B7",
+          "nodeid": "test_happy_path.py::test_query_tenant_plea_status",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "B",
+          "duration_s": 10.0796,
+          "timeout_mark_s": 150,
+          "query": "ما هو الدفع الرئيسي الذي أثاره المدعي (المستأجر) في صحيفة الدعوى لإثبات بطلان القرار فيما يخص صفة مقدم التظلم؟",
+          "on_topic": true,
+          "sub_answers_summary": {
+            "total_branches": 1,
+            "found_branches": 1,
+            "not_found_branches": 0,
+            "branch_recall": 1.0
+          },
+          "sub_answers_detail": [
+            {
+              "question": "ما هو الدفع الرئيسي الذي أثاره المدعي (المستأجر) في صحيفة الدعوى لإثبات بطلان القرار فيما يخص صفة مقدم التظلم؟",
+              "found": true,
+              "answer_length": 491,
+              "answer_preview": "الدفع الرئيسي الذي أثاره المدعي لإثبات بطلان القرار فيما يخص صفة مقدم التظلم هو \"انعدام صفة مقدم الطلب إلى لجنة التظلمات\".\n\nويستند هذا الدفع إلى أن:\n*   المدعى عليه السابع ادعى كونه مالكًا للعقار ولم ",
+              "sources": [
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_2",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_5",
+                "D:\\FUCK!!\\Grad\\TESTING DATA\\First Case\\PDFS\\الصحيفه.pdf:chunk_3"
+              ]
+            }
+          ],
+          "keyword_analysis": {
+            "expected": [
+              "انعدام",
+              "صفة",
+              "توكيل",
+              "ملكية"
+            ],
+            "found": [
+              "انعدام",
+              "صفة",
+              "توكيل",
+              "ملكية"
+            ],
+            "missing": [],
+            "hit_count": 4,
+            "expected_count": 4,
+            "coverage_rate": 1.0,
+            "any_hit": true
+          },
+          "answer_text": "الدفع الرئيسي الذي أثاره المدعي لإثبات بطلان القرار فيما يخص صفة مقدم التظلم هو \"انعدام صفة مقدم الطلب إلى لجنة التظلمات\".\n\nويستند هذا الدفع إلى أن:\n*   المدعى عليه السابع ادعى كونه مالكًا للعقار ولم يقدم ما يثبت ادعاءه.\n*   التوكيل لا يعتبر ناقلاً للملكية.\n*   لم تثبت للمدعى عليه السابع ملكية العقار حتى وقتنا هذا، وبالتالي فهو ليس ذا صفة ليتقدم بأي طلب إلى لجنة التظلمات.\n*   قبول طلب الإزالة والتظلم من شخص لم يثبت كونه مالك العقار بأي وسيلة قانونية، حيث لا يعتبر التوكيل دليلاً للملكية.",
+          "answer_length": 491,
+          "doc_selection": {
+            "actual_mode": "restrict_to_doc",
+            "expected_mode": null,
+            "correct": null
+          },
+          "rephrase_loop_triggered": false
+        }
+      ]
+    },
+    "C_retrieve_specific_doc": {
+      "description": "Layer C — retrieve_specific_doc routing. Queries that ask to DISPLAY a document verbatim (e.g. 'هاتلي صحيفة الدعوى'). Asserts doc_selection_mode == 'retrieve_specific_doc' and final_answer length > 200 chars.",
+      "outcomes_summary": {
+        "passed": 3,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "total": 3,
+        "pass_rate_pct": 100.0,
+        "status": "PASS"
+      },
+      "layer_metrics": {
+        "pass_rate": 1.0,
+        "pass_rate_pct": 100.0,
+        "total_tests": 3,
+        "passed_tests": 3,
+        "total_duration_s": 12.844,
+        "mean_duration_s": 4.281,
+        "max_duration_s": 4.747,
+        "slowest_test": "test_retrieve_specific_taqrir"
+      },
+      "tests": [
+        {
+          "test_id": "test_retrieve_specific_sahifa",
+          "nodeid": "test_doc_selection.py::test_retrieve_specific_sahifa",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 3.839,
+          "timeout_mark_s": 150
+        },
+        {
+          "test_id": "test_retrieve_specific_ethbat_hala",
+          "nodeid": "test_doc_selection.py::test_retrieve_specific_ethbat_hala",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 4.2579,
+          "timeout_mark_s": 150
+        },
+        {
+          "test_id": "test_retrieve_specific_taqrir",
+          "nodeid": "test_doc_selection.py::test_retrieve_specific_taqrir",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 4.7468,
+          "timeout_mark_s": 60
+        }
+      ]
+    },
+    "D_restrict_to_doc": {
+      "description": "Layer D — restrict_to_doc routing. Queries that ask for INFORMATION FROM a specific document. Asserts doc_selection_mode == 'restrict_to_doc' and at least one sub_answer with found=True.",
+      "outcomes_summary": {
+        "passed": 2,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "total": 2,
+        "pass_rate_pct": 100.0,
+        "status": "PASS"
+      },
+      "layer_metrics": {
+        "pass_rate": 1.0,
+        "pass_rate_pct": 100.0,
+        "total_tests": 2,
+        "passed_tests": 2,
+        "total_duration_s": 29.802,
+        "mean_duration_s": 14.901,
+        "max_duration_s": 15.999,
+        "slowest_test": "test_restrict_to_amr"
+      },
+      "tests": [
+        {
+          "test_id": "test_restrict_to_amr",
+          "nodeid": "test_doc_selection.py::test_restrict_to_amr",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 15.9993,
+          "timeout_mark_s": 90
+        },
+        {
+          "test_id": "test_restrict_to_mozakara",
+          "nodeid": "test_doc_selection.py::test_restrict_to_mozakara",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 13.8024,
+          "timeout_mark_s": 90
+        }
+      ]
+    },
+    "E_off_topic_rejection": {
+      "description": "Layer E — Off-topic rejection. Non-legal queries (weather, cooking) must be classified on_topic=False and trigger offTopicResponse with a non-empty refusal.",
+      "outcomes_summary": {
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "total": 0,
+        "pass_rate_pct": null,
+        "status": "SKIP"
+      },
+      "layer_metrics": {},
+      "tests": []
+    },
+    "F_multi_question_fanout": {
+      "description": "Layer F — Multi-question fan-out. Compound queries must produce >= 2 sub_questions and >= 2 sub_answers. Documented behavior: final_answer is '' for multi-question queries (Supervisor reads sub_answers directly).",
+      "outcomes_summary": {
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "total": 0,
+        "pass_rate_pct": null,
+        "status": "SKIP"
+      },
+      "layer_metrics": {},
+      "tests": []
+    },
+    "G_rephrase_loop": {
+      "description": "Layer G — Rephrase loop termination. An obscure query (commercial registry number) must terminate without crash. Rephrase trigger inferred from found=False on all sub_answers (no code changes required). Either found=True (rephrase succeeded) or found=False (loop exhausted at _MAX_REPHRASE=2, cannotAnswer fired) are valid outcomes.",
+      "outcomes_summary": {
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "total": 0,
+        "pass_rate_pct": null,
+        "status": "SKIP"
+      },
+      "layer_metrics": {},
+      "tests": []
+    },
+    "H_case_isolation": {
+      "description": "Layer H — Cross-case contamination checks. Nonexistent and empty case_ids must not crash the graph. retrieve()'s unfiltered fallback may still return results from other cases (documented behavior). Isolation breaches are logged as expected events, not hard failures.",
+      "outcomes_summary": {
+        "passed": 2,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "total": 2,
+        "pass_rate_pct": 100.0,
+        "status": "PASS"
+      },
+      "layer_metrics": {
+        "pass_rate": 1.0,
+        "pass_rate_pct": 100.0,
+        "total_tests": 2,
+        "passed_tests": 2,
+        "total_duration_s": 90.32,
+        "mean_duration_s": 45.16,
+        "max_duration_s": 77.129,
+        "slowest_test": "test_different_case_id_no_results",
+        "isolation_breach_rate": 0.0,
+        "isolation_breach_rate_pct": 0.0,
+        "breach_count": 0,
+        "no_breach_count": 0,
+        "unknown_count": 2,
+        "total_isolation_tests": 2,
+        "breach_test_ids": [],
+        "note": "Isolation breaches are EXPECTED and documented behavior: retrieve()'s unfiltered fallback (Attempt 2 for no_doc_specified, Attempt 4 for restrict_to_doc) may return results from other cases when case_id is invalid. Tests assert structural validity, not hard isolation."
+      },
+      "tests": [
+        {
+          "test_id": "test_different_case_id_no_results",
+          "nodeid": "test_case_isolation.py::test_different_case_id_no_results",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 77.1294,
+          "timeout_mark_s": 150
+        },
+        {
+          "test_id": "test_empty_case_id",
+          "nodeid": "test_case_isolation.py::test_empty_case_id",
+          "outcome": "passed",
+          "outcome_icon": "✅",
+          "layer": "TEST",
+          "duration_s": 13.1904,
+          "timeout_mark_s": 150
+        }
+      ]
+    }
+  },
+  "accuracy_metrics": {
+    "keyword_hit_rate": 1.0,
+    "keyword_coverage_rate": 0.4839,
+    "doc_mode_accuracy": null,
+    "retrieval_recall": 1.0,
+    "rephrase_loop_trigger_rate": null,
+    "isolation_breach_rate": null,
+    "_details": {
+      "keyword_hit_rate": {
+        "tests_with_any_hit": 7,
+        "tests_with_no_hit": 0,
+        "total_tests_evaluated": 7
+      },
+      "keyword_coverage_rate": {
+        "total_expected_keywords": 31,
+        "total_found_keywords": 15,
+        "total_missing_keywords": 16
+      },
+      "doc_mode_accuracy": {
+        "note": "No Layer C/D payloads with expected_doc_mode registered."
+      },
+      "retrieval_recall": {
+        "found_branches": 8,
+        "not_found_branches": 0,
+        "total_branches": 8
+      },
+      "rephrase_loop_trigger_rate": {
+        "note": "No Layer G payloads registered."
+      },
+      "isolation_breach_rate": {
+        "note": "No Layer H payloads registered."
+      }
+    },
+    "_notes": {
+      "keyword_hit_rate": "Fraction of Layer B tests (B1–B7) where ≥1 expected keyword appears in the LLM answer.",
+      "keyword_coverage_rate": "Fraction of ALL expected keywords across all Layer B tests that appear in the respective answers.",
+      "doc_mode_accuracy": "Fraction of Layers C+D tests where doc_selection_mode returned by the graph matched the expected mode.",
+      "retrieval_recall": "Fraction of all sub_answer branches (across ALL layers and ALL tests) where found=True. Measures how often the retrieval pipeline surfaced at least one relevant chunk.",
+      "rephrase_loop_trigger_rate": "Layer G only. Inferred: True when ALL sub_answers have found=False (cannotAnswer fired). A rate of 1.0 means the registry number was not in the fixtures; 0.0 means rephrase found it on retry.",
+      "isolation_breach_rate": "Layer H only. Fraction of isolation tests where retrieve()'s unfiltered fallback returned found=True despite an invalid case_id. This is EXPECTED behavior per the retrieve() design."
+    }
+  },
+  "isolation_events": [],
+  "failures": [
+    {
+      "nodeid": "test_ragas_evaluation.py::test_ragas_semantic_quality[RAGAS_B6]",
+      "outcome": "failed",
+      "reason": "C:\\Users\\omarn\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\pandas\\core\\nanops.py:1686 — TypeError: Could not convert ['ما هي الأسانيد القانونية التي استندت إليها مذكرة دفاع المالك لتبرير صحة قرار لجنة التظلمات بالإزالة؟'\n list(['استندت مذكرة دفاع المالك لتبرير صحة قرار لجنة التظلمات بالإزالة إلى الأسانيد القانونية والوقائع التالية:\\n\\n1.  نص مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸ الصادر في ۱۱ مايو ۲۰۰۸، وتقرير لجنة التظلمات الصادر في ۲۰۲۰/۷/٤ برقم ١٥٠ لسنة ٢٠٢٠.\\n2.  نصوص المواد رقم ۹۰، ۹۱، ۹۲، ۹۳، ٩٦ من قانون البناء الموحد ۱۱۹ لسنة ۲۰۰۸.\\n3.  بعد سرد مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸، ذكرت المذكرة أن القرار المطعون عليه صدر وصحيح ويجب تنفيذه بإزالة العقار حتى سطح الأرض بعد إخلاء شاغليه من السكن.\\n4.  تقرير اللجنة بعد المعاينة ووصف العقار على الطبيعة، والذي انتهى إلى قرار إزالة العقار بالكامل حتى سطح الأرض للأسباب التالية:\\n    *   توجد حوائط بالية وقد تلاحظ تأكل فيها وشروخ رأسية ومائلة بها معظم الجوائز.\\n    *   المصارف والأسقف بها شروخ وتصدعات وتآكل أجزاء من الخرسانة المسلحة.'])\n 'استندت مذكرة دفاع المالك لتبرير صحة قرار لجنة التظلمات بالإزالة إلى الأسانيد القانونية والوقائع التالية:\\n\\n1.  نص مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸ الصادر في ۱۱ مايو ۲۰۰۸، وتقرير لجنة التظلمات الصادر في ۲۰۲۰/۷/٤ برقم ١٥٠ لسنة ٢٠٢٠.\\n2.  نصوص المواد رقم ۹۰، ۹۱، ۹۲، ۹۳، ٩٦ من قانون البناء الموحد ۱۱۹ لسنة ۲۰۰۸.\\n3.  بعد سرد مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸، ذكرت المذكرة أن القرار المطعون عليه صدر وصحيح ويجب تنفيذه بإزالة العقار حتى سطح الأرض بعد إخلاء شاغليه من السكن.\\n4.  تقرير اللجنة بعد المعاينة ووصف العقار على الطبيعة، والذي انتهى إلى قرار إزالة العقار بالكامل حتى سطح الأرض للأسباب التالية:\\n    *   توجد حوائط بالية وقد تلاحظ تأكل فيها وشروخ رأسية ومائلة بها معظم الجوائز.\\n    *   المصارف والأسقف بها شروخ وتصدعات وتآكل أجزاء من الخرسانة المسلحة.'\n 'استندت مذكرة الدفاع إلى المادة 119 من قانون البناء الموحد لسنة 2008، وتحديداً المواد 90 و 92.'] to numeric",
+      "duration_s": 75.5094
+    }
+  ],
+  "slowest_tests": [
+    {
+      "nodeid": "test_case_isolation.py::test_different_case_id_no_results",
+      "duration_s": 77.1294
+    },
+    {
+      "nodeid": "test_ragas_evaluation.py::test_ragas_semantic_quality[RAGAS_B6]",
+      "duration_s": 75.5094
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_defense_legal_basis",
+      "duration_s": 33.2204
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_eviction_decision",
+      "duration_s": 32.7982
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_engineer_conclusion",
+      "duration_s": 24.0774
+    },
+    {
+      "nodeid": "test_doc_selection.py::test_restrict_to_amr",
+      "duration_s": 15.9993
+    },
+    {
+      "nodeid": "test_doc_selection.py::test_restrict_to_mozakara",
+      "duration_s": 13.8024
+    },
+    {
+      "nodeid": "test_case_isolation.py::test_empty_case_id",
+      "duration_s": 13.1904
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_tenant_name",
+      "duration_s": 12.8168
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_tenant_plea_status",
+      "duration_s": 10.0796
+    }
+  ],
+  "all_tests": [
+    {
+      "nodeid": "test_case_isolation.py::test_different_case_id_no_results",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 77.1294,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_case_isolation.py::test_empty_case_id",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 13.1904,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_doc_selection.py::test_retrieve_specific_sahifa",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 3.839,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_doc_selection.py::test_retrieve_specific_ethbat_hala",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 4.2579,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_doc_selection.py::test_retrieve_specific_taqrir",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 4.7468,
+      "timeout_mark_s": 60,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_doc_selection.py::test_restrict_to_amr",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 15.9993,
+      "timeout_mark_s": 90,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_doc_selection.py::test_restrict_to_mozakara",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 13.8024,
+      "timeout_mark_s": 90,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_property_address",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 8.1926,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": true
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_owner_name",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 8.6317,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": true
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_tenant_name",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 12.8168,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": true
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_eviction_decision",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 32.7982,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": true
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_engineer_conclusion",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 24.0774,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": true
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_defense_legal_basis",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 33.2204,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": true
+    },
+    {
+      "nodeid": "test_happy_path.py::test_query_tenant_plea_status",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 10.0796,
+      "timeout_mark_s": 150,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": true
+    },
+    {
+      "nodeid": "test_ingestion_quality.py::test_all_files_ingested",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 0.0006,
+      "timeout_mark_s": null,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_ingestion_quality.py::test_mongodb_records_exist",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 0.0005,
+      "timeout_mark_s": null,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_ingestion_quality.py::test_qdrant_payload_and_metadata",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 0.0005,
+      "timeout_mark_s": null,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_ingestion_quality.py::test_titles_match_doc_types",
+      "outcome": "passed",
+      "outcome_icon": "✅",
+      "duration_s": 0.0005,
+      "timeout_mark_s": null,
+      "skip_reason": null,
+      "failure_reason": null,
+      "has_rich_data": false
+    },
+    {
+      "nodeid": "test_ragas_evaluation.py::test_ragas_semantic_quality[RAGAS_B6]",
+      "outcome": "failed",
+      "outcome_icon": "❌",
+      "duration_s": 75.5094,
+      "timeout_mark_s": 180,
+      "skip_reason": null,
+      "failure_reason": "C:\\Users\\omarn\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\pandas\\core\\nanops.py:1686 — TypeError: Could not convert ['ما هي الأسانيد القانونية التي استندت إليها مذكرة دفاع المالك لتبرير صحة قرار لجنة التظلمات بالإزالة؟'\n list(['استندت مذكرة دفاع المالك لتبرير صحة قرار لجنة التظلمات بالإزالة إلى الأسانيد القانونية والوقائع التالية:\\n\\n1.  نص مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸ الصادر في ۱۱ مايو ۲۰۰۸، وتقرير لجنة التظلمات الصادر في ۲۰۲۰/۷/٤ برقم ١٥٠ لسنة ٢٠٢٠.\\n2.  نصوص المواد رقم ۹۰، ۹۱، ۹۲، ۹۳، ٩٦ من قانون البناء الموحد ۱۱۹ لسنة ۲۰۰۸.\\n3.  بعد سرد مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸، ذكرت المذكرة أن القرار المطعون عليه صدر وصحيح ويجب تنفيذه بإزالة العقار حتى سطح الأرض بعد إخلاء شاغليه من السكن.\\n4.  تقرير اللجنة بعد المعاينة ووصف العقار على الطبيعة، والذي انتهى إلى قرار إزالة العقار بالكامل حتى سطح الأرض للأسباب التالية:\\n    *   توجد حوائط بالية وقد تلاحظ تأكل فيها وشروخ رأسية ومائلة بها معظم الجوائز.\\n    *   المصارف والأسقف بها شروخ وتصدعات وتآكل أجزاء من الخرسانة المسلحة.'])\n 'استندت مذكرة دفاع المالك لتبرير صحة قرار لجنة التظلمات بالإزالة إلى الأسانيد القانونية والوقائع التالية:\\n\\n1.  نص مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸ الصادر في ۱۱ مايو ۲۰۰۸، وتقرير لجنة التظلمات الصادر في ۲۰۲۰/۷/٤ برقم ١٥٠ لسنة ٢٠٢٠.\\n2.  نصوص المواد رقم ۹۰، ۹۱، ۹۲، ۹۳، ٩٦ من قانون البناء الموحد ۱۱۹ لسنة ۲۰۰۸.\\n3.  بعد سرد مواد القانون رقم ۱۱۹ لسنة ۲۰۰۸، ذكرت المذكرة أن القرار المطعون عليه صدر وصحيح ويجب تنفيذه بإزالة العقار حتى سطح الأرض بعد إخلاء شاغليه من السكن.\\n4.  تقرير اللجنة بعد المعاينة ووصف العقار على الطبيعة، والذي انتهى إلى قرار إزالة العقار بالكامل حتى سطح الأرض للأسباب التالية:\\n    *   توجد حوائط بالية وقد تلاحظ تأكل فيها وشروخ رأسية ومائلة بها معظم الجوائز.\\n    *   المصارف والأسقف بها شروخ وتصدعات وتآكل أجزاء من الخرسانة المسلحة.'\n 'استندت مذكرة الدفاع إلى المادة 119 من قانون البناء الموحد لسنة 2008، وتحديداً المواد 90 و 92.'] to numeric",
+      "has_rich_data": true
+    }
+  ]
+}

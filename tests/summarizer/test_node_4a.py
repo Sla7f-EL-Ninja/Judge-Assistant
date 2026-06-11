@@ -202,7 +202,9 @@ class TestProcessRole:
         assert result["themes"][0]["theme_name"] == "الدفوع"
 
     def test_output_has_role_and_themes_keys(self):
-        """Output dict has 'role' and 'themes' keys."""
+        """Output dict has 'role' and 'themes' keys.
+        Uses 1 item (< MIN_ITEMS_FOR_CLUSTERING) to exercise the no-LLM shortcut.
+        The LLM path is covered by test_multi_batch_calls_cluster_twice."""
         parser = MagicMock()
         parser.invoke.return_value = ClusteringResultLLM(
             themes=[ThemeAssignmentLLM(theme_name="موضوع", item_ids=[])]
@@ -213,6 +215,9 @@ class TestProcessRole:
 
         agg = make_role_agg(role="الوقائع", party_specific=[make_party_specific()])
         result = node.process_role(agg)
+        assert not parser.invoke.called, (
+            "LLM should NOT be called for < MIN_ITEMS_FOR_CLUSTERING items"
+        )
         assert "role" in result
         assert "themes" in result
 

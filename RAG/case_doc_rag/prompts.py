@@ -15,7 +15,6 @@ logger = logging.getLogger("case_doc_rag.prompts")
 # ---------------------------------------------------------------------------
 # Prompt constants
 # ---------------------------------------------------------------------------
-
 QUESTION_REWRITER_PROMPT = """\
 You are an assistant that reformulates a judge's query into optimized standalone \
 retrieval questions for a legal RAG system.
@@ -33,6 +32,8 @@ smallest possible number of standalone questions.
 over Egyptian civil-case documents.
 5. Preserve all legal meaning exactly.
 6. Questions must be in Arabic to be more aligned with the documents.
+7. CRITICAL: If the query is explicitly asking to fetch, display, or view a specific document (e.g., "هاتلي صحيفة الدعوى", "أريد عرض محضر إثبات حالة"), DO NOT turn it into a question. Preserve the command exactly (e.g., "عرض محضر إثبات حالة").
+8. CRITICAL: If the query refers to a specific document (e.g., "بناءً على المستند كذا...", "في مستند كذا..."), ensure the rewritten question explicitly asks for the information IN that document, rather than altering the meaning to a causal relationship.
 
 Output MUST always be a valid JSON list of strings, even for a single question.
 Do not wrap in code blocks. Do not add any text before or after the JSON array.
@@ -99,17 +100,17 @@ You MUST classify the query into exactly one category:
 1. retrieve_specific_doc
    The judge is asking to GET or DISPLAY that document itself.
    Examples:
+   - "هاتلي صحيفة الدعوى"
+   - "اعرض لي قرار حي ثان الإسماعيلية بالإخلاء"
+   - "عايز أشوف التقرير الهندسي الاستشاري"
    - "هاتلي مذكرة المدعى عليه"
-   - "اعرض تقرير الخبير"
-   - "فين صحيفة الاستئناف؟"
 
 2. restrict_to_doc
    The judge asks for INFORMATION FROM a document but not to return the document itself.
    Examples:
+   - "ما هو القرار الذي انتهت إليه لجنة التظلمات في محضر المعاينة؟"
+   - "ما هي الأسانيد القانونية المذكورة في مذكرة دفاع المالك؟"
    - "ايه أهم النقاط الواردة في مذكرة المدعى؟"
-   - "استخرج لي الوقائع الواردة في صحيفة الدعوى"
-   - "عايز المستخلصات من تقرير الخبير"
-
 3. no_doc_specified
    The judge does not refer to any document.
    Examples:
@@ -129,10 +130,9 @@ RAG_ANSWER_TEMPLATE = """\
 إرشادات إلزامية:
 1. لا تستنتج أي معلومات غير موجودة نصاً في المستندات.
 2. لا تذكر أي معلومة من خارج (Context).
-3. إذا لم تتوفر المعلومة في المستندات، قل بوضوح:
-   "المستندات المتاحة لا تحتوي على إجابة مباشرة لهذا السؤال."
+3. إذا لم تتوفر المعلومة في المستندات، قل بوضوح: "المستندات المتاحة لا تحتوي على إجابة مباشرة لهذا السؤال." وتوقف عن الكتابة تماماً ولا تضف أي كلمة أخرى.
 4. استخدم لغة محايدة ومهنية تتناسب مع بيئة العمل القضائي.
-5. إذا احتوى السؤال على عدة نقاط، أجب عليها واحدةً تلو الأخرى طالما أنها موجودة في المستندات.
+5. عند ذكر أي مبالغ أو أرقام أو تواريخ أو أرقام قرارات، يجب نقلها حرفياً كما هي في المستند. يُمنع منعاً باتاً تخمين أو استنتاج أو دمج أي رقم غير موجود بوضوح.
 6. استخدم أحدث سؤال في المحادثة كأساس للإجابة، ولكن لا تعتمد على الذاكرة—اعتمد فقط على السياق.
 7. عند ذكر أي مبالغ أو أرقام، انقلها حرفياً من نص المستند دون تعديل.
 إذا تضمنت الإجابة قائمة طلبات، اذكرها كاملة بالترتيب كما وردت في المستند.
@@ -150,7 +150,6 @@ Rewritten Question:
 ---
 
 قدّم الإجابة استناداً فقط إلى المستندات أعلاه:"""
-
 # ---------------------------------------------------------------------------
 # Lazy RAG chain singleton
 # ---------------------------------------------------------------------------

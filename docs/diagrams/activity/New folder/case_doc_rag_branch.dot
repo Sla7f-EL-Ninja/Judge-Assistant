@@ -1,0 +1,105 @@
+digraph case_doc_rag_branch {
+    rankdir=TB
+    newrank=true
+    fontname="Helvetica"
+    fontsize=12
+    splines=polyline
+    nodesep=0.6
+    ranksep=0.75
+    node [fontname="Helvetica" fontsize=11 margin="0.25,0.12"]
+    edge [fontname="Helvetica" fontsize=10]
+
+    { rank=source; START }
+
+    START   [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="START"]
+    END_OT  [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_ERR [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END2    [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END — return to MCPServer"]
+
+    rewrite    [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                label="questionRewriter\nrewrite + decompose query"]
+    classifier [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                label="questionClassifier\non-topic check"]
+    off_resp   [shape=rect style="filled,rounded" fillcolor="#ffd5d5"
+                label="offTopicResponse"]
+    err_resp   [shape=rect style="filled,rounded" fillcolor="#ffd5d5"
+                label="errorResponse"]
+    doc_sel    [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                label="documentSelector\nfetch doc titles from MongoDB\nno LLM call"]
+    merge      [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                label="mergeAnswers\n[high-tier LLM]\nmerge + cite sources"]
+
+    on_topic [shape=diamond style=filled fillcolor="#fff3c7" label="On topic?"]
+    fanout   [shape=diamond style=filled fillcolor="#dce8f7" label="Any\nsub-questions?"]
+
+    subgraph cluster_fork {
+        label="Parallel Send() — one branch per sub-question"
+        fontname="Helvetica" fontsize=11
+        style=dashed color="#666666" bgcolor="#f5f5f5" margin=20
+
+        bsel         [shape=rect    style="filled,rounded" fillcolor="#dce8f7"
+                      label="branchDocSelector\nclassify doc selection mode"]
+        mode         [shape=diamond style=filled fillcolor="#dce8f7"
+                      label="doc_selection_mode"]
+        finalize     [shape=rect    style="filled,rounded" fillcolor="#d5e8d4"
+                      label="BranchDocumentFinalizer\nfetch full doc from Qdrant"]
+        branch_done1 [shape=rect    style="filled,rounded" fillcolor="#d5e8d4"
+                      label="branch result"]
+        retrieve_r   [shape=rect    style="filled,rounded" fillcolor="#d5e8d4"
+                      label="retrieve\nvector search scoped to doc\n+ case_id filter"]
+        retrieve_a   [shape=rect    style="filled,rounded" fillcolor="#d5e8d4"
+                      label="retrieve\nvector search across all docs\n+ case_id filter"]
+        grader       [shape=rect    style="filled,rounded" fillcolor="#ffecc7"
+                      label="retrievalGrader\nrelevance grade [LLM]"]
+        proceed      [shape=diamond style=filled fillcolor="#ffecc7"
+                      label="proceedToGenerate?"]
+        gen          [shape=rect    style="filled,rounded" fillcolor="#e8d5f5"
+                      label="generateAnswer\n[high-tier LLM]"]
+        branch_done2 [shape=rect    style="filled,rounded" fillcolor="#d5e8d4"
+                      label="branch result"]
+        rephrase_chk [shape=diamond style=filled fillcolor="#ffecc7"
+                      label="rephraseCount\n>= 2?"]
+        cannot       [shape=rect    style="filled,rounded" fillcolor="#ffd5d5"
+                      label="cannotAnswer"]
+        branch_done3 [shape=rect    style="filled,rounded" fillcolor="#d5e8d4"
+                      label="branch result"]
+        refine       [shape=rect    style="filled,rounded" fillcolor="#ffecc7"
+                      label="refineQuestion\nrephrase sub-question"]
+
+        { rank=same; retrieve_r retrieve_a }
+        { rank=same; branch_done1 branch_done2 branch_done3 }
+
+        bsel         -> mode
+        mode         -> finalize     [label="retrieve_specific_doc"]
+        finalize     -> branch_done1
+        mode         -> retrieve_r   [label="restrict_to_doc"]
+        mode         -> retrieve_a   [label="no_doc_specified"]
+        retrieve_r   -> grader
+        retrieve_a   -> grader
+        grader       -> proceed
+        proceed      -> gen          [label="YES" color="#336633" fontcolor="#336633"]
+        gen          -> branch_done2
+        proceed      -> rephrase_chk [label="NO" color="#cc0000" fontcolor="#cc0000"]
+        rephrase_chk -> cannot       [label="YES" color="#cc0000" fontcolor="#cc0000"]
+        cannot       -> branch_done3
+        rephrase_chk -> refine       [label="NO"]
+        refine       -> retrieve_r   [xlabel="retry" style=dashed color="#cc6600" fontcolor="#cc6600"
+                                       constraint=false minlen=0]
+    }
+
+    START        -> rewrite
+    rewrite      -> classifier
+    classifier   -> on_topic
+    on_topic     -> off_resp  [label="NO"  color="#cc0000" fontcolor="#cc0000"]
+    off_resp     -> END_OT
+    on_topic     -> err_resp  [label="error" color="#cc0000" fontcolor="#cc0000"]
+    err_resp     -> END_ERR
+    on_topic     -> doc_sel   [label="YES" color="#336633" fontcolor="#336633"]
+    doc_sel      -> fanout
+    fanout       -> err_resp  [label="NO"  color="#cc0000" fontcolor="#cc0000"]
+    fanout       -> bsel      [label="YES" color="#336633" fontcolor="#336633"]
+    branch_done1 -> merge
+    branch_done2 -> merge
+    branch_done3 -> merge
+    merge        -> END2
+}

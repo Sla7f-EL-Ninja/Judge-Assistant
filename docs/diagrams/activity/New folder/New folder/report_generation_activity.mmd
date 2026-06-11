@@ -1,0 +1,45 @@
+%%{init: {'theme': 'default', 'flowchart': {'htmlLabels': false}}}%%
+flowchart TD
+    START([START]) --> post_req[POST /api/v1/cases/case_id/reports/generate]
+
+    post_req --> case_check{Case exists\n+ has documents?}
+    case_check -->|NO| err404[Return 404\nCase or docs not found]
+    err404 --> END_404([END])
+
+    case_check -->|YES| create_job[create_report_job in MongoDB\nstatus: pending]
+    create_job --> ack[Return HTTP 202\n+ job_id to client]
+    ack --> END_REQ([END - HTTP request done])
+
+    ack --> bg_task
+
+    subgraph bg_task[Background Task - runs async]
+        direction TD
+        bg1[update job status -> running]
+        bg1 --> sum_run[run Summarization Pipeline\n7-node LangGraph]
+        sum_run --> sum_ok{Success?}
+        sum_ok -->|NO| fail1[update status -> failed\nstore error message]
+        fail1 --> END_F1([END])
+        sum_ok -->|YES| upsert_sum[upsert summary -> MongoDB\nsummaries collection]
+        upsert_sum --> cr_run[run Case Reasoner Pipeline\nrun_case_reasoning]
+        cr_run --> cr_ok{Success?}
+        cr_ok -->|NO| fail2[update status -> failed\nstore error message]
+        fail2 --> END_F2([END])
+        cr_ok -->|YES| upsert_cr[upsert case_reasoning -> MongoDB\ncase_reasonings collection]
+        upsert_cr --> complete[update status -> completed]
+        complete --> END_BG([END background task])
+    end
+
+    END_REQ --> poll
+
+    subgraph poll[Client Polling Loop]
+        direction TD
+        p1[GET /api/v1/cases/case_id/reports/report_id]
+        p1 --> pstatus{job status}
+        pstatus -->|pending or running| wait[wait -> poll again]
+        wait --> p1
+        pstatus -->|completed| fetch[fetch summary +\ncase_reasoning from MongoDB]
+        fetch --> ret_ok[Return 200\nsummary + case_reasoning]
+        ret_ok --> END_POLL_OK([END])
+        pstatus -->|failed| ret_err[Return 200\nstatus=failed + error]
+        ret_err --> END_POLL_ERR([END])
+    end

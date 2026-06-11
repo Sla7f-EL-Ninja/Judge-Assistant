@@ -19,8 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
-from summarize.nodes.synthesis import Node4B_ThemeSynthesis, SynthesisResultLLM
+from summarize.nodes.synthesis import Node4B_ThemeSynthesis, SynthesisResultLLM, SentenceLLM
 
 
 def make_theme_cluster(
@@ -112,20 +111,27 @@ class TestSynthesizeTheme:
     def test_returns_llm_summary_when_non_empty(self):
         """T-NODE4B-02: LLM returns non-empty summary → used as-is."""
         llm_result = SynthesisResultLLM(
-            summary="ملخص قانوني وافٍ بالموضوع",
             key_disputes=["نقطة خلاف أولى"],
-            sentences=[],
+            sentences=[SentenceLLM(
+                text="ملخص قانوني وافٍ بالموضوع",
+                source_items=["P001"],
+            )],
         )
-        node = make_node4b(parser_result=llm_result)
+        parser = MagicMock()
+        parser.invoke.return_value = llm_result
+        llm = MagicMock()
+        llm.with_structured_output.return_value = parser
+        node = Node4B_ThemeSynthesis(llm)
         cluster = make_theme_cluster(theme_name="موضوع العقد")
         result = node.synthesize_theme(cluster, "الوقائع")
-        assert result["summary"] == "ملخص قانوني وافٍ بالموضوع"
+        parser.invoke.assert_called()
+        assert "ملخص قانوني وافٍ بالموضوع" in result["summary"]
         assert result["key_disputes"] == ["نقطة خلاف أولى"]
         assert result["theme"] == "موضوع العقد"
 
     def test_empty_summary_triggers_fallback(self):
         """T-NODE4B-03: LLM returns empty string → fallback summary used."""
-        llm_result = SynthesisResultLLM(summary="", key_disputes=[], sentences=[])
+        llm_result = SynthesisResultLLM(key_disputes=[], sentences=[])
         node = make_node4b(parser_result=llm_result)
         cluster = make_theme_cluster(
             theme_name="موضوع",
@@ -137,11 +143,14 @@ class TestSynthesizeTheme:
     def test_extracts_dispute_subjects_when_key_disputes_empty(self):
         """T-NODE4B-04: LLM returns empty key_disputes but disputed items exist."""
         llm_result = SynthesisResultLLM(
-            summary="ملخص",
             key_disputes=[],  # empty
             sentences=[]
         )
-        node = make_node4b(parser_result=llm_result)
+        parser = MagicMock()
+        parser.invoke.return_value = llm_result
+        llm = MagicMock()
+        llm.with_structured_output.return_value = parser
+        node = Node4B_ThemeSynthesis(llm)
         cluster = make_theme_cluster(
             disputed=[
                 make_disputed(subject="مسألة الملكية"),
@@ -149,6 +158,7 @@ class TestSynthesizeTheme:
             ]
         )
         result = node.synthesize_theme(cluster, "الوقائع")
+        parser.invoke.assert_called()
         assert "مسألة الملكية" in result["key_disputes"]
         assert "مسألة التسليم" in result["key_disputes"]
 
@@ -167,9 +177,17 @@ class TestSynthesizeTheme:
 
     def test_output_has_required_keys(self):
         """Output dict has: theme, summary, key_disputes, sources."""
-        llm_result = SynthesisResultLLM(summary="ملخص", key_disputes=[], sentences=[])
-        node = make_node4b(parser_result=llm_result)
+        llm_result = SynthesisResultLLM(
+            key_disputes=[], 
+            sentences=[SentenceLLM(text="ملخص", source_items=[])]
+        )
+        parser = MagicMock()
+        parser.invoke.return_value = llm_result
+        llm = MagicMock()
+        llm.with_structured_output.return_value = parser
+        node = Node4B_ThemeSynthesis(llm)
         result = node.synthesize_theme(make_theme_cluster(), "الوقائع")
+        parser.invoke.assert_called()
         assert "theme" in result
         assert "summary" in result
         assert "key_disputes" in result
@@ -189,7 +207,7 @@ class TestProcessRole:
         """T-NODE4B-06: Output theme_summaries[i] corresponds to input themes[i]."""
         theme_names = ["موضوع أول", "موضوع ثاني", "موضوع ثالث", "موضوع رابع", "موضوع خامس"]
 
-        def make_result(theme_cluster, role):
+        def make_result(theme_cluster, role, *args):
             return {
                 "theme": theme_cluster["theme_name"],
                 "summary": f"ملخص {theme_cluster['theme_name']}",
@@ -217,7 +235,7 @@ class TestProcessRole:
         """T-NODE4B-07: Exception for one theme doesn't affect others."""
         call_count = [0]
 
-        def synthesize_side_effect(theme_cluster, role):
+        def synthesize_side_effect(theme_cluster, role, *args):
             call_count[0] += 1
             if theme_cluster["theme_name"] == "موضوع_يفشل":
                 raise RuntimeError("Simulated failure")

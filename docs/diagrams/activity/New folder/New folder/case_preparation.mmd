@@ -1,0 +1,24 @@
+%%{init: {'theme': 'default', 'flowchart': {'htmlLabels': false}}}%%
+flowchart TD
+    START([START]) --> create_case[POST /api/v1/cases\nJudge creates case record]
+
+    create_case --> upload_doc[POST /api/v1/files/upload\nUpload document]
+    upload_doc --> ingest[Document Ingestion Flow\nOCR -> embed -> Qdrant -> MongoDB\nsee document_ingestion_activity.mmd]
+
+    ingest --> ocr_flag{OCR confidence\nlow flag?}
+    ocr_flag -->|YES| review_ocr[Judge reviews OCR output\nGET .../documents/doc_id/ocr]
+    review_ocr --> correct_ocr[Judge submits correction\nPATCH .../documents/doc_id/ocr]
+    correct_ocr --> reindex[Re-index corrected text\ndelete old Qdrant chunks\nupsert new chunks]
+    reindex --> more_docs
+
+    ocr_flag -->|NO| more_docs{More documents\nto upload?}
+    more_docs -->|YES| upload_doc
+    more_docs -->|NO| gen_summary[POST /api/v1/cases/case_id/reports/generate\nOR POST .../summary/generate]
+
+    gen_summary --> sum_pipeline[Summarization Pipeline\n7-node LangGraph\nsee summarization_activity.mmd]
+
+    sum_pipeline --> review_brief[GET /api/v1/cases/case_id/case-brief\nJudge reviews 7-section structured brief]
+
+    review_brief --> satisfied{Satisfied\nwith brief?}
+    satisfied -->|NO - need more docs| upload_doc
+    satisfied -->|YES| END_OK([END - Case ready for querying])

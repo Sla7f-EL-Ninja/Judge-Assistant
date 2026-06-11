@@ -1,0 +1,50 @@
+%%{init: {'theme': 'default', 'flowchart': {'htmlLabels': false}}}%%
+flowchart TD
+    START([START]) --> rewrite[questionRewriter\nrewrite + decompose query]
+    rewrite --> classifier[questionClassifier\non-topic check]
+
+    classifier --> on_topic{On topic?}
+    on_topic -->|NO| off_resp[offTopicResponse]
+    off_resp --> END_OT([END])
+    on_topic -->|error| err_resp[errorResponse]
+    err_resp --> END_ERR([END])
+
+    on_topic -->|YES| doc_sel[documentSelector\nfetch doc titles from MongoDB\nno LLM call]
+
+    doc_sel --> fanout{Any sub-questions?}
+    fanout -->|NO| err_resp
+
+    fanout -->|YES| fork_label
+
+    subgraph fork_label[Parallel Send - one branch per sub-question]
+        direction TB
+        bsel[branchDocSelector\nclassify doc selection mode]
+
+        bsel --> mode{doc_selection_mode}
+
+        mode -->|retrieve_specific_doc| finalize[BranchDocumentFinalizer\nfetch full doc from Qdrant]
+        finalize --> branch_done1[branch result]
+
+        mode -->|restrict_to_doc| retrieve_r[retrieve\nvector search scoped to doc\n+ case_id filter]
+        mode -->|no_doc_specified| retrieve_a[retrieve\nvector search across all docs\n+ case_id filter]
+
+        retrieve_r --> grader[retrievalGrader\nrelevance grade LLM]
+        retrieve_a --> grader
+
+        grader --> proceed{proceedToGenerate?}
+        proceed -->|YES| gen[generateAnswer\nhigh-tier LLM]
+        gen --> branch_done2[branch result]
+
+        proceed -->|NO| rephrase_check{rephraseCount\n>= 2?}
+        rephrase_check -->|YES| cannot[cannotAnswer]
+        cannot --> branch_done3[branch result]
+        rephrase_check -->|NO| refine[refineQuestion\nrephrase sub-question]
+        refine -->|retry| retrieve_r
+    end
+
+    branch_done1 --> merge
+    branch_done2 --> merge
+    branch_done3 --> merge
+
+    merge[mergeAnswers\nhigh-tier LLM\nmerge + cite sources]
+    merge --> END2([END - return to MCPServer])

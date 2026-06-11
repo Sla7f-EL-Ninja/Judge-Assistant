@@ -1,0 +1,118 @@
+digraph chat_reasoner_activity {
+    rankdir=TB
+    newrank=true
+    fontname="Helvetica"
+    fontsize=12
+    splines=polyline
+    nodesep=0.6
+    ranksep=0.75
+    node [fontname="Helvetica" fontsize=11 margin="0.25,0.12"]
+    edge [fontname="Helvetica" fontsize=10]
+
+    { rank=source; START }
+    { rank=sink;   END_OK }
+
+    START  [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="START"]
+    END_OK [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END — AgentResult to Supervisor"]
+
+    recv      [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+               label="receive query from Supervisor\n+ case_id + conversation_history"]
+    planner   [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+               label="planner\ngenerate JSON plan\nsteps · tools · depends_on\n[high-tier LLM]"]
+    validator [shape=rect style="filled,rounded" fillcolor="#ffecc7"
+               label="plan_validator\ncheck: unknown tools?\nempty queries? invalid depends_on?\nsteps > 5?"]
+    val_result [shape=diamond style=filled fillcolor="#fff3c7" label="valid?"]
+    fail_hard  [shape=rect style="filled,rounded" fillcolor="#ffd5d5"
+                label="return error\nstatus=failed"]
+
+    subgraph cluster_fanout {
+        label="executor_fanout — Parallel Send() per independent step (empty depends_on)"
+        fontname="Helvetica" fontsize=11
+        style=dashed color="#666666" bgcolor="#f5f5f5" margin=20
+
+        sw1  [shape=rect style="filled,rounded" fillcolor="#cce8cc" label="step_worker\ncall tool"]
+        
+        tool1 [shape=diamond style=filled fillcolor="#e8e8e8" label="tool"]
+        
+        r1 [shape=rect style="filled,rounded" fillcolor="#d5e8d4" label="CaseDocRAG\nMCPClient.call()"]
+        r2 [shape=rect style="filled,rounded" fillcolor="#d5e8d4" label="CivilLawRAG\nMCPClient.call()"]
+        r3 [shape=rect style="filled,rounded" fillcolor="#d5e8d4" label="SummaryReport\nMongoDB fetch"]
+        
+
+        { rank=same; sw1 }
+        { rank=same; tool1 }
+        { rank=same; r1 r2 r3 }
+
+        sw1 -> tool1
+        tool1 -> r1 [xlabel="case_doc_rag"]
+        tool1 -> r2 [xlabel="civil_law_rag"]
+        tool1 -> r3 [xlabel="fetch_summary_report"]
+    }
+
+    collector     [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+                   label="collector\ngather all step_results\nexecute dependent steps after prereqs"]
+    col_router    [shape=diamond style=filled fillcolor="#dce8f7" label="all steps\ndone?"]
+    replan_chk1   [shape=diamond style=filled fillcolor="#ffecc7" label="replan_count\n< 2?"]
+    replanner     [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="replanner\nrewrite plan\nincrement replan_count\n[high-tier LLM]"]
+    replan_status [shape=diamond style=filled fillcolor="#ffecc7" label="status =\nfailed?"]
+    synthesizer   [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+                   label="synthesizer\nproduce final Arabic answer\n[high-tier LLM]"]
+    suf_check     [shape=diamond style=filled fillcolor="#ffecc7" label="sufficient?"]
+    replan_chk2   [shape=diamond style=filled fillcolor="#ffecc7" label="replan_count\n< 2?"]
+    trace_w       [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+                   label="trace_writer\nwrite to MongoDB\nchat_reasoner_traces"]
+
+    // ── Main spine ─────────────────────────────────────────────────
+    START      -> recv
+    recv       -> planner
+    planner    -> validator
+    validator  -> val_result
+
+    val_result -> sw1       [label="VALID" color="#336633" fontcolor="#336633"]
+    val_result -> fail_hard [label="INVALID\nretry exhausted" color="#cc0000" fontcolor="#cc0000"]
+
+    r1 -> collector
+    r2 -> collector
+    r3 -> collector
+
+    collector  -> col_router
+    col_router -> replan_chk1 [label="tool error\n— replan"]
+    col_router -> synthesizer  [label="all done" color="#336633" fontcolor="#336633"]
+
+    replan_chk1 -> replanner   [label="YES"]
+    replan_chk1 -> synthesizer [label="NO"]
+    replanner   -> replan_status
+    replan_status -> trace_w   [label="YES\nguard tripped" color="#cc0000" fontcolor="#cc0000"]
+
+    synthesizer -> suf_check
+    suf_check   -> trace_w     [label="YES" color="#336633" fontcolor="#336633"]
+    suf_check   -> replan_chk2 [label="NO"]
+    replan_chk2 -> trace_w     [label="NO\nbest-effort" color="#cc0000" fontcolor="#cc0000"]
+
+    fail_hard -> trace_w
+    trace_w   -> END_OK
+
+    // ── Back-edges: constraint=false + minlen=0 keeps rank intact ──
+    // Labels via xlabel so polyline doesn't drop them
+    val_result -> planner [
+        xlabel="INVALID\nretry_count < 3"
+        style=dashed color="#cc6600" fontcolor="#cc6600"
+        constraint=false minlen=0
+    ]
+    col_router -> sw1 [
+        xlabel="more independent\nsteps"
+        style=dashed color="#336633" fontcolor="#336633"
+        constraint=false minlen=0
+    ]
+    replan_status -> validator [
+        xlabel="NO — re-validate"
+        style=dashed color="#cc6600" fontcolor="#cc6600"
+        constraint=false minlen=0
+    ]
+    replan_chk2 -> replanner [
+        xlabel="YES"
+        style=dashed color="#cc6600" fontcolor="#cc6600"
+        constraint=false minlen=0
+    ]
+}

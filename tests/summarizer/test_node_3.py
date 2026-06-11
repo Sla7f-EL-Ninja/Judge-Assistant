@@ -240,7 +240,10 @@ class TestProcessRole:
         assert len(result["party_specific"]) == 2
 
     def test_output_has_required_structure(self):
-        """T-NODE3-09: Output dict has role, agreed, disputed, party_specific."""
+        """T-NODE3-09: Output dict has role, agreed, disputed, party_specific.
+        Single-party input deliberately exercises the no-LLM shortcut path.
+        For the LLM path, see TestProcessRole.test_llm_exception_uses_fallback and
+        TestBuildRoleAggregation.test_output_structure_keys."""
         bullets = [make_bullet("b1", party="المدعي")]
         lookup = {b["bullet_id"]: b for b in bullets}
         node = make_node3()

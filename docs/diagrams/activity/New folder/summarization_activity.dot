@@ -1,0 +1,90 @@
+digraph summarization_activity {
+    rankdir=TB
+    newrank=true
+    fontname="Helvetica"
+    fontsize=12
+    splines=polyline
+    nodesep=0.6
+    ranksep=0.75
+    node [fontname="Helvetica" fontsize=11 margin="0.25,0.12"]
+    edge [fontname="Helvetica" fontsize=10]
+
+    { rank=source; START }
+
+    START    [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="START"]
+    END_EMPTY[shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END — empty chunks"]
+    END_N1   [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_N2   [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_N3   [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_N4A  [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_N4B  [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END"]
+    END_OK   [shape=oval style=filled fillcolor="#2d2d2d" fontcolor=white label="END — case_brief + rendered_brief"]
+
+    recv     [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+              label="receive documents list\n+ case_id"]
+    disambig [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+              label="disambiguate_defendants()\nmerge ghost party labels"]
+    manifest [shape=rect style="filled,rounded" fillcolor="#dce8f7"
+              label="build party_manifest\nparty → set of doc_types"]
+    n1       [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+              label="Node 1 — Role Classifier\nclassify each chunk → legal role\n[low-tier LLM]"]
+    n2       [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+              label="Node 2 — Bullet Extractor\nextract atomic legal ideas per chunk\n[high-tier LLM]"]
+    n3       [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+              label="Node 3 — Aggregator\ngroup bullets by role\nlabel: متفق عليه / محل النزاع / خاص بطرف\n[high-tier LLM]"]
+    n4a      [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+              label="Node 4A — Thematic Clustering\ncluster bullets into 3-7 themes per role\n[low-tier LLM]"]
+    n4b      [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+              label="Node 4B — Theme Synthesis\ngenerate Arabic prose per theme\ncite bullet IDs\n[high-tier LLM]"]
+    n5       [shape=rect style="filled,rounded" fillcolor="#e8d5f5"
+              label="Node 5 — Brief Generator\nproduce 7-section judge-facing brief\n[high-tier LLM]"]
+    mongodb  [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+              label="Upsert to MongoDB\nsummaries collection"]
+
+    empty_check [shape=diamond style=filled fillcolor="#fff3c7" label="documents\nempty?"]
+    n1_check    [shape=diamond style=filled fillcolor="#ffecc7" label="classified\nchunks empty?"]
+    n2_check    [shape=diamond style=filled fillcolor="#ffecc7" label="bullets\nempty?"]
+    n3_check    [shape=diamond style=filled fillcolor="#ffecc7" label="role_aggregations\nempty?"]
+    n4a_check   [shape=diamond style=filled fillcolor="#ffecc7" label="themed_roles\nempty?"]
+    n4b_check   [shape=diamond style=filled fillcolor="#ffecc7" label="role_theme\nsummaries empty?"]
+
+    subgraph cluster_n0 {
+        label="Node 0 — Parallel Intake (ThreadPoolExecutor)"
+        fontname="Helvetica" fontsize=11
+        style=dashed color="#666666" bgcolor="#f5f5f5" margin=20
+
+        doc1 [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+              label="process doc 1\nclassify doc_type (7 types)\nclassify party (6 types)\nsegment into chunks"]
+        docN [shape=rect style="filled,rounded" fillcolor="#d5e8d4"
+              label="process doc N\n…"]
+
+        { rank=same; doc1 docN }
+    }
+
+    START       -> recv
+    recv        -> empty_check
+    empty_check -> END_EMPTY [label="YES" color="#cc0000" fontcolor="#cc0000"]
+    empty_check -> doc1      [label="NO"  color="#336633" fontcolor="#336633"]
+    empty_check -> docN      [label="NO"  color="#336633" fontcolor="#336633"]
+    doc1        -> disambig
+    docN        -> disambig
+    disambig    -> manifest
+    manifest    -> n1
+    n1          -> n1_check
+    n1_check    -> END_N1    [label="YES" color="#cc0000" fontcolor="#cc0000"]
+    n1_check    -> n2        [label="NO"  color="#336633" fontcolor="#336633"]
+    n2          -> n2_check
+    n2_check    -> END_N2    [label="YES" color="#cc0000" fontcolor="#cc0000"]
+    n2_check    -> n3        [label="NO"  color="#336633" fontcolor="#336633"]
+    n3          -> n3_check
+    n3_check    -> END_N3    [label="YES" color="#cc0000" fontcolor="#cc0000"]
+    n3_check    -> n4a       [label="NO"  color="#336633" fontcolor="#336633"]
+    n4a         -> n4a_check
+    n4a_check   -> END_N4A   [label="YES" color="#cc0000" fontcolor="#cc0000"]
+    n4a_check   -> n4b       [label="NO"  color="#336633" fontcolor="#336633"]
+    n4b         -> n4b_check
+    n4b_check   -> END_N4B   [label="YES" color="#cc0000" fontcolor="#cc0000"]
+    n4b_check   -> n5        [label="NO"  color="#336633" fontcolor="#336633"]
+    n5          -> mongodb
+    mongodb     -> END_OK
+}

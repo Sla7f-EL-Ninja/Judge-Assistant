@@ -18,8 +18,6 @@ import pytest
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
-FIXTURE_DIR = _REPO_ROOT / "tests" / "CASE_RAG" / "fixtures"
-
 
 # ---------------------------------------------------------------------------
 # Session-scoped real LLM fixture (skips if not configured)
@@ -45,39 +43,45 @@ def full_pipeline(real_llm):
 
 
 @pytest.fixture(scope="session")
-def single_fixture_doc():
-    """Load صحيفة_دعوى.txt as pipeline input."""
-    fpath = FIXTURE_DIR / "صحيفة_دعوى.txt"
-    if not fpath.exists():
-        pytest.skip(f"Fixture not found: {fpath}")
-    return [{"doc_id": "صحيفة_دعوى", "raw_text": fpath.read_text(encoding="utf-8")}]
+def single_fixture_doc(fixture_documents):
+    """Return the صحيفة_دعوى document already ingested by conftest."""
+    doc = next((d for d in fixture_documents if d["doc_id"] == "صحيفة_دعوى"), None)
+    if doc is None:
+        pytest.skip("صحيفة_دعوى not found in ingested fixture documents")
+    return [doc]
 
 
 @pytest.fixture(scope="session")
-def all_fixture_docs():
-    """Load all 7 fixture documents as pipeline input."""
-    filenames = [
-        "صحيفة_دعوى.txt",
-        "مذكرة_بدفاع_المدعى_عليه_الأول.txt",
-        "مذكرة_بدفاع_المدعى_عليها_الثانية.txt",
-        "تقرير_الخبير.txt",
-        "تقرير_الطب_الشرعي.txt",
-        "محضر_جلسة_25_03_2024.txt",
-        "حكم_المحكمة.txt",
-    ]
-    docs = []
-    for fname in filenames:
-        fpath = FIXTURE_DIR / fname
-        if fpath.exists():
-            docs.append({"doc_id": fname.replace(".txt", ""), "raw_text": fpath.read_text(encoding="utf-8")})
-    if not docs:
-        pytest.skip("No fixture files found")
-    return docs
+def all_fixture_docs(fixture_documents):
+    """All documents already ingested by conftest — no .txt loading needed."""
+    if not fixture_documents:
+        pytest.skip("No fixture documents were ingested by conftest")
+    return fixture_documents
+
+
+@pytest.fixture(scope="session")
+def save_integration_brief(full_pipeline_result, request):
+    """Write rendered_brief to hakim_rendered_brief.md after integration tests.
+
+    Fires for any session that runs the full pipeline (marked @summarizer_llm).
+    Pushes the brief into HakimReportPlugin so the .md file lands next to the
+    JSON test report regardless of which test suite triggered the pipeline.
+    """
+    yield
+    rendered = full_pipeline_result.get("rendered_brief", "")
+    if not rendered.strip():
+        return
+    try:
+        plugin = request.config.pluginmanager.get_plugin("hakim_report_plugin_instance")
+        if plugin is not None:
+            plugin.record_rendered_brief(rendered)
+    except Exception:
+        pass  # Non-critical
 
 
 @pytest.fixture(scope="session")
 def full_pipeline_result(full_pipeline, all_fixture_docs):
-    """Run the full pipeline once on all 7 fixtures; cache result for all tests."""
+    """Run the full pipeline once on all fixtures; cache result for all tests."""
     initial_state = {
         "documents": all_fixture_docs,
         "chunks": [],
@@ -89,11 +93,14 @@ def full_pipeline_result(full_pipeline, all_fixture_docs):
         "case_brief": {},
         "all_sources": [],
         "rendered_brief": "",
+        "party_manifest": {},
     }
     start = time.perf_counter()
     result = full_pipeline.invoke(initial_state)
     elapsed = time.perf_counter() - start
     result["_elapsed_seconds"] = elapsed
+    result["_fixture_doc_ids"] = [d["doc_id"] for d in all_fixture_docs]
+    result["documents"] = all_fixture_docs   # needed by TestFactualFaithfulness
     return result
 
 
