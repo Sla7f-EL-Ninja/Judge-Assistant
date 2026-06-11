@@ -20,8 +20,8 @@ from RAG.case_doc_rag.state import SubQuestionState
 logger = logging.getLogger("case_doc_rag.retrieval_nodes")
 
 # Module-level constants -- easy to tune
-_SCORE_THRESHOLD = 0.45
-_RETRIEVAL_K = 8
+_SCORE_THRESHOLD = 0.30
+_RETRIEVAL_K = 10
 
 
 def _search_with_threshold(vs, query: str, k: int, score_threshold: float,

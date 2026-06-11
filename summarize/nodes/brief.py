@@ -268,18 +268,43 @@ class Node5_BriefGenerator:
                     "Fix 3: '%s' appears in party_defenses without disclaimer — injecting correction.",
                     party,
                 )
-                corrections.append(f"\n[تصحيح] {party}: {disclaimer}")
+                corrections.append(f"\n{party}: {disclaimer}")
 
         if corrections:
             brief.party_defenses = defenses_text + "\n" + "\n".join(corrections)
 
         return brief
 
+    def _reformat_ghayr_section(self, ghayr_summaries: List[str]) -> str:
+        """Send raw غير محدد summaries to the LLM for reformatting into proper legal Arabic."""
+        raw_text = "\n\n".join(ghayr_summaries)
+        messages = [
+            SystemMessage(content=(
+                "أنت مساعد قضائي. مهمتك إعادة صياغة المعلومات التالية بأسلوب قانوني رسمي "
+                "مناسب لمذكرة قضائية موجهة للقاضي.\n\n"
+                "القواعد:\n"
+                "- أعد كتابة المحتوى في فقرات أو قائمة منظمة بلغة عربية قانونية رسمية\n"
+                "- احتفظ بجميع المعلومات الواردة دون حذف أو إضافة\n"
+                "- يُمنع تضمين أي ملاحظات داخلية أو تحريرية كـ '[تصحيح]' أو '[ملخص خام]'\n"
+                "- لا تضف عنواناً للقسم — فقط المحتوى المُعاد صياغته"
+            )),
+            HumanMessage(content=f"أعد صياغة المعلومات التالية:\n\n{raw_text}"),
+        ]
+        try:
+            response = llm_invoke_with_retry(self.llm, messages, logger=logger)
+            # llm raw response (not structured output)
+            if hasattr(response, "content"):
+                return response.content.strip()
+            return str(response).strip()
+        except Exception as e:
+            logger.warning("غير محدد reformat failed (%s) — using raw text.", e)
+            return raw_text
+
     def render_brief(
         self,
         brief: CaseBrief,
         all_sources: List[str],
-        ghayr_summaries: Optional[List[str]] = None,
+        ghayr_formatted: Optional[str] = None,
     ) -> str:
         sections = [
             ("أولاً: ملخص النزاع", brief.dispute_summary),
@@ -297,9 +322,9 @@ class Node5_BriefGenerator:
             lines.append(content)
             lines.append("")
 
-        if ghayr_summaries:
-            lines.append("## ثامناً: معلومات إضافية (غير مصنفة)")
-            lines.append("\n\n".join(ghayr_summaries))
+        if ghayr_formatted:
+            lines.append("## ثامناً: معلومات إضافية ذات صلة")
+            lines.append(ghayr_formatted)
             lines.append("")
 
         lines.append("---")
@@ -376,7 +401,12 @@ class Node5_BriefGenerator:
             logger.error("LLM call failed: %s — using fallback assembly.", e)
             brief = self.build_fallback_brief(role_map, key_disputes)
 
-        rendered = self.render_brief(brief, all_sources, ghayr_summaries or None)
+        # Reformat غير محدد content via LLM before rendering as section 8
+        ghayr_formatted: Optional[str] = None
+        if ghayr_summaries:
+            ghayr_formatted = self._reformat_ghayr_section(ghayr_summaries)
+
+        rendered = self.render_brief(brief, all_sources, ghayr_formatted)
 
         return {
             "case_brief": brief.model_dump(),

@@ -1,16 +1,40 @@
 """
 conftest.py — Shared fixtures for the Hakim Summarizer test suite.
 
-Path setup ensures the project root is on sys.path so that the summarize
-package is importable without installing it.
+PDF ingestion
+-------------
+Fixture documents are now read from a directory of PDF files.  Each PDF is
+run through ``DocumentProcessor.pipeline.process_document`` (full ingest:
+text extraction / OCR → classification → MongoDB → Qdrant) before the test
+session starts.  The extracted text is then fed to the summarizer pipeline
+exactly as the old .txt fixtures were.
+
+PDF source directory
+--------------------
+``FIXTURE_DIR`` points at the local PDF folder.  All ``*.pdf`` files found
+there are ingested; the stem of each filename becomes its ``doc_id``.
+
+Path setup
+----------
+The project root is added to ``sys.path`` so that both the ``summarize`` and
+``DocumentProcessor`` packages are importable without installing them.
 """
 
 import pathlib
 import sys
+import logging
 from typing import Any
 from unittest.mock import MagicMock
-
+import os
 import pytest
+
+# Ensure poppler is always found on Windows regardless of environment
+import os
+os.environ.setdefault("POPPLER_PATH", r"C:\poppler\Library\bin")
+
+logger = logging.getLogger(__name__)
+
+
 
 # ---------------------------------------------------------------------------
 # Path setup — project root must be on sys.path
@@ -22,44 +46,121 @@ if str(_REPO_ROOT) not in sys.path:
 
 
 # ---------------------------------------------------------------------------
-# Fixture directory
+# PDF fixture directory
 # ---------------------------------------------------------------------------
-FIXTURE_DIR = _REPO_ROOT / "tests" / "CASE_RAG" / "fixtures"
 
-FIXTURE_FILENAMES = [
-    "صحيفة_دعوى.txt",
-    "مذكرة_بدفاع_المدعى_عليه_الأول.txt",
-    "مذكرة_بدفاع_المدعى_عليها_الثانية.txt",
-    "تقرير_الخبير.txt",
-    "تقرير_الطب_الشرعي.txt",
-    "محضر_جلسة_25_03_2024.txt",
-    "حكم_المحكمة.txt",
-]
+FIXTURE_DIR = pathlib.Path(r"D:\FUCK!!\Grad\TESTING DATA\First Case\PDFS")
 
+# Case ID used when ingesting test PDFs into MongoDB / Qdrant.
+# Change this if you want the test documents stored under a different case.
+TEST_CASE_ID = "hakim-test-case"
+
+@pytest.fixture(scope="session", autouse=True)
+def ingest_pdf_fixtures(raw_fixture_texts):
+    """
+    Force PDF ingestion to run at session start for every test run.
+    autouse=True means this fires even for unit tests that don't
+    directly request fixture_documents.
+    """
+    ingested = sum(1 for t in raw_fixture_texts.values() if t)
+    skipped  = sum(1 for t in raw_fixture_texts.values() if not t)
+    logger.info(
+        "PDF ingestion complete — %d ingested, %d failed/empty",
+        ingested, skipped,
+    )
+    yield
+    logger.info("Test session complete.")
 
 # ---------------------------------------------------------------------------
-# Session-scoped: raw fixture texts
+# Session-scoped: ingest PDFs and return extracted texts
 # ---------------------------------------------------------------------------
+
+
+def _ingest_pdf(pdf_path: pathlib.Path) -> str:
+    """
+    Run a single PDF through the full DocumentProcessor pipeline.
+
+    Returns the canonical extracted text (empty string on failure).
+    Side-effects: document is stored in MongoDB and indexed in Qdrant.
+    """
+    from DocumentProcessor.pipeline import process_document
+
+    logger.info("Ingesting PDF fixture: %s", pdf_path.name)
+    try:
+        result = process_document(
+            file_path=str(pdf_path),
+            case_id=TEST_CASE_ID,
+            file_id=pdf_path.stem,
+        )
+        text = result.get("text", "")
+        doc_type = result.get("classification", {}).get("final_type", "غير محدد")
+        confidence = result.get("classification", {}).get("confidence", 0)
+        logger.info(
+            "  ✓ %s → doc_type='%s' confidence=%d chars=%d",
+            pdf_path.name, doc_type, confidence, len(text),
+        )
+        return text
+    except Exception as exc:
+        logger.error("  ✗ Failed to ingest '%s': %s", pdf_path.name, exc)
+        return ""
 
 
 @pytest.fixture(scope="session")
 def raw_fixture_texts() -> dict:
-    """Read all 7 Arabic legal fixture files → {filename: text}."""
-    texts = {}
-    for fname in FIXTURE_FILENAMES:
-        fpath = FIXTURE_DIR / fname
-        if fpath.exists():
-            texts[fname] = fpath.read_text(encoding="utf-8")
-        else:
-            texts[fname] = ""
+    """
+    Ingest all PDFs in FIXTURE_DIR and return {filename: extracted_text}.
+
+    Each PDF is processed exactly once per test session via
+    ``DocumentProcessor.pipeline.process_document``.  If the directory does
+    not exist or contains no PDFs the fixture returns an empty dict (tests
+    that depend on real documents will then naturally fail or skip).
+    """
+    if not FIXTURE_DIR.exists():
+        pytest.skip(
+            f"PDF fixture directory not found: {FIXTURE_DIR}\n"
+            "Create the directory and populate it with the case PDFs."
+        )
+
+    pdf_paths = sorted(FIXTURE_DIR.glob("*.pdf"))
+    if not pdf_paths:
+        pytest.skip(f"No *.pdf files found in {FIXTURE_DIR}")
+
+    texts: dict = {}
+    for pdf_path in pdf_paths:
+        text = _ingest_pdf(pdf_path)
+        texts[pdf_path.name] = text   # key = "filename.pdf"
+
     return texts
 
 
 @pytest.fixture(scope="session")
 def fixture_documents(raw_fixture_texts) -> list:
-    """Convert fixture texts to pipeline input format."""
+    """
+    Convert ingested PDF texts to the pipeline input format.
+
+    Returns a list of ``{"doc_id": <stem>, "raw_text": <text>}`` dicts,
+    filtered to non-empty texts only (skips PDFs that failed extraction).
+    """
+    docs = []
+    for filename, text in raw_fixture_texts.items():
+        if not text:
+            logger.warning("Skipping empty fixture document: %s", filename)
+            continue
+        stem = pathlib.Path(filename).stem   # "صحيفة_دعوى.pdf" → "صحيفة_دعوى"
+        docs.append({"doc_id": stem, "raw_text": text})
+    return docs
+
+
+# ---------------------------------------------------------------------------
+# Convenience fixture: list of discovered PDF stems (for parametrize / IDs)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def fixture_doc_ids(raw_fixture_texts) -> list:
+    """Return the list of doc_id strings for all successfully ingested PDFs."""
     return [
-        {"doc_id": fname.replace(".txt", ""), "raw_text": text}
+        pathlib.Path(fname).stem
         for fname, text in raw_fixture_texts.items()
         if text
     ]
@@ -293,3 +394,41 @@ def node4b(mock_llm):
 def node5(mock_llm):
     from summarize.nodes.brief import Node5_BriefGenerator
     return Node5_BriefGenerator(mock_llm)
+
+
+# === Add this to the very bottom of conftest.py ===
+
+# AFTER
+def pytest_configure(config):
+    import sys
+    import logging
+    from pathlib import Path
+
+    # 1. Ensure the directory containing this conftest is in the Python path
+    current_dir = Path(__file__).parent
+    if str(current_dir) not in sys.path:
+        sys.path.insert(0, str(current_dir))
+
+    # 2. Silence noisy third-party DEBUG loggers
+    for noisy_logger in (
+        "urllib3",
+        "urllib3.connectionpool",
+        "langsmith",
+        "langsmith.client",
+        "pydot",
+        "pydot.core",
+    ):
+        logging.getLogger(noisy_logger).setLevel(logging.WARNING)
+    # 2. Import the plugin directly
+    try:
+        from hakim_report_plugin import HakimReportPlugin
+        report_path = current_dir / "hakim_test_report.json"
+
+        # 3. Register the instance explicitly and print a success message
+        plugin = HakimReportPlugin(report_path)
+        config.pluginmanager.register(plugin, "hakim_report_instance_forced")
+        
+        # This will print to your console the moment you start the test suite
+        print(f"\n✅ [Hakim Report] Plugin successfully hooked! Report will drop at:\n   {report_path}\n")
+    except ImportError as e:
+        print(f"\n❌ [Hakim Report Error] Could not find the plugin file: {e}\n")

@@ -112,6 +112,8 @@ class TestProcessBatch:
         )
         node = make_node1(parser_result=batch_result)
         results = node.process_batch(chunks, {"doc_type": "صحيفة دعوى", "party": "المدعي"})
+        # Guard: LLM must have been called — a fallback would silently pass without it
+        node.llm.with_structured_output.return_value.invoke.assert_called()
         output_ids = {r["chunk_id"] for r in results}
         assert output_ids == {f"c{i}" for i in range(5)}
 
@@ -123,6 +125,7 @@ class TestProcessBatch:
         )
         node = make_node1(parser_result=batch_result)
         results = node.process_batch(chunks, {"doc_type": "صحيفة دعوى", "party": "المدعي"})
+        node.llm.with_structured_output.return_value.invoke.assert_called()
         assert results[0]["role"] == "الطلبات"
 
     def test_output_has_confidence_field(self):
@@ -133,6 +136,7 @@ class TestProcessBatch:
         )
         node = make_node1(parser_result=batch_result)
         results = node.process_batch(chunks, {"doc_type": "صحيفة دعوى", "party": "المدعي"})
+        node.llm.with_structured_output.return_value.invoke.assert_called()
         assert results[0]["confidence"] == 1.0
 
     def test_fallback_on_llm_exception(self):
@@ -167,6 +171,7 @@ class TestProcessBatch:
         )
         node = make_node1(parser_result=batch_result)
         results = node.process_batch([chunk], {"doc_type": "محضر جلسة", "party": "المحكمة"})
+        node.llm.with_structured_output.return_value.invoke.assert_called()
         assert results[0]["clean_text"] == "نص مهم"
         assert results[0]["doc_type"] == "محضر جلسة"
 
@@ -223,6 +228,7 @@ class TestProcess:
         )
         node = make_node1(parser_result=batch_result)
         result = node.process({"chunks": chunks})
+        node.llm.with_structured_output.return_value.invoke.assert_called()
         output_roles = {c["role"] for c in result["classified_chunks"]}
         # All 7 roles should appear
         assert output_roles == set(all_roles)
@@ -238,4 +244,5 @@ class TestProcess:
         )
         node = make_node1(parser_result=batch_result)
         result = node.process({"chunks": chunks})
+        node.llm.with_structured_output.return_value.invoke.assert_called()
         assert len(result["classified_chunks"]) == 12

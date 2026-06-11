@@ -70,7 +70,6 @@ from .eval_config import (
 )
 
 EVAL_RESULTS_DIR = pathlib.Path(__file__).parent / "evaluation_results"
-FIXTURE_DIR = _REPO_ROOT / "tests" / "CASE_RAG" / "fixtures"
 
 
 # ---------------------------------------------------------------------------
@@ -89,30 +88,17 @@ def real_llm_high():
 
 
 @pytest.fixture(scope="session")
-def eval_pipeline_result(real_llm_high):
-    """Run pipeline on all fixtures; cache for all eval tests."""
+def eval_pipeline_result(real_llm_high, fixture_documents):
+    """Run pipeline on all ingested fixtures; cache for all eval tests."""
     from summarize.graph import create_pipeline
 
-    pipeline = create_pipeline(real_llm_high)
-    fixtures = []
-    for fname in [
-        "صحيفة_دعوى.txt",
-        "مذكرة_بدفاع_المدعى_عليه_الأول.txt",
-        "مذكرة_بدفاع_المدعى_عليها_الثانية.txt",
-        "تقرير_الخبير.txt",
-        "تقرير_الطب_الشرعي.txt",
-        "محضر_جلسة_25_03_2024.txt",
-        "حكم_المحكمة.txt",
-    ]:
-        fpath = FIXTURE_DIR / fname
-        if fpath.exists():
-            fixtures.append({"doc_id": fname.replace(".txt", ""), "raw_text": fpath.read_text(encoding="utf-8")})
+    if not fixture_documents:
+        pytest.skip("No fixture documents were ingested by conftest")
 
-    if not fixtures:
-        pytest.skip("No fixture files found")
+    pipeline = create_pipeline(real_llm_high)
 
     initial_state = {
-        "documents": fixtures,
+        "documents": fixture_documents,
         "chunks": [], "classified_chunks": [], "bullets": [],
         "role_aggregations": [], "themed_roles": [], "role_theme_summaries": [],
         "case_brief": {}, "all_sources": [], "rendered_brief": "",
@@ -121,7 +107,9 @@ def eval_pipeline_result(real_llm_high):
     result = pipeline.invoke(initial_state)
     elapsed = time.perf_counter() - start
     result["_elapsed_seconds"] = elapsed
-    result["_fixture_doc_ids"] = [f["doc_id"] for f in fixtures]
+    result["_fixture_doc_ids"] = [d["doc_id"] for d in fixture_documents]
+    # Stash input documents so EV-06 can read raw_text without touching disk.
+    result["documents"] = fixture_documents
     return result
 
 
@@ -477,32 +465,33 @@ class TestFactualFaithfulness:
         if not rendered.strip():
             pytest.skip("No rendered brief to evaluate")
 
-        # Per-file char budget.
-        # Primary documents (صحيفة_دعوى, forensics, expert) get a larger
-        # window because the judge needs to see specific facts (amounts,
-        # report numbers) to score fact_precision correctly.
-        # Supporting documents get 600 chars — enough for their key claims.
-        ALL_FIXTURE_NAMES = {
-            "صحيفة_دعوى.txt": 1200,
-            "مذكرة_بدفاع_المدعى_عليه_الأول.txt": 800,
-            "مذكرة_بدفاع_المدعى_عليها_الثانية.txt": 800,
-            "تقرير_الخبير.txt": 800,
-            "تقرير_الطب_الشرعي.txt": 1200,
-            "محضر_جلسة_25_03_2024.txt": 600,
+        # Per-doc char budget (same logic as before, keyed by doc_id stem).
+        CHAR_BUDGETS = {
+            "صحيفة_دعوى":                          1200,
+            "مذكرة_بدفاع_المدعى_عليه_الأول":      800,
+            "مذكرة_بدفاع_المدعى_عليها_الثانية":   800,
+            "تقرير_الخبير":                        800,
+            "تقرير_الطب_الشرعي":                  1200,
+            "محضر_جلسة_25_03_2024":               600,
         }
-        excerpts = []
-        for fname, char_budget in ALL_FIXTURE_NAMES.items():
-            fpath = FIXTURE_DIR / fname
-            if fpath.exists():
-                text = fpath.read_text(encoding="utf-8")
-                excerpts.append(f"--- {fname} ---\n{text}")
 
-        # Hard guard: if files are missing the judge would silently under-score
-        assert len(excerpts) > 0, "No fixture files found for faithfulness judge"
-        assert len(excerpts) == len(ALL_FIXTURE_NAMES), (
-            f"Expected {len(ALL_FIXTURE_NAMES)} fixture files, "
+        # Pull text from the documents already stored in the pipeline result.
+        # eval_pipeline_result["documents"] is the list passed to pipeline.invoke().
+        documents = eval_pipeline_result.get("documents", [])
+        doc_map = {d["doc_id"]: d["raw_text"] for d in documents}
+
+        excerpts = []
+        for doc_id, char_budget in CHAR_BUDGETS.items():
+            text = doc_map.get(doc_id, "")
+            if text:
+                excerpts.append(f"--- {doc_id} ---\n{text[:char_budget]}")
+
+        # Hard guard: judge needs source material to score faithfully.
+        assert len(excerpts) > 0, "No fixture documents found in pipeline result"
+        assert len(excerpts) == len(CHAR_BUDGETS), (
+            f"Expected {len(CHAR_BUDGETS)} documents for faithfulness judge, "
             f"found {len(excerpts)}. Missing: "
-            f"{set(ALL_FIXTURE_NAMES.keys()) - {e.split(' ---')[0].lstrip('- ') for e in excerpts}}"
+            f"{set(CHAR_BUDGETS.keys()) - {e.split(' ---')[0].lstrip('- ') for e in excerpts}}"
         )
 
         fixture_excerpts = "\n\n".join(excerpts)
@@ -622,12 +611,27 @@ class TestPipelineTiming:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def save_evaluation_results(eval_pipeline_result, eval_report):
-    """After all eval tests run, write results to disk."""
+def save_evaluation_results(eval_pipeline_result, eval_report, request):
+    """After all eval tests run, write results to disk and push scores to the
+    report plugin so EV dimensions appear correctly in hakim_test_report.json."""
     yield
-    # Runs after all tests in the session complete
+    # 1. Push scores and rendered brief into the plugin BEFORE pytest_sessionfinish
+    #    fires so the JSON report reflects what actually ran (not the default SKIPPED
+    #    state), and so the .md brief file is written next to the JSON report.
+    try:
+        plugin = request.config.pluginmanager.get_plugin("hakim_report_plugin_instance")
+        if plugin is not None:
+            if eval_report:
+                plugin.record_eval_scores(eval_report)
+            rendered_brief = eval_pipeline_result.get("rendered_brief", "")
+            if rendered_brief:
+                plugin.record_rendered_brief(rendered_brief)
+    except Exception:
+        pass  # Non-critical — don't let this shadow real test failures
+
+    # 2. Write supplementary artefacts to disk.
     rendered_brief = eval_pipeline_result.get("rendered_brief", "")
     try:
         save_eval_results(eval_report, rendered_brief, eval_pipeline_result)
     except Exception:
-        pass  # Non-critical — don't fail tests due to file write errors
+        pass  # Non-critical

@@ -319,11 +319,34 @@ class TestProcess:
             assert heading in rendered
 
     def test_output_keys_complete(self):
-        """process() output has case_brief, all_sources, rendered_brief keys."""
+        """process() output has case_brief, all_sources, rendered_brief keys.
+        Uses empty input which takes the no-LLM path — LLM path structure
+        is covered by test_rendered_brief_non_empty and test_llm_exception_uses_fallback."""
         node = make_node5()
         result = node.process({"role_theme_summaries": []})
         assert "case_brief" in result
         assert "all_sources" in result
+        assert "rendered_brief" in result
+
+    def test_llm_called_for_non_empty_input(self):
+        """process() invokes the LLM when real input is provided — fallback must not silently win."""
+        brief_result = make_case_brief()
+        parser = MagicMock()
+        parser.invoke.return_value = brief_result
+        llm = MagicMock()
+        llm.with_structured_output.return_value = parser
+        node = Node5_BriefGenerator(llm)
+        inputs = {
+            "role_theme_summaries": [
+                make_role_theme_summaries(
+                    "الوقائع",
+                    [make_theme_summary("موضوع", "ملخص تجريبي")]
+                )
+            ]
+        }
+        result = node.process(inputs)
+        parser.invoke.assert_called()
+        assert "case_brief" in result
         assert "rendered_brief" in result
 
     def test_sources_deduped_in_output(self):

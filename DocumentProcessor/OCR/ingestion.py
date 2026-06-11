@@ -12,7 +12,8 @@ import logging
 import os
 from pathlib import Path
 from typing import List, Set
-
+import os
+os.environ.setdefault("POPPLER_PATH", r"C:\poppler\Library\bin")
 from PIL import Image
 
 logger = logging.getLogger(__name__)
@@ -66,7 +67,9 @@ def _ingest_pdf(path: Path, pdf_dpi: int) -> List[Image.Image]:
     from pdf2image import convert_from_path
 
     logger.info("Converting PDF to images at %d DPI: %s", pdf_dpi, path.name)
-    pil_pages = convert_from_path(str(path), dpi=pdf_dpi)
+    import os
+    POPPLER_PATH = os.getenv("POPPLER_PATH", r"C:\poppler\Library\bin")
+    pil_pages = convert_from_path(str(path), dpi=pdf_dpi, poppler_path=POPPLER_PATH)
     pages = [p.convert("RGB") if p.mode != "RGB" else p for p in pil_pages]
     logger.info("PDF converted: %d page(s)", len(pages))
     return pages
