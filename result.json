@@ -1,1809 +1,6132 @@
 {
   "metadata": {
-    "filename": "WhatsApp Image 2026-02-15 at 7.14.30 PM.jpeg",
+    "filename": "Case_Sample_1.pdf",
     "doc_id": null,
-    "total_pages": 1,
+    "total_pages": 4,
     "model_used": "google-cloud-vision",
     "gcv_feature": "DOCUMENT_TEXT_DETECTION",
-    "timestamp": "2026-06-08T23:18:08.755441+00:00",
-    "processing_time_seconds": 27.19,
-    "gcv_batch_seconds": 0.76,
+    "timestamp": "2026-06-14T11:53:23.175592+00:00",
+    "processing_time_seconds": 39.71,
+    "gcv_batch_seconds": 25.14,
     "pdf_dpi": 150,
     "refine_enabled": true,
     "refine_confidence_threshold": 0.92,
-    "pages_refined": 0,
-    "pages_skipped_refine": 1
+    "pages_refined": 1,
+    "pages_skipped_refine": 3
   },
   "pages": [
     {
       "page_number": 1,
-      "raw_text": "أماني عبد الحميد إبراهيم\nالمحامية\nبالنقض والإدارية العليا\nت ٠١٢٢٣٣٨٤١٦٩\nدعوى الغاء قرار ازالة\nالسيد الاستاذ المستشار / رئيس محكمة القضاء الإداري بالإسماعيلية .\nتحية طيبة وبعد،،،،،\nمقدمه لسيادتكم / محمد محمد ابراهيم سعيد - المقيم بالغقار رقم ۷۳ شارع السكة الحديد سابقا ۸۲ شارع شحته حاليا\nعرايشية مصر - ثان - الاسماعيلية ومحله المختار مكتب الاستاذة / اماني عبد الحميد ابراهيم المحامية بالنقض\nوالاستاذ/ طارق رضا محمد علي المحامي بالاسماعيلية.\n١- السيد/ محافظ الاسماعيلية\n٢- السيد رئيس مركز ومدينة الاسماعيلية\n- السيد / رئيس الادارة الهندسية بحي ثان الاسماعيلية\n- السيد / رئيس حي ثان الاسماعيلية\n- السيد/ مدير عام مديرية الاسكان بالاسماعيلية\n٦ - السيد العميد مامور قسم ثان الاسماعيلية\nويعلنوا جميعا بهيئة قضايا الدولة بالاسماعيلية\nبصفته\nبصفته\nبصفته\nبصفته\nبصفته\nبصفته\n- السيد / محمد احمد علي - المقاول - صاحب شركة محمد علي للمقاولات والانشاء والاستثمارات العقارية -\nوالمقيم خلف رضا حلمي للمشويات بشارع شبين الكوم - ثالث الاسماعيلية.\nالموضوع\nبموجب عقد الايجار المؤرخ اول اغسطس ۱۹۵۹ اجر المدعي الشقة بالدور الارضي بالعقار رقم ٧٣ شارع السكة الحديد\nسابقا ۸۲ شارع شحته حاليا عرايشية مصر - ثان - الاسماعيلية ، يقيم الطالب بتلك الشقة من تاريخ عقد الايجار حتى\nوقتنا هذا حيث قضى فيها عمره كله شيايه ورجولته وكبره، يقيم الطالب اقامة هادئة مستقرة بدون اي مشاكل ويسدد دائما\nالقيمة الايجارية الخاصة به.\nلما فوجئ الطالب بوجود قرار ازالة رقم ۱۵۰ لسنة ۲۰۲۰ والصادر بازالة العقار بالكامل حتى سطح الأرض ،.\nولما كان قرار لجنة التظلمات قد جاء بطريقة مخالفة للقانون وقد اتنفته السرية التامة ولم يتم اعلان الطالب باي من\nاجراءات اللجنة من اي اجراءاتها ، ان كان المتظلم او اللجنة ذاتها ، وعند تتبعه للام فوجئ بأنه قد سبق قرار الازالة\nقرار ترميم رقم ٤ لسنة ۲۰۱۹ ولم يعلن به ايضا.",
-      "normalized_text": "أماني عبد الحميد إبراهيم\nالمحامية\nبالنقض والإدارية العليا\nت ٠١٢٢٣٣٨٤١٦٩\nدعوى الغاء قرار ازالة\nالسيد الاستاذ المستشار / رئيس محكمة القضاء الإداري بالإسماعيلية .\nتحية طيبة وبعد،،،،،\nمقدمه لسيادتكم / محمد محمد ابراهيم سعيد - المقيم بالغقار رقم ۷۳ شارع السكة الحديد سابقا ۸۲ شارع شحته حاليا\nعرايشية مصر - ثان - الاسماعيلية ومحله المختار مكتب الاستاذة / اماني عبد الحميد ابراهيم المحامية بالنقض\nوالاستاذ/ طارق رضا محمد علي المحامي بالاسماعيلية.\n١- السيد/ محافظ الاسماعيلية\n٢- السيد رئيس مركز ومدينة الاسماعيلية\n- السيد / رئيس الادارة الهندسية بحي ثان الاسماعيلية\n- السيد / رئيس حي ثان الاسماعيلية\n- السيد/ مدير عام مديرية الاسكان بالاسماعيلية\n٦ - السيد العميد مامور قسم ثان الاسماعيلية\nويعلنوا جميعا بهيئة قضايا الدولة بالاسماعيلية\nبصفته\nبصفته\nبصفته\nبصفته\nبصفته\nبصفته\n- السيد / محمد احمد علي - المقاول - صاحب شركة محمد علي للمقاولات والانشاء والاستثمارات العقارية -\nوالمقيم خلف رضا حلمي للمشويات بشارع شبين الكوم - ثالث الاسماعيلية.\nالموضوع\nبموجب عقد الايجار المؤرخ اول اغسطس ۱۹۵۹ اجر المدعي الشقة بالدور الارضي بالعقار رقم ٧٣ شارع السكة الحديد\nسابقا ۸۲ شارع شحته حاليا عرايشية مصر - ثان - الاسماعيلية ، يقيم الطالب بتلك الشقة من تاريخ عقد الايجار حتى\nوقتنا هذا حيث قضى فيها عمره كله شيايه ورجولته وكبره، يقيم الطالب اقامة هادئة مستقرة بدون اي مشاكل ويسدد دائما\nالقيمة الايجارية الخاصة به.\nلما فوجئ الطالب بوجود قرار ازالة رقم ۱۵۰ لسنة ۲۰۲۰ والصادر بازالة العقار بالكامل حتى سطح الأرض ،.\nولما كان قرار لجنة التظلمات قد جاء بطريقة مخالفة للقانون وقد اتنفته السرية التامة ولم يتم اعلان الطالب باي من\nاجراءات اللجنة من اي اجراءاتها ، ان كان المتظلم او اللجنة ذاتها ، وعند تتبعه للام فوجئ بأنه قد سبق قرار الازالة\nقرار ترميم رقم ٤ لسنة ۲۰۱۹ ولم يعلن به ايضا.",
+      "raw_text": "اولا : بطلان القرار تأسيسا على :.\nأ: انعدام صفة مقدد الطلب الى لجنة التظلمات\nأسباب الطعن\nالمدعى عليه السابع ادعى كونه مالكا للعقار ولم يقدم ما يثبت ادعاءه وحيث ان التوكيل لا يعتبر ناقلا للملكية وحيث ان\nالمدعى عليه السابع لم تثبت له ملكية العقار حتى وقتنا هذا اذا فهو ليس ذو صفه ليتقدم باي طلب الى لجنة التظلمات\nومادام هو ليس ذو صفه اذا خروج اللجنة اصلا للمعاينة باطل فما بني على باطل فهو باطل ...\nب: ادعى المدعى عليه السابع عند تقديم التظلم ان العقار خالي من السكان :\nوبجملة الادعاءات الباطلة التي قدمها المقاول ادعاءه ان العقار خالي من السكان وهذا ما جعل اللجنة تتهاون في تقريرها\nوتعديله من ترميم الى ازاله.\nج: عدم اعلن اي من المقيمين في لبعقار وذلك لظنهم ان العقار خالي او لسبب آخر لا يعلمه إلا الله ، فلم يتسنى للطالب\nاو اي من المقيمين اتخاذ اي اجراء لايقاف اصدار القرار .\nد: عدم معاينة العقار ولا كانت تعاملت مع الطالب او اعلنته او علم اي شئ من كل تلك الاجراءات .\nثانيا : اساءة استعمال السلطة لكل من اول الطرف الثاني الى الطرف الخامس مما يؤثر على كافة الاجراءات وتؤدى\nإلى بطلانها.\nوهذا يبدو جليا حيث ان من الطرف الثاني الى الطرف الخامس بدءا من اول :\n١- قبول طلب الازالة والتظلم من شخص لم يثبت كونه مالك العقار باي وسيلة قانونية حيث لا يعتبر التوكيل دليلي\nملكية\nعدم اعلان اي من المقيمين بالعقار او اعطاءهم الحق في اتخاذ اي من الاجراءات .\n٣- عدم معاينة العقار او دخول اي من الشقق وخاصة شقة الطالب وهي بالدور الارضي والذي تم ذكره في التقرير\nمع انه لم يدخل اي من اللجنة الى تلك الشقة فكيف لها ان تكون قد عاينت الدور الأرضي.\nثالثا: العقار محل قرار الازالة سليم ولا يوجد اي سبب للازالة :.\nبالرغم من عدم علم الطالب بالقرار الصادر من اللجنة بالترميم بحي ثان الاسماعيلية اللجنة الأولى رقم ٤ لسنة ٢٠١٩\nوالذي صدر فيه قرار بترميم العقار واثبت انه لا خطورة على حياة ساكنيه.\nالا ان حالة العقار جيدة جدا وفي حالة وجود اي شئ يستحق الترميم سيتم ترميمه.\nومما سبق يتضح لنا ان الغرض وراء قرار الاذالة ليس خوفا على حياة اشخاص ولكن رغبة في ثراء سريع ، فالقاء رجل\nكبير في السن تعدى السبعون من عمره عاش حياته كلها في تلك الشقة بالشارع وليس الا لرغبة في حيازة المكان وبناء\nبرج سكني مكانه حيث ان هذا المنزل في احسن الاماكن بالاسماعيلية.",
+      "normalized_text": "اولا : بطلان القرار تأسيسا على :.\nأ: انعدام صفة مقدد الطلب الى لجنة التظلمات\nأسباب الطعن\nالمدعى عليه السابع ادعى كونه مالكا للعقار ولم يقدم ما يثبت ادعاءه وحيث ان التوكيل لا يعتبر ناقلا للملكية وحيث ان\nالمدعى عليه السابع لم تثبت له ملكية العقار حتى وقتنا هذا اذا فهو ليس ذو صفه ليتقدم باي طلب الى لجنة التظلمات\nومادام هو ليس ذو صفه اذا خروج اللجنة اصلا للمعاينة باطل فما بني على باطل فهو باطل ...\nب: ادعى المدعى عليه السابع عند تقديم التظلم ان العقار خالي من السكان :\nوبجملة الادعاءات الباطلة التي قدمها المقاول ادعاءه ان العقار خالي من السكان وهذا ما جعل اللجنة تتهاون في تقريرها\nوتعديله من ترميم الى ازاله.\nج: عدم اعلن اي من المقيمين في لبعقار وذلك لظنهم ان العقار خالي او لسبب آخر لا يعلمه إلا الله ، فلم يتسنى للطالب\nاو اي من المقيمين اتخاذ اي اجراء لايقاف اصدار القرار .\nد: عدم معاينة العقار ولا كانت تعاملت مع الطالب او اعلنته او علم اي شئ من كل تلك الاجراءات .\nثانيا : اساءة استعمال السلطة لكل من اول الطرف الثاني الى الطرف الخامس مما يؤثر على كافة الاجراءات وتؤدى\nإلى بطلانها.\nوهذا يبدو جليا حيث ان من الطرف الثاني الى الطرف الخامس بدءا من اول :\n١- قبول طلب الازالة والتظلم من شخص لم يثبت كونه مالك العقار باي وسيلة قانونية حيث لا يعتبر التوكيل دليلي\nملكية\nعدم اعلان اي من المقيمين بالعقار او اعطاءهم الحق في اتخاذ اي من الاجراءات .\n٣- عدم معاينة العقار او دخول اي من الشقق وخاصة شقة الطالب وهي بالدور الارضي والذي تم ذكره في التقرير\nمع انه لم يدخل اي من اللجنة الى تلك الشقة فكيف لها ان تكون قد عاينت الدور الأرضي.\nثالثا: العقار محل قرار الازالة سليم ولا يوجد اي سبب للازالة :.\nبالرغم من عدم علم الطالب بالقرار الصادر من اللجنة بالترميم بحي ثان الاسماعيلية اللجنة الأولى رقم ٤ لسنة ٢٠١٩\nوالذي صدر فيه قرار بترميم العقار واثبت انه لا خطورة على حياة ساكنيه.\nالا ان حالة العقار جيدة جدا وفي حالة وجود اي شئ يستحق الترميم سيتم ترميمه.\nومما سبق يتضح لنا ان الغرض وراء قرار الاذالة ليس خوفا على حياة اشخاص ولكن رغبة في ثراء سريع ، فالقاء رجل\nكبير في السن تعدى السبعون من عمره عاش حياته كلها في تلك الشقة بالشارع وليس الا لرغبة في حيازة المكان وبناء\nبرج سكني مكانه حيث ان هذا المنزل في احسن الاماكن بالاسماعيلية.",
       "refined_text": "",
       "perspective_corrected": false,
-      "confidence": 0.9406,
+      "confidence": 0.9558,
       "word_confidences": [
         {
-          "word": "أماني",
-          "confidence": 0.9786,
+          "word": "اولا",
+          "confidence": 0.9216,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "عبد",
-          "confidence": 0.9925,
+          "word": ":",
+          "confidence": 0.7257,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "بطلان",
+          "confidence": 0.9879,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "الحميد",
-          "confidence": 0.9955,
+          "word": "القرار",
+          "confidence": 0.99,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "إبراهيم",
-          "confidence": 0.9873,
+          "word": "تأسيسا",
+          "confidence": 0.9458,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "المحامية",
-          "confidence": 0.9922,
+          "word": "على",
+          "confidence": 0.9518,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "بالنقض",
+          "word": ":",
+          "confidence": 0.6988,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": ".",
+          "confidence": 0.6817,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "أ",
+          "confidence": 0.9011,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ":",
+          "confidence": 0.8049,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "انعدام",
           "confidence": 0.9908,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "والإدارية",
-          "confidence": 0.9897,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "العليا",
-          "confidence": 0.9894,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ت",
-          "confidence": 0.9241,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "٠١٢٢٣٣٨٤١٦٩",
-          "confidence": 0.8333,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "دعوى",
-          "confidence": 0.978,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الغاء",
-          "confidence": 0.9855,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "قرار",
-          "confidence": 0.9857,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ازالة",
-          "confidence": 0.9794,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "السيد",
+          "word": "صفة",
           "confidence": 0.9874,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "الاستاذ",
-          "confidence": 0.9723,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "المستشار",
-          "confidence": 0.9945,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "/",
-          "confidence": 0.9194,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "رئيس",
-          "confidence": 0.993,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "محكمة",
-          "confidence": 0.9901,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "القضاء",
-          "confidence": 0.9873,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الإداري",
-          "confidence": 0.982,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بالإسماعيلية",
-          "confidence": 0.9839,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": ".",
-          "confidence": 0.6889,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "تحية",
-          "confidence": 0.9769,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "طيبة",
-          "confidence": 0.9794,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "وبعد",
-          "confidence": 0.9422,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "،،،،،",
-          "confidence": 0.3441,
-          "band": "low",
-          "page_number": 1
-        },
-        {
-          "word": "مقدمه",
-          "confidence": 0.9863,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "لسيادتكم",
-          "confidence": 0.9886,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "/",
-          "confidence": 0.946,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "محمد",
-          "confidence": 0.9972,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "محمد",
-          "confidence": 0.9952,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ابراهيم",
-          "confidence": 0.9552,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "سعيد",
-          "confidence": 0.9626,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.6941,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "المقيم",
-          "confidence": 0.9934,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بالغقار",
-          "confidence": 0.996,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "رقم",
-          "confidence": 0.9914,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "۷۳",
-          "confidence": 0.5479,
-          "band": "low",
-          "page_number": 1
-        },
-        {
-          "word": "شارع",
-          "confidence": 0.9928,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "السكة",
-          "confidence": 0.9891,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الحديد",
+          "word": "مقدد",
           "confidence": 0.9919,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "سابقا",
-          "confidence": 0.9877,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "۸۲",
-          "confidence": 0.6238,
-          "band": "low",
-          "page_number": 1
-        },
-        {
-          "word": "شارع",
-          "confidence": 0.988,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "شحته",
-          "confidence": 0.9838,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "حاليا",
-          "confidence": 0.9679,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "عرايشية",
-          "confidence": 0.9828,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "مصر",
-          "confidence": 0.9879,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.6176,
-          "band": "low",
-          "page_number": 1
-        },
-        {
-          "word": "ثان",
-          "confidence": 0.9669,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.8004,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "الاسماعيلية",
-          "confidence": 0.9859,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ومحله",
-          "confidence": 0.9773,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "المختار",
-          "confidence": 0.9857,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "مكتب",
-          "confidence": 0.9882,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الاستاذة",
-          "confidence": 0.9782,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "/",
-          "confidence": 0.7642,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "اماني",
-          "confidence": 0.9587,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "عبد",
-          "confidence": 0.9596,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الحميد",
-          "confidence": 0.9901,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ابراهيم",
-          "confidence": 0.9768,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "المحامية",
-          "confidence": 0.9936,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بالنقض",
-          "confidence": 0.9935,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "والاستاذ",
-          "confidence": 0.9702,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "/",
-          "confidence": 0.6314,
-          "band": "low",
-          "page_number": 1
-        },
-        {
-          "word": "طارق",
-          "confidence": 0.9731,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "رضا",
-          "confidence": 0.9821,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "محمد",
-          "confidence": 0.9935,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "علي",
-          "confidence": 0.9786,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "المحامي",
-          "confidence": 0.9901,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بالاسماعيلية",
-          "confidence": 0.9761,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": ".",
-          "confidence": 0.7015,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "١-",
-          "confidence": 0.5994,
-          "band": "low",
-          "page_number": 1
-        },
-        {
-          "word": "السيد",
-          "confidence": 0.9851,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "/",
-          "confidence": 0.6922,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "محافظ",
-          "confidence": 0.9985,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الاسماعيلية",
-          "confidence": 0.974,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "٢-",
-          "confidence": 0.6696,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "السيد",
-          "confidence": 0.9901,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "رئيس",
-          "confidence": 0.9913,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "مركز",
-          "confidence": 0.9953,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ومدينة",
-          "confidence": 0.9934,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الاسماعيلية",
-          "confidence": 0.9778,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.7976,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "السيد",
-          "confidence": 0.9843,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "/",
-          "confidence": 0.6753,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "رئيس",
-          "confidence": 0.987,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الادارة",
-          "confidence": 0.9595,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الهندسية",
-          "confidence": 0.9897,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بحي",
-          "confidence": 0.9912,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ثان",
-          "confidence": 0.9895,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الاسماعيلية",
-          "confidence": 0.9729,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.6396,
-          "band": "low",
-          "page_number": 1
-        },
-        {
-          "word": "السيد",
-          "confidence": 0.9884,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "/",
-          "confidence": 0.7609,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "رئيس",
-          "confidence": 0.9961,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "حي",
-          "confidence": 0.9925,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ثان",
-          "confidence": 0.994,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الاسماعيلية",
-          "confidence": 0.9748,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.7722,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "السيد",
-          "confidence": 0.9785,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "/",
-          "confidence": 0.7787,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "مدير",
-          "confidence": 0.9792,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "عام",
-          "confidence": 0.9872,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "مديرية",
-          "confidence": 0.9866,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الاسكان",
-          "confidence": 0.9635,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بالاسماعيلية",
-          "confidence": 0.9738,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "٦",
-          "confidence": 0.8521,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.7979,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "السيد",
-          "confidence": 0.9882,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "العميد",
-          "confidence": 0.9893,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "مامور",
-          "confidence": 0.986,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "قسم",
-          "confidence": 0.996,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ثان",
-          "confidence": 0.9892,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الاسماعيلية",
-          "confidence": 0.9782,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ويعلنوا",
-          "confidence": 0.9868,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "جميعا",
-          "confidence": 0.9803,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بهيئة",
-          "confidence": 0.9914,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "قضايا",
-          "confidence": 0.9784,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الدولة",
-          "confidence": 0.9924,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بالاسماعيلية",
-          "confidence": 0.9757,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بصفته",
-          "confidence": 0.9774,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بصفته",
-          "confidence": 0.9796,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بصفته",
-          "confidence": 0.9833,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بصفته",
-          "confidence": 0.9789,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بصفته",
-          "confidence": 0.9846,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بصفته",
-          "confidence": 0.982,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.7127,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "السيد",
-          "confidence": 0.9829,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "/",
-          "confidence": 0.7185,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "محمد",
-          "confidence": 0.9964,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "احمد",
-          "confidence": 0.9635,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "علي",
-          "confidence": 0.9798,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.8093,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "المقاول",
-          "confidence": 0.9942,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.7841,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "صاحب",
-          "confidence": 0.9876,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "شركة",
-          "confidence": 0.9872,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "محمد",
-          "confidence": 0.9949,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "علي",
-          "confidence": 0.9728,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "للمقاولات",
-          "confidence": 0.9856,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "والانشاء",
-          "confidence": 0.9782,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "والاستثمارات",
-          "confidence": 0.9918,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "العقارية",
-          "confidence": 0.9945,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.4258,
-          "band": "low",
-          "page_number": 1
-        },
-        {
-          "word": "والمقيم",
-          "confidence": 0.9886,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "خلف",
-          "confidence": 0.9935,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "رضا",
-          "confidence": 0.9873,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "حلمي",
-          "confidence": 0.9878,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "للمشويات",
-          "confidence": 0.9874,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بشارع",
-          "confidence": 0.9828,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "شبين",
-          "confidence": 0.9899,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الكوم",
-          "confidence": 0.9898,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.577,
-          "band": "low",
-          "page_number": 1
-        },
-        {
-          "word": "ثالث",
-          "confidence": 0.9942,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الاسماعيلية",
-          "confidence": 0.9724,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": ".",
-          "confidence": 0.6634,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "الموضوع",
-          "confidence": 0.9934,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بموجب",
-          "confidence": 0.9897,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "عقد",
-          "confidence": 0.9951,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الايجار",
-          "confidence": 0.9785,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "المؤرخ",
-          "confidence": 0.9953,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "اول",
-          "confidence": 0.9896,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "اغسطس",
-          "confidence": 0.9875,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "۱۹۵۹",
-          "confidence": 0.7125,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "اجر",
-          "confidence": 0.961,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "المدعي",
-          "confidence": 0.9841,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الشقة",
-          "confidence": 0.9886,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بالدور",
-          "confidence": 0.9926,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الارضي",
-          "confidence": 0.9745,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بالعقار",
-          "confidence": 0.9961,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "رقم",
-          "confidence": 0.9888,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "٧٣",
-          "confidence": 0.465,
-          "band": "low",
-          "page_number": 1
-        },
-        {
-          "word": "شارع",
-          "confidence": 0.992,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "السكة",
-          "confidence": 0.992,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الحديد",
-          "confidence": 0.9879,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "سابقا",
-          "confidence": 0.9867,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "۸۲",
-          "confidence": 0.8316,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "شارع",
-          "confidence": 0.9929,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "شحته",
-          "confidence": 0.9863,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "حاليا",
-          "confidence": 0.9863,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "عرايشية",
-          "confidence": 0.9895,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "مصر",
-          "confidence": 0.9917,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.7387,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "ثان",
-          "confidence": 0.9918,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "-",
-          "confidence": 0.668,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "الاسماعيلية",
-          "confidence": 0.9825,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "،",
-          "confidence": 0.8939,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "يقيم",
-          "confidence": 0.9872,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الطالب",
-          "confidence": 0.9956,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بتلك",
+          "word": "الطلب",
           "confidence": 0.9903,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "الشقة",
-          "confidence": 0.9867,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "من",
-          "confidence": 0.9897,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "تاريخ",
-          "confidence": 0.9919,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "عقد",
-          "confidence": 0.9949,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الايجار",
-          "confidence": 0.9704,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "حتى",
-          "confidence": 0.978,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "وقتنا",
-          "confidence": 0.9761,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "هذا",
-          "confidence": 0.9855,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "حيث",
-          "confidence": 0.9882,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "قضى",
-          "confidence": 0.937,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "فيها",
-          "confidence": 0.9909,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "عمره",
-          "confidence": 0.9851,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "كله",
-          "confidence": 0.9783,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "شيايه",
-          "confidence": 0.972,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ورجولته",
-          "confidence": 0.9835,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "وكبره",
-          "confidence": 0.9848,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "،",
-          "confidence": 0.7322,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "يقيم",
-          "confidence": 0.989,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الطالب",
-          "confidence": 0.9938,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "اقامة",
-          "confidence": 0.9737,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "هادئة",
-          "confidence": 0.9864,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "مستقرة",
-          "confidence": 0.9931,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بدون",
-          "confidence": 0.9881,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "اي",
-          "confidence": 0.9675,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "مشاكل",
-          "confidence": 0.9884,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ويسدد",
-          "confidence": 0.9839,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "دائما",
-          "confidence": 0.9807,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "القيمة",
-          "confidence": 0.9926,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الايجارية",
-          "confidence": 0.9717,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الخاصة",
-          "confidence": 0.9933,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "به",
-          "confidence": 0.9674,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": ".",
-          "confidence": 0.6801,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "لما",
-          "confidence": 0.9807,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "فوجئ",
-          "confidence": 0.986,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الطالب",
-          "confidence": 0.9943,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بوجود",
-          "confidence": 0.9969,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "قرار",
-          "confidence": 0.9806,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ازالة",
-          "confidence": 0.9765,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "رقم",
-          "confidence": 0.9903,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "۱۵۰",
-          "confidence": 0.6622,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "لسنة",
-          "confidence": 0.9928,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "۲۰۲۰",
-          "confidence": 0.8736,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "والصادر",
-          "confidence": 0.9867,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بازالة",
-          "confidence": 0.9892,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "العقار",
-          "confidence": 0.995,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بالكامل",
-          "confidence": 0.987,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "حتى",
-          "confidence": 0.9757,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "سطح",
-          "confidence": 0.9956,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الأرض",
-          "confidence": 0.9221,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "،",
-          "confidence": 0.7274,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": ".",
-          "confidence": 0.7091,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "ولما",
-          "confidence": 0.9909,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "كان",
-          "confidence": 0.9949,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "قرار",
-          "confidence": 0.9922,
+          "word": "الى",
+          "confidence": 0.9366,
           "band": "high",
           "page_number": 1
         },
         {
           "word": "لجنة",
-          "confidence": 0.9922,
+          "confidence": 0.9853,
           "band": "high",
           "page_number": 1
         },
         {
           "word": "التظلمات",
-          "confidence": 0.9901,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "قد",
-          "confidence": 0.9957,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "جاء",
-          "confidence": 0.9847,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بطريقة",
-          "confidence": 0.9907,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "مخالفة",
-          "confidence": 0.9804,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "للقانون",
-          "confidence": 0.984,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "وقد",
-          "confidence": 0.9971,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "اتنفته",
-          "confidence": 0.9744,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "السرية",
-          "confidence": 0.9895,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "التامة",
-          "confidence": 0.986,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ولم",
-          "confidence": 0.9797,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "يتم",
-          "confidence": 0.9795,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "اعلان",
-          "confidence": 0.9758,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الطالب",
-          "confidence": 0.9926,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "باي",
-          "confidence": 0.9793,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "من",
-          "confidence": 0.9849,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "اجراءات",
-          "confidence": 0.9779,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "اللجنة",
-          "confidence": 0.9896,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "من",
-          "confidence": 0.9876,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "اي",
-          "confidence": 0.9233,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "اجراءاتها",
-          "confidence": 0.9688,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "،",
-          "confidence": 0.7838,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "ان",
-          "confidence": 0.9381,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "كان",
-          "confidence": 0.9848,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "المتظلم",
-          "confidence": 0.9782,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "او",
-          "confidence": 0.8939,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "اللجنة",
-          "confidence": 0.9882,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ذاتها",
-          "confidence": 0.985,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "،",
-          "confidence": 0.9471,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "وعند",
-          "confidence": 0.9922,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "تتبعه",
-          "confidence": 0.9869,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "للام",
-          "confidence": 0.9806,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "فوجئ",
-          "confidence": 0.9651,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "بأنه",
-          "confidence": 0.895,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "قد",
-          "confidence": 0.9959,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "سبق",
-          "confidence": 0.9908,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "قرار",
-          "confidence": 0.9878,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "الازالة",
-          "confidence": 0.9772,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "قرار",
-          "confidence": 0.9935,
-          "band": "high",
-          "page_number": 1
-        },
-        {
-          "word": "ترميم",
           "confidence": 0.9872,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "رقم",
-          "confidence": 0.9924,
+          "word": "أسباب",
+          "confidence": 0.9884,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "٤",
-          "confidence": 0.8088,
-          "band": "mid",
-          "page_number": 1
-        },
-        {
-          "word": "لسنة",
-          "confidence": 0.9961,
+          "word": "الطعن",
+          "confidence": 0.9913,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "۲۰۱۹",
-          "confidence": 0.8647,
-          "band": "mid",
+          "word": "المدعى",
+          "confidence": 0.9631,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "عليه",
+          "confidence": 0.9847,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "السابع",
+          "confidence": 0.989,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ادعى",
+          "confidence": 0.9538,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "كونه",
+          "confidence": 0.9833,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "مالكا",
+          "confidence": 0.9797,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "للعقار",
+          "confidence": 0.9867,
+          "band": "high",
           "page_number": 1
         },
         {
           "word": "ولم",
-          "confidence": 0.9819,
+          "confidence": 0.9866,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "يعلن",
-          "confidence": 0.9577,
+          "word": "يقدم",
+          "confidence": 0.9886,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "به",
+          "word": "ما",
+          "confidence": 0.9769,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يثبت",
+          "confidence": 0.9892,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ادعاءه",
+          "confidence": 0.9443,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وحيث",
+          "confidence": 0.987,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ان",
+          "confidence": 0.9095,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "التوكيل",
+          "confidence": 0.9913,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لا",
+          "confidence": 0.9914,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يعتبر",
+          "confidence": 0.989,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ناقلا",
+          "confidence": 0.9746,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "للملكية",
+          "confidence": 0.9896,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وحيث",
+          "confidence": 0.9906,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ان",
+          "confidence": 0.9343,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "المدعى",
+          "confidence": 0.9679,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "عليه",
+          "confidence": 0.9839,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "السابع",
+          "confidence": 0.9925,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لم",
+          "confidence": 0.9851,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تثبت",
+          "confidence": 0.9896,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "له",
+          "confidence": 0.9853,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ملكية",
+          "confidence": 0.992,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9892,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "حتى",
+          "confidence": 0.9682,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وقتنا",
+          "confidence": 0.9736,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "هذا",
+          "confidence": 0.9933,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اذا",
+          "confidence": 0.9586,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "فهو",
+          "confidence": 0.9904,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ليس",
+          "confidence": 0.9837,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ذو",
+          "confidence": 0.9365,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "صفه",
+          "confidence": 0.9818,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ليتقدم",
+          "confidence": 0.9851,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "باي",
+          "confidence": 0.9649,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "طلب",
+          "confidence": 0.9949,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الى",
+          "confidence": 0.9539,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لجنة",
+          "confidence": 0.9873,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "التظلمات",
+          "confidence": 0.9887,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ومادام",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "هو",
+          "confidence": 0.9917,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ليس",
+          "confidence": 0.9829,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ذو",
+          "confidence": 0.8518,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "صفه",
+          "confidence": 0.9849,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اذا",
+          "confidence": 0.9588,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "خروج",
+          "confidence": 0.9918,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اللجنة",
+          "confidence": 0.9849,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اصلا",
+          "confidence": 0.9759,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "للمعاينة",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "باطل",
+          "confidence": 0.9778,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "فما",
+          "confidence": 0.9762,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "بني",
+          "confidence": 0.9316,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "على",
+          "confidence": 0.9516,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "باطل",
+          "confidence": 0.9824,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "فهو",
+          "confidence": 0.9789,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "باطل",
+          "confidence": 0.9776,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "...",
+          "confidence": 0.3514,
+          "band": "low",
+          "page_number": 1
+        },
+        {
+          "word": "ب",
+          "confidence": 0.9369,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ":",
+          "confidence": 0.7375,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "ادعى",
+          "confidence": 0.9317,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "المدعى",
+          "confidence": 0.9475,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "عليه",
           "confidence": 0.9756,
           "band": "high",
           "page_number": 1
         },
         {
-          "word": "ايضا",
-          "confidence": 0.9585,
+          "word": "السابع",
+          "confidence": 0.9878,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "عند",
+          "confidence": 0.9909,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تقديم",
+          "confidence": 0.9944,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "التظلم",
+          "confidence": 0.9891,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ان",
+          "confidence": 0.8845,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9927,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "خالي",
+          "confidence": 0.9395,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9983,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "السكان",
+          "confidence": 0.9925,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ":",
+          "confidence": 0.6944,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "وبجملة",
+          "confidence": 0.9821,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الادعاءات",
+          "confidence": 0.98,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الباطلة",
+          "confidence": 0.9876,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "التي",
+          "confidence": 0.9839,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "قدمها",
+          "confidence": 0.9851,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "المقاول",
+          "confidence": 0.9878,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ادعاءه",
+          "confidence": 0.95,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ان",
+          "confidence": 0.958,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9845,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "خالي",
+          "confidence": 0.9802,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9896,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "السكان",
+          "confidence": 0.9865,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وهذا",
+          "confidence": 0.9873,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ما",
+          "confidence": 0.9821,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "جعل",
+          "confidence": 0.9903,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اللجنة",
+          "confidence": 0.9901,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تتهاون",
+          "confidence": 0.9863,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "في",
+          "confidence": 0.9919,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تقريرها",
+          "confidence": 0.9907,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وتعديله",
+          "confidence": 0.9805,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9846,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ترميم",
+          "confidence": 0.9834,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الى",
+          "confidence": 0.9027,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ازاله",
+          "confidence": 0.9741,
           "band": "high",
           "page_number": 1
         },
         {
           "word": ".",
-          "confidence": 0.672,
+          "confidence": 0.6994,
           "band": "mid",
           "page_number": 1
+        },
+        {
+          "word": "ج",
+          "confidence": 0.9154,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ":",
+          "confidence": 0.7307,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "عدم",
+          "confidence": 0.9884,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اعلن",
+          "confidence": 0.9578,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اي",
+          "confidence": 0.8827,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9953,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "المقيمين",
+          "confidence": 0.9918,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "في",
+          "confidence": 0.9832,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لبعقار",
+          "confidence": 0.9847,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وذلك",
+          "confidence": 0.9942,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لظنهم",
+          "confidence": 0.9893,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ان",
+          "confidence": 0.901,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.989,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "خالي",
+          "confidence": 0.9784,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "او",
+          "confidence": 0.9383,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لسبب",
+          "confidence": 0.9881,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "آخر",
+          "confidence": 0.8641,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "لا",
+          "confidence": 0.9879,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يعلمه",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "إلا",
+          "confidence": 0.9048,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الله",
+          "confidence": 0.9745,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "،",
+          "confidence": 0.8655,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "فلم",
+          "confidence": 0.9856,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يتسنى",
+          "confidence": 0.9711,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "للطالب",
+          "confidence": 0.9867,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "او",
+          "confidence": 0.9642,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اي",
+          "confidence": 0.9073,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9888,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "المقيمين",
+          "confidence": 0.9904,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اتخاذ",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اي",
+          "confidence": 0.8938,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "اجراء",
+          "confidence": 0.9675,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لايقاف",
+          "confidence": 0.9744,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اصدار",
+          "confidence": 0.9814,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "القرار",
+          "confidence": 0.9858,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ".",
+          "confidence": 0.5839,
+          "band": "low",
+          "page_number": 1
+        },
+        {
+          "word": "د",
+          "confidence": 0.9484,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ":",
+          "confidence": 0.7438,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "عدم",
+          "confidence": 0.9955,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "معاينة",
+          "confidence": 0.991,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9913,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ولا",
+          "confidence": 0.9849,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "كانت",
+          "confidence": 0.9871,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تعاملت",
+          "confidence": 0.984,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "مع",
+          "confidence": 0.9897,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.9892,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "او",
+          "confidence": 0.9133,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اعلنته",
+          "confidence": 0.9568,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "او",
+          "confidence": 0.9478,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "علم",
+          "confidence": 0.9849,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اي",
+          "confidence": 0.9368,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "شئ",
+          "confidence": 0.9694,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9982,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "كل",
+          "confidence": 0.9959,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تلك",
+          "confidence": 0.9939,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الاجراءات",
+          "confidence": 0.9701,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ".",
+          "confidence": 0.7916,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "ثانيا",
+          "confidence": 0.9654,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ":",
+          "confidence": 0.7391,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "اساءة",
+          "confidence": 0.9579,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "استعمال",
+          "confidence": 0.9929,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "السلطة",
+          "confidence": 0.9895,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لكل",
+          "confidence": 0.9876,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9917,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اول",
+          "confidence": 0.9527,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الطرف",
+          "confidence": 0.9908,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الثاني",
+          "confidence": 0.9488,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الى",
+          "confidence": 0.9516,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الطرف",
+          "confidence": 0.9879,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الخامس",
+          "confidence": 0.9908,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "مما",
+          "confidence": 0.9841,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يؤثر",
+          "confidence": 0.9915,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "على",
+          "confidence": 0.9847,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "كافة",
+          "confidence": 0.9955,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الاجراءات",
+          "confidence": 0.9749,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وتؤدى",
+          "confidence": 0.9578,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "إلى",
+          "confidence": 0.8827,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "بطلانها",
+          "confidence": 0.9707,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ".",
+          "confidence": 0.7843,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "وهذا",
+          "confidence": 0.9834,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يبدو",
+          "confidence": 0.9828,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "جليا",
+          "confidence": 0.9775,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "حيث",
+          "confidence": 0.9928,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ان",
+          "confidence": 0.9213,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9871,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الطرف",
+          "confidence": 0.9841,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الثاني",
+          "confidence": 0.9856,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الى",
+          "confidence": 0.9741,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الطرف",
+          "confidence": 0.9882,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الخامس",
+          "confidence": 0.9935,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "بدءا",
+          "confidence": 0.9799,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9887,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اول",
+          "confidence": 0.9579,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ":",
+          "confidence": 0.6821,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "١-",
+          "confidence": 0.6349,
+          "band": "low",
+          "page_number": 1
+        },
+        {
+          "word": "قبول",
+          "confidence": 0.9911,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "طلب",
+          "confidence": 0.9933,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الازالة",
+          "confidence": 0.9799,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "والتظلم",
+          "confidence": 0.9862,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9829,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "شخص",
+          "confidence": 0.9946,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لم",
+          "confidence": 0.9859,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يثبت",
+          "confidence": 0.9953,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "كونه",
+          "confidence": 0.9862,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "مالك",
+          "confidence": 0.9951,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9901,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "باي",
+          "confidence": 0.9759,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وسيلة",
+          "confidence": 0.9889,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "قانونية",
+          "confidence": 0.9923,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "حيث",
+          "confidence": 0.9967,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لا",
+          "confidence": 0.9922,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يعتبر",
+          "confidence": 0.9931,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "التوكيل",
+          "confidence": 0.9946,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "دليلي",
+          "confidence": 0.994,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ملكية",
+          "confidence": 0.9923,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "عدم",
+          "confidence": 0.9891,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اعلان",
+          "confidence": 0.9789,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اي",
+          "confidence": 0.9367,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9915,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "المقيمين",
+          "confidence": 0.9887,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "بالعقار",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "او",
+          "confidence": 0.9586,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اعطاءهم",
+          "confidence": 0.9803,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الحق",
+          "confidence": 0.9864,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "في",
+          "confidence": 0.9764,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اتخاذ",
+          "confidence": 0.9874,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اي",
+          "confidence": 0.8454,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9801,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الاجراءات",
+          "confidence": 0.958,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ".",
+          "confidence": 0.7366,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "٣-",
+          "confidence": 0.6907,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "عدم",
+          "confidence": 0.9848,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "معاينة",
+          "confidence": 0.989,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9866,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "او",
+          "confidence": 0.9304,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "دخول",
+          "confidence": 0.9906,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اي",
+          "confidence": 0.8573,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9878,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الشقق",
+          "confidence": 0.989,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وخاصة",
+          "confidence": 0.9905,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "شقة",
+          "confidence": 0.9776,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.9907,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وهي",
+          "confidence": 0.9865,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "بالدور",
+          "confidence": 0.9897,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الارضي",
+          "confidence": 0.9642,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "والذي",
+          "confidence": 0.9943,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تم",
+          "confidence": 0.9918,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ذكره",
+          "confidence": 0.9932,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "في",
+          "confidence": 0.9941,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "التقرير",
+          "confidence": 0.9837,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "مع",
+          "confidence": 0.9913,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "انه",
+          "confidence": 0.9418,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لم",
+          "confidence": 0.9953,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يدخل",
+          "confidence": 0.9925,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اي",
+          "confidence": 0.8678,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9937,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اللجنة",
+          "confidence": 0.9886,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الى",
+          "confidence": 0.9513,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تلك",
+          "confidence": 0.9868,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الشقة",
+          "confidence": 0.9841,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "فكيف",
+          "confidence": 0.9718,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لها",
+          "confidence": 0.9874,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ان",
+          "confidence": 0.9554,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تكون",
+          "confidence": 0.9937,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "قد",
+          "confidence": 0.9944,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "عاينت",
+          "confidence": 0.9797,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الدور",
+          "confidence": 0.9881,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الأرضي",
+          "confidence": 0.938,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ".",
+          "confidence": 0.6934,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "ثالثا",
+          "confidence": 0.9725,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ":",
+          "confidence": 0.6364,
+          "band": "low",
+          "page_number": 1
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9889,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "محل",
+          "confidence": 0.9881,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9865,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الازالة",
+          "confidence": 0.9883,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "سليم",
+          "confidence": 0.9884,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ولا",
+          "confidence": 0.9873,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يوجد",
+          "confidence": 0.9837,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اي",
+          "confidence": 0.8513,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "سبب",
+          "confidence": 0.9946,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "للازالة",
+          "confidence": 0.9886,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ":",
+          "confidence": 0.6878,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": ".",
+          "confidence": 0.784,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "بالرغم",
+          "confidence": 0.9877,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.9845,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "عدم",
+          "confidence": 0.986,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "علم",
+          "confidence": 0.9842,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.9836,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "بالقرار",
+          "confidence": 0.9847,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الصادر",
+          "confidence": 0.9849,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.983,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اللجنة",
+          "confidence": 0.984,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "بالترميم",
+          "confidence": 0.9873,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "بحي",
+          "confidence": 0.977,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ثان",
+          "confidence": 0.9858,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الاسماعيلية",
+          "confidence": 0.9829,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اللجنة",
+          "confidence": 0.9877,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الأولى",
+          "confidence": 0.9023,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "رقم",
+          "confidence": 0.99,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "٤",
+          "confidence": 0.7463,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "لسنة",
+          "confidence": 0.9753,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "٢٠١٩",
+          "confidence": 0.3629,
+          "band": "low",
+          "page_number": 1
+        },
+        {
+          "word": "والذي",
+          "confidence": 0.9916,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "صدر",
+          "confidence": 0.9892,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "فيه",
+          "confidence": 0.9894,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9885,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "بترميم",
+          "confidence": 0.9805,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.978,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "واثبت",
+          "confidence": 0.9832,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "انه",
+          "confidence": 0.9748,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لا",
+          "confidence": 0.979,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "خطورة",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "على",
+          "confidence": 0.9738,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "حياة",
+          "confidence": 0.989,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ساكنيه",
+          "confidence": 0.976,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ".",
+          "confidence": 0.7848,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "الا",
+          "confidence": 0.9717,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ان",
+          "confidence": 0.967,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "حالة",
+          "confidence": 0.9906,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9915,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "جيدة",
+          "confidence": 0.9847,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "جدا",
+          "confidence": 0.9765,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وفي",
+          "confidence": 0.9732,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "حالة",
+          "confidence": 0.9901,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وجود",
+          "confidence": 0.9956,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اي",
+          "confidence": 0.8929,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "شئ",
+          "confidence": 0.9439,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يستحق",
+          "confidence": 0.9853,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الترميم",
+          "confidence": 0.9879,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "سيتم",
+          "confidence": 0.972,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ترميمه",
+          "confidence": 0.9777,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ".",
+          "confidence": 0.6468,
+          "band": "low",
+          "page_number": 1
+        },
+        {
+          "word": "ومما",
+          "confidence": 0.987,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "سبق",
+          "confidence": 0.9958,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "يتضح",
+          "confidence": 0.9895,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لنا",
+          "confidence": 0.9841,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ان",
+          "confidence": 0.9576,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الغرض",
+          "confidence": 0.9928,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وراء",
+          "confidence": 0.9852,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9884,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الاذالة",
+          "confidence": 0.9518,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ليس",
+          "confidence": 0.9888,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "خوفا",
+          "confidence": 0.9843,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "على",
+          "confidence": 0.9744,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "حياة",
+          "confidence": 0.9904,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "اشخاص",
+          "confidence": 0.9857,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ولكن",
+          "confidence": 0.9964,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "رغبة",
+          "confidence": 0.9942,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "في",
+          "confidence": 0.9854,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ثراء",
+          "confidence": 0.9853,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "سريع",
+          "confidence": 0.9702,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "،",
+          "confidence": 0.7527,
+          "band": "mid",
+          "page_number": 1
+        },
+        {
+          "word": "فالقاء",
+          "confidence": 0.9945,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "رجل",
+          "confidence": 0.9854,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "كبير",
+          "confidence": 0.9883,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "في",
+          "confidence": 0.9771,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "السن",
+          "confidence": 0.9947,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تعدى",
+          "confidence": 0.9811,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "السبعون",
+          "confidence": 0.9842,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "من",
+          "confidence": 0.984,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "عمره",
+          "confidence": 0.9753,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "عاش",
+          "confidence": 0.9841,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "حياته",
+          "confidence": 0.9786,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "كلها",
+          "confidence": 0.9867,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "في",
+          "confidence": 0.9821,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "تلك",
+          "confidence": 0.9903,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الشقة",
+          "confidence": 0.9854,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "بالشارع",
+          "confidence": 0.9851,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وليس",
+          "confidence": 0.9908,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الا",
+          "confidence": 0.9625,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "لرغبة",
+          "confidence": 0.9887,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "في",
+          "confidence": 0.9881,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "حيازة",
+          "confidence": 0.9959,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "المكان",
+          "confidence": 0.9959,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "وبناء",
+          "confidence": 0.9924,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "برج",
+          "confidence": 0.9865,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "سكني",
+          "confidence": 0.9852,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "مكانه",
+          "confidence": 0.9889,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "حيث",
+          "confidence": 0.9944,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "ان",
+          "confidence": 0.9136,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "هذا",
+          "confidence": 0.9925,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "المنزل",
+          "confidence": 0.9909,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "في",
+          "confidence": 0.9711,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "احسن",
+          "confidence": 0.9845,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "الاماكن",
+          "confidence": 0.9595,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": "بالاسماعيلية",
+          "confidence": 0.9715,
+          "band": "high",
+          "page_number": 1
+        },
+        {
+          "word": ".",
+          "confidence": 0.6901,
+          "band": "mid",
+          "page_number": 1
+        }
+      ],
+      "error": null
+    },
+    {
+      "page_number": 2,
+      "raw_text": "ومن كل ما سبق\nاولا : بطلان قرار الازالة تاسيسا على :\n۱- انعدام صفة مقدم الطلب\n۲ ادعاء مقدم الطلب ان الغقار فارغ\nعدم اعلان القيمين بالعقار\n٤- عدم معاينة العقار والدليل ان الطالب لم يرى اللجنة في اي وقت.\nثانيا: اساءة استعمال السلطة لكل من اول الطرف الثاني الى الطرف الخامس.\nثالثا : حالة العقار حالة جيدة جدا ولا خوف على سكانه.\nرابعا : مراعاة كون الرجل يزيد عن السبعون عاما ولا يجوز القاءه فى الشارع الا بعد التاكد منه منة بالمائة من حالة\nالعقار وحيث وجود قرار سابق لم يعلن بع الطالب بالترميم.\nتوافر ركن الاستعجال\nنظرا لان اي تاخير يؤدي الى طرد والقاء رجل على المعاش هو واسرته وغيره من الاسر على قارعة الطريق.\nلذلك\nيلتمس الطالب\nاولا : قبل الطعن شكلا\nثانيا : الحكم بصفة مستعجلة بوقف تنفيذ القرار رقم ١٥٠ لسنة ۲۰۲۰ الصادر من لجنة التظلمات في تاريخ ۲۰۲٠/٧/٤\nالمطعون فيه وما يترتب عليه من اثار على ان يتم تنفيذه بمسودة الحكم .\nثالثا : وفي الموضوع الغاء القرار المطعون فيه واعتباره كان لم يكن والغاء كافة الاثار المترتبة عليه وشمول الحكم بالنفاذ\nالمعجل طليقا من قيد الكفالة مع الزام المطعون ضدهم بالمصروفات واتعاب المحاماه.\nمع حفظ كافة الحقوق الاخرى\nوكيلة الطالب\nالمحامية",
+      "normalized_text": "ومن كل ما سبق\nاولا : بطلان قرار الازالة تاسيسا على :\n۱- انعدام صفة مقدم الطلب\n۲ ادعاء مقدم الطلب ان الغقار فارغ\nعدم اعلان القيمين بالعقار\n٤- عدم معاينة العقار والدليل ان الطالب لم يرى اللجنة في اي وقت.\nثانيا: اساءة استعمال السلطة لكل من اول الطرف الثاني الى الطرف الخامس.\nثالثا : حالة العقار حالة جيدة جدا ولا خوف على سكانه.\nرابعا : مراعاة كون الرجل يزيد عن السبعون عاما ولا يجوز القاءه فى الشارع الا بعد التاكد منه منة بالمائة من حالة\nالعقار وحيث وجود قرار سابق لم يعلن بع الطالب بالترميم.\nتوافر ركن الاستعجال\nنظرا لان اي تاخير يؤدي الى طرد والقاء رجل على المعاش هو واسرته وغيره من الاسر على قارعة الطريق.\nلذلك\nيلتمس الطالب\nاولا : قبل الطعن شكلا\nثانيا : الحكم بصفة مستعجلة بوقف تنفيذ القرار رقم ١٥٠ لسنة ۲۰۲۰ الصادر من لجنة التظلمات في تاريخ ۲۰۲٠/٧/٤\nالمطعون فيه وما يترتب عليه من اثار على ان يتم تنفيذه بمسودة الحكم .\nثالثا : وفي الموضوع الغاء القرار المطعون فيه واعتباره كان لم يكن والغاء كافة الاثار المترتبة عليه وشمول الحكم بالنفاذ\nالمعجل طليقا من قيد الكفالة مع الزام المطعون ضدهم بالمصروفات واتعاب المحاماه.\nمع حفظ كافة الحقوق الاخرى\nوكيلة الطالب\nالمحامية",
+      "refined_text": "",
+      "perspective_corrected": false,
+      "confidence": 0.9592,
+      "word_confidences": [
+        {
+          "word": "ومن",
+          "confidence": 0.9895,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "كل",
+          "confidence": 0.9939,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "ما",
+          "confidence": 0.9909,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "سبق",
+          "confidence": 0.9884,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "اولا",
+          "confidence": 0.9513,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ":",
+          "confidence": 0.7416,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "بطلان",
+          "confidence": 0.9629,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9891,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الازالة",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "تاسيسا",
+          "confidence": 0.9702,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "على",
+          "confidence": 0.9708,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ":",
+          "confidence": 0.7924,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "۱-",
+          "confidence": 0.676,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "انعدام",
+          "confidence": 0.9866,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "صفة",
+          "confidence": 0.9767,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "مقدم",
+          "confidence": 0.9922,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الطلب",
+          "confidence": 0.9932,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "۲",
+          "confidence": 0.684,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "ادعاء",
+          "confidence": 0.9652,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "مقدم",
+          "confidence": 0.9865,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الطلب",
+          "confidence": 0.9904,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "ان",
+          "confidence": 0.9557,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الغقار",
+          "confidence": 0.9947,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "فارغ",
+          "confidence": 0.9726,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "عدم",
+          "confidence": 0.9738,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "اعلان",
+          "confidence": 0.9827,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "القيمين",
+          "confidence": 0.981,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "بالعقار",
+          "confidence": 0.9928,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "٤-",
+          "confidence": 0.6566,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "عدم",
+          "confidence": 0.9843,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "معاينة",
+          "confidence": 0.9908,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9851,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "والدليل",
+          "confidence": 0.9868,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "ان",
+          "confidence": 0.9318,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.9883,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "لم",
+          "confidence": 0.9823,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "يرى",
+          "confidence": 0.9849,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "اللجنة",
+          "confidence": 0.9927,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "في",
+          "confidence": 0.9942,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "اي",
+          "confidence": 0.9227,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "وقت",
+          "confidence": 0.983,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ".",
+          "confidence": 0.9165,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "ثانيا",
+          "confidence": 0.9831,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ":",
+          "confidence": 0.758,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "اساءة",
+          "confidence": 0.9725,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "استعمال",
+          "confidence": 0.9956,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "السلطة",
+          "confidence": 0.9929,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "لكل",
+          "confidence": 0.9918,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "من",
+          "confidence": 0.9905,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "اول",
+          "confidence": 0.9607,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الطرف",
+          "confidence": 0.9905,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الثاني",
+          "confidence": 0.9708,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الى",
+          "confidence": 0.9247,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الطرف",
+          "confidence": 0.9917,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الخامس",
+          "confidence": 0.9892,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ".",
+          "confidence": 0.8727,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "ثالثا",
+          "confidence": 0.9661,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ":",
+          "confidence": 0.7309,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "حالة",
+          "confidence": 0.9931,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9913,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "حالة",
+          "confidence": 0.9899,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "جيدة",
+          "confidence": 0.9858,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "جدا",
+          "confidence": 0.9733,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "ولا",
+          "confidence": 0.9831,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "خوف",
+          "confidence": 0.9881,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "على",
+          "confidence": 0.97,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "سكانه",
+          "confidence": 0.9745,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ".",
+          "confidence": 0.796,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "رابعا",
+          "confidence": 0.9536,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ":",
+          "confidence": 0.7148,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "مراعاة",
+          "confidence": 0.9793,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "كون",
+          "confidence": 0.9879,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الرجل",
+          "confidence": 0.9928,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "يزيد",
+          "confidence": 0.9845,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "عن",
+          "confidence": 0.9827,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "السبعون",
+          "confidence": 0.9946,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "عاما",
+          "confidence": 0.9801,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "ولا",
+          "confidence": 0.9861,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "يجوز",
+          "confidence": 0.992,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "القاءه",
+          "confidence": 0.9749,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "فى",
+          "confidence": 0.87,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "الشارع",
+          "confidence": 0.9899,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الا",
+          "confidence": 0.963,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "بعد",
+          "confidence": 0.9798,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "التاكد",
+          "confidence": 0.9835,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "منه",
+          "confidence": 0.9642,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "منة",
+          "confidence": 0.9687,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "بالمائة",
+          "confidence": 0.9865,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "من",
+          "confidence": 0.9959,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "حالة",
+          "confidence": 0.9887,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9876,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "وحيث",
+          "confidence": 0.9897,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "وجود",
+          "confidence": 0.9932,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9871,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "سابق",
+          "confidence": 0.9923,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "لم",
+          "confidence": 0.9907,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "يعلن",
+          "confidence": 0.988,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "بع",
+          "confidence": 0.9954,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.9959,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "بالترميم",
+          "confidence": 0.989,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ".",
+          "confidence": 0.7837,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "توافر",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "ركن",
+          "confidence": 0.991,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الاستعجال",
+          "confidence": 0.9887,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "نظرا",
+          "confidence": 0.9838,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "لان",
+          "confidence": 0.924,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "اي",
+          "confidence": 0.9301,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "تاخير",
+          "confidence": 0.9819,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "يؤدي",
+          "confidence": 0.9906,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الى",
+          "confidence": 0.9677,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "طرد",
+          "confidence": 0.9823,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "والقاء",
+          "confidence": 0.9882,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "رجل",
+          "confidence": 0.985,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "على",
+          "confidence": 0.9719,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "المعاش",
+          "confidence": 0.9903,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "هو",
+          "confidence": 0.9897,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "واسرته",
+          "confidence": 0.9928,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "وغيره",
+          "confidence": 0.9848,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "من",
+          "confidence": 0.9876,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الاسر",
+          "confidence": 0.9557,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "على",
+          "confidence": 0.9836,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "قارعة",
+          "confidence": 0.9951,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الطريق",
+          "confidence": 0.9892,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ".",
+          "confidence": 0.7653,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "لذلك",
+          "confidence": 0.9868,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "يلتمس",
+          "confidence": 0.986,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.9938,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "اولا",
+          "confidence": 0.9723,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ":",
+          "confidence": 0.8037,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "قبل",
+          "confidence": 0.9892,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الطعن",
+          "confidence": 0.9878,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "شكلا",
+          "confidence": 0.9758,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "ثانيا",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ":",
+          "confidence": 0.8934,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "الحكم",
+          "confidence": 0.9889,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "بصفة",
+          "confidence": 0.9835,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "مستعجلة",
+          "confidence": 0.9867,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "بوقف",
+          "confidence": 0.9915,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "تنفيذ",
+          "confidence": 0.9956,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "القرار",
+          "confidence": 0.9922,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "رقم",
+          "confidence": 0.9904,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "١٥٠",
+          "confidence": 0.5127,
+          "band": "low",
+          "page_number": 2
+        },
+        {
+          "word": "لسنة",
+          "confidence": 0.9962,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "۲۰۲۰",
+          "confidence": 0.872,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "الصادر",
+          "confidence": 0.9774,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "من",
+          "confidence": 0.9776,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "لجنة",
+          "confidence": 0.9928,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "التظلمات",
+          "confidence": 0.989,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "في",
+          "confidence": 0.9847,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "تاريخ",
+          "confidence": 0.9863,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "۲۰۲٠/٧/٤",
+          "confidence": 0.58,
+          "band": "low",
+          "page_number": 2
+        },
+        {
+          "word": "المطعون",
+          "confidence": 0.9907,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "فيه",
+          "confidence": 0.9902,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "وما",
+          "confidence": 0.9869,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "يترتب",
+          "confidence": 0.9902,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "عليه",
+          "confidence": 0.984,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "من",
+          "confidence": 0.9778,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "اثار",
+          "confidence": 0.9467,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "على",
+          "confidence": 0.9683,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "ان",
+          "confidence": 0.941,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "يتم",
+          "confidence": 0.9797,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "تنفيذه",
+          "confidence": 0.9867,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "بمسودة",
+          "confidence": 0.9883,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الحكم",
+          "confidence": 0.9918,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ".",
+          "confidence": 0.8022,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "ثالثا",
+          "confidence": 0.9785,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ":",
+          "confidence": 0.8452,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "وفي",
+          "confidence": 0.9878,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الموضوع",
+          "confidence": 0.9946,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الغاء",
+          "confidence": 0.9873,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "القرار",
+          "confidence": 0.9904,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "المطعون",
+          "confidence": 0.9897,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "فيه",
+          "confidence": 0.9828,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "واعتباره",
+          "confidence": 0.984,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "كان",
+          "confidence": 0.9908,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "لم",
+          "confidence": 0.9958,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "يكن",
+          "confidence": 0.9948,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "والغاء",
+          "confidence": 0.9854,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "كافة",
+          "confidence": 0.9838,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الاثار",
+          "confidence": 0.9386,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "المترتبة",
+          "confidence": 0.9936,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "عليه",
+          "confidence": 0.9858,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "وشمول",
+          "confidence": 0.992,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الحكم",
+          "confidence": 0.9895,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "بالنفاذ",
+          "confidence": 0.9926,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "المعجل",
+          "confidence": 0.9896,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "طليقا",
+          "confidence": 0.9841,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "من",
+          "confidence": 0.9911,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "قيد",
+          "confidence": 0.9907,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الكفالة",
+          "confidence": 0.9916,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "مع",
+          "confidence": 0.992,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الزام",
+          "confidence": 0.9913,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "المطعون",
+          "confidence": 0.9864,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "ضدهم",
+          "confidence": 0.9829,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "بالمصروفات",
+          "confidence": 0.9943,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "واتعاب",
+          "confidence": 0.9851,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "المحاماه",
+          "confidence": 0.9828,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": ".",
+          "confidence": 0.7031,
+          "band": "mid",
+          "page_number": 2
+        },
+        {
+          "word": "مع",
+          "confidence": 0.9878,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "حفظ",
+          "confidence": 0.9965,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "كافة",
+          "confidence": 0.9907,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الحقوق",
+          "confidence": 0.9929,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الاخرى",
+          "confidence": 0.9488,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "وكيلة",
+          "confidence": 0.9842,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.993,
+          "band": "high",
+          "page_number": 2
+        },
+        {
+          "word": "المحامية",
+          "confidence": 0.9916,
+          "band": "high",
+          "page_number": 2
+        }
+      ],
+      "error": null
+    },
+    {
+      "page_number": 3,
+      "raw_text": "حافظة مستندات\nالمقدمة لمحكمة القضاء الإدارى.\nمن السيد محمد محمد ابراهم\nالدائرة :\nبصفته ممكن\nى عليه\nمد السيد : حافظ الإسماعيلى وآخرين. بصفته : حمدي\nالمحدد لنظرها جلسة .\nى القضية رقم:\nرقم\nعدد\nتاريخ المستندات\nـان المستنـ\nدات\nأول أغطى ١٩٩- صورة خولة من عقد إيجار المدعى و المؤرخ من -\nأول أخطر سن ١٩٥٩م.\n٢٠٢٠١٧١٤ موارد خوي مرد قرار لجنة التكلما تقم ٢٣١٤\n١٠ ٢٠٢٠١٧ مورد فرويد عن منفر معانة الدين الشين\nالخاص التظلمات\n٢٢٠١٧١٧ صورة فوتب مسن قرار رئيس من نات\nالإسماعيله وقم ٢١٣ كه\n1\nوكيل المالي\nألماني عن الحمد.\nالمعاد",
+      "normalized_text": "حافظة مستندات\nالمقدمة لمحكمة القضاء الإدارى.\nمن السيد محمد محمد ابراهم\nالدائرة :\nبصفته ممكن\nى عليه\nمد السيد : حافظ الإسماعيلى وآخرين. بصفته : حمدي\nالمحدد لنظرها جلسة .\nى القضية رقم:\nرقم\nعدد\nتاريخ المستندات\nـان المستنـ\nدات\nأول أغطى ١٩٩- صورة خولة من عقد إيجار المدعى و المؤرخ من -\nأول أخطر سن ١٩٥٩م.\n٢٠٢٠١٧١٤ موارد خوي مرد قرار لجنة التكلما تقم ٢٣١٤\n١٠ ٢٠٢٠١٧ مورد فرويد عن منفر معانة الدين الشين\nالخاص التظلمات\n٢٢٠١٧١٧ صورة فوتب مسن قرار رئيس من نات\nالإسماعيله وقم ٢١٣ كه\n1\nوكيل المالي\nألماني عن الحمد.\nالمعاد",
+      "refined_text": "حافظة مستندات\nمقدمة لمحكمة القضاء الإداري.\nمن السيد محمد محمد إبراهيم\nالدائرة:\nبصفته ممكّن\nعليه\nضد السيد: حافظ الإسماعيلي وآخرين. بصفته: حمدي\nالمحدد لنظرها جلسة:\nالقضية رقم:\nرقم\nعدد\nتاريخ المستندات\nبيان المستندات\n١ - صورة طبق الأصل من عقد إيجار المدعى، المؤرخ في\n١ / ١ / ١٩٥٩م.\n٢ - صورة طبق الأصل من قرار لجنة التظلمات رقم ٢٣١٤\nبتاريخ ٢٠٢٠/١/١٤م.\n٣ - صورة طبق الأصل من محضر معاينة الدين، الشؤن\nالخاص بالتظلمات، بتاريخ ٢٠٢٠/١/١٧م.\n٤ - صورة طبق الأصل من قرار رئيس مصلحة\nالإسماعيلية رقم ٢١٣، بتاريخ ٢٠١٧/١/٢٢م.\nوكيل المدعى\nبالإنابة عن حمدي\nالمعادي",
+      "perspective_corrected": false,
+      "confidence": 0.7779,
+      "word_confidences": [
+        {
+          "word": "حافظة",
+          "confidence": 0.996,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "مستندات",
+          "confidence": 0.9905,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "المقدمة",
+          "confidence": 0.8765,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "لمحكمة",
+          "confidence": 0.982,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "القضاء",
+          "confidence": 0.9662,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "الإدارى",
+          "confidence": 0.9671,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": ".",
+          "confidence": 0.6737,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "من",
+          "confidence": 0.8659,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "السيد",
+          "confidence": 0.9864,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "محمد",
+          "confidence": 0.9054,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "محمد",
+          "confidence": 0.854,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "ابراهم",
+          "confidence": 0.9643,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "الدائرة",
+          "confidence": 0.9775,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": ":",
+          "confidence": 0.5059,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "بصفته",
+          "confidence": 0.9785,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "ممكن",
+          "confidence": 0.6837,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "ى",
+          "confidence": 0.6183,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "عليه",
+          "confidence": 0.9284,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "مد",
+          "confidence": 0.7255,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "السيد",
+          "confidence": 0.9841,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": ":",
+          "confidence": 0.8331,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "حافظ",
+          "confidence": 0.8788,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "الإسماعيلى",
+          "confidence": 0.8538,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "وآخرين",
+          "confidence": 0.9396,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": ".",
+          "confidence": 0.848,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "بصفته",
+          "confidence": 0.9652,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": ":",
+          "confidence": 0.6012,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "حمدي",
+          "confidence": 0.3242,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "المحدد",
+          "confidence": 0.9793,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "لنظرها",
+          "confidence": 0.9788,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "جلسة",
+          "confidence": 0.9763,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": ".",
+          "confidence": 0.4483,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "ى",
+          "confidence": 0.9261,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "القضية",
+          "confidence": 0.9909,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "رقم",
+          "confidence": 0.9828,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": ":",
+          "confidence": 0.6412,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "رقم",
+          "confidence": 0.9831,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "عدد",
+          "confidence": 0.986,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "تاريخ",
+          "confidence": 0.9929,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "المستندات",
+          "confidence": 0.9907,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "ـان",
+          "confidence": 0.9568,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "المستنـ",
+          "confidence": 0.9587,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "دات",
+          "confidence": 0.9782,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "أول",
+          "confidence": 0.9483,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "أغطى",
+          "confidence": 0.6134,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "١٩٩-",
+          "confidence": 0.4113,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "صورة",
+          "confidence": 0.9464,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "خولة",
+          "confidence": 0.8575,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "من",
+          "confidence": 0.6351,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "عقد",
+          "confidence": 0.686,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "إيجار",
+          "confidence": 0.7907,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "المدعى",
+          "confidence": 0.8285,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "و",
+          "confidence": 0.977,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "المؤرخ",
+          "confidence": 0.961,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "من",
+          "confidence": 0.7363,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "-",
+          "confidence": 0.4263,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "أول",
+          "confidence": 0.8556,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "أخطر",
+          "confidence": 0.7784,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "سن",
+          "confidence": 0.8601,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "١٩٥٩",
+          "confidence": 0.6569,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "م",
+          "confidence": 0.3355,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": ".",
+          "confidence": 0.215,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "٢٠٢٠١٧١٤",
+          "confidence": 0.7794,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "موارد",
+          "confidence": 0.6973,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "خوي",
+          "confidence": 0.8247,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "مرد",
+          "confidence": 0.5593,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.7587,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "لجنة",
+          "confidence": 0.8584,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "التكلما",
+          "confidence": 0.8647,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "تقم",
+          "confidence": 0.736,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "٢٣١٤",
+          "confidence": 0.4837,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "١٠",
+          "confidence": 0.1679,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "٢٠٢٠١٧",
+          "confidence": 0.2858,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "مورد",
+          "confidence": 0.7734,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "فرويد",
+          "confidence": 0.5496,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "عن",
+          "confidence": 0.7675,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "منفر",
+          "confidence": 0.8399,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "معانة",
+          "confidence": 0.7411,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "الدين",
+          "confidence": 0.8078,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "الشين",
+          "confidence": 0.4493,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "الخاص",
+          "confidence": 0.8384,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "التظلمات",
+          "confidence": 0.9231,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "٢٢٠١٧١٧",
+          "confidence": 0.5474,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "صورة",
+          "confidence": 0.8845,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "فوتب",
+          "confidence": 0.7546,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "مسن",
+          "confidence": 0.6594,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9479,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "رئيس",
+          "confidence": 0.8462,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "من",
+          "confidence": 0.5874,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "نات",
+          "confidence": 0.6649,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "الإسماعيله",
+          "confidence": 0.8276,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "وقم",
+          "confidence": 0.8342,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "٢١٣",
+          "confidence": 0.677,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "كه",
+          "confidence": 0.2,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "1",
+          "confidence": 0.9487,
+          "band": "high",
+          "page_number": 3
+        },
+        {
+          "word": "وكيل",
+          "confidence": 0.8296,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "المالي",
+          "confidence": 0.8599,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "ألماني",
+          "confidence": 0.7191,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "عن",
+          "confidence": 0.7265,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": "الحمد",
+          "confidence": 0.8829,
+          "band": "mid",
+          "page_number": 3
+        },
+        {
+          "word": ".",
+          "confidence": 0.5476,
+          "band": "low",
+          "page_number": 3
+        },
+        {
+          "word": "المعاد",
+          "confidence": 0.7313,
+          "band": "mid",
+          "page_number": 3
+        }
+      ],
+      "error": null
+    },
+    {
+      "page_number": 4,
+      "raw_text": "دعوى الغاء قرار ازالة\nالسيد الاستاذ المستشار / رئيس محكمة القضاء الإداري بالإسماعيلية .\nتحية طيبة وبعد،،،،،\nأماني عبد الحميد إبراهيم\nالمحامية\nبالنقض والإدارية العليا\nت ٠١٢٢٣٣٨٤١٦٩\nمقدمه لسيادتكم / محمد محمد ابراهيم سعيد -\nوالاستاذ/ طارق رضا محمد على المحامي بالاسماعيلية.\n. المقيم بالغقار رقم ٧٣ شارع السكة الحديد سابقا ۸۲ شارع شحته حاليا\nعرايشية مصر - ثان - الاسماعيلية ومحله المختار مكتب الاستاذة / اماني عبد الحميد ابراهيم المحامية بالنقض\n١- السيد/ محافظ الاسماعيلية\n٢- السيد رئيس مركز ومدينة الاسماعيلية\n- السيد رئيس الادارة الهندسية بحي ثان الاسماعيلية\n- السيد / رئيس حي ثان الاسماعيلية\n- السيد مدير عام مديرية الاسكان بالاسماعيلية\n٦ - السيد العميد مامور قسم ثان الاسماعيلية\nويعلنوا جميعا بهيئة قضايا الدولة بالاسماعيلية\nبصفته\nبصفته\nبصفته\nبصفته\nبصفته\nبصفته\n- السيد / محمد احمد علي - المقاول - صاحب شركة محمد علي للمقاولات والانشاء والاستثمارات العقارية -\nوالمقيم خلف رضا حلمي للمشويات بشارع شبين الكوم - ثالث الاسماعيلية.\nالموضوع\nبموجب عقد الايجار المؤرخ اول اغسطس ۱۹۵۹ اجر المدعي الشقة بالدور الارضي بالعقار رقم ٧٣ شارع السكة الحديد\nسابقا ۸۲ شارع شحته حاليا عرايشية مصر - ثان - الاسماعيلية ، يقيم الطالب بتلك الشقة من تاريخ عقد الايجار حتى\nوقتنا هذا حيث قضى فيها عمره كله شيايه ورجولته وكبره ، يقيم الطالب اقامة هادئة مستقرة بدون اي .\nالقيمة الايجارية الخاصة به.\nمشاكل\nويسدد دائما\nلما فوجئ الطالب بوجود قرار ازالة رقم ۱۵۰ لسنة ۲۰۲۰ والصادر بازالة العقار بالكامل حتى سطح الأرض ،.\nولما كان قرار لجنة التظلمات قد جاء بطريقة مخالفة للقانون وقد اتنفته السرية التامة ولم يتم اعلان الطالب باي من\nاجراءات اللجنة من اي اجراءاتها ، ان كان المتظلم او اللجنة ذاتها ، وعند تتبعه للام فوجئ بأنه قد سبق قرار الازالة\nقرار ترميم رقم ٤ لسنة ۲۰۱۹ ولم يعلن به ايضا .",
+      "normalized_text": "دعوى الغاء قرار ازالة\nالسيد الاستاذ المستشار / رئيس محكمة القضاء الإداري بالإسماعيلية .\nتحية طيبة وبعد،،،،،\nأماني عبد الحميد إبراهيم\nالمحامية\nبالنقض والإدارية العليا\nت ٠١٢٢٣٣٨٤١٦٩\nمقدمه لسيادتكم / محمد محمد ابراهيم سعيد -\nوالاستاذ/ طارق رضا محمد على المحامي بالاسماعيلية.\n. المقيم بالغقار رقم ٧٣ شارع السكة الحديد سابقا ۸۲ شارع شحته حاليا\nعرايشية مصر - ثان - الاسماعيلية ومحله المختار مكتب الاستاذة / اماني عبد الحميد ابراهيم المحامية بالنقض\n١- السيد/ محافظ الاسماعيلية\n٢- السيد رئيس مركز ومدينة الاسماعيلية\n- السيد رئيس الادارة الهندسية بحي ثان الاسماعيلية\n- السيد / رئيس حي ثان الاسماعيلية\n- السيد مدير عام مديرية الاسكان بالاسماعيلية\n٦ - السيد العميد مامور قسم ثان الاسماعيلية\nويعلنوا جميعا بهيئة قضايا الدولة بالاسماعيلية\nبصفته\nبصفته\nبصفته\nبصفته\nبصفته\nبصفته\n- السيد / محمد احمد علي - المقاول - صاحب شركة محمد علي للمقاولات والانشاء والاستثمارات العقارية -\nوالمقيم خلف رضا حلمي للمشويات بشارع شبين الكوم - ثالث الاسماعيلية.\nالموضوع\nبموجب عقد الايجار المؤرخ اول اغسطس ۱۹۵۹ اجر المدعي الشقة بالدور الارضي بالعقار رقم ٧٣ شارع السكة الحديد\nسابقا ۸۲ شارع شحته حاليا عرايشية مصر - ثان - الاسماعيلية ، يقيم الطالب بتلك الشقة من تاريخ عقد الايجار حتى\nوقتنا هذا حيث قضى فيها عمره كله شيايه ورجولته وكبره ، يقيم الطالب اقامة هادئة مستقرة بدون اي .\nالقيمة الايجارية الخاصة به.\nمشاكل\nويسدد دائما\nلما فوجئ الطالب بوجود قرار ازالة رقم ۱۵۰ لسنة ۲۰۲۰ والصادر بازالة العقار بالكامل حتى سطح الأرض ،.\nولما كان قرار لجنة التظلمات قد جاء بطريقة مخالفة للقانون وقد اتنفته السرية التامة ولم يتم اعلان الطالب باي من\nاجراءات اللجنة من اي اجراءاتها ، ان كان المتظلم او اللجنة ذاتها ، وعند تتبعه للام فوجئ بأنه قد سبق قرار الازالة\nقرار ترميم رقم ٤ لسنة ۲۰۱۹ ولم يعلن به ايضا .",
+      "refined_text": "",
+      "perspective_corrected": false,
+      "confidence": 0.939,
+      "word_confidences": [
+        {
+          "word": "دعوى",
+          "confidence": 0.9788,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الغاء",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9928,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ازالة",
+          "confidence": 0.9811,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "السيد",
+          "confidence": 0.9868,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الاستاذ",
+          "confidence": 0.9663,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "المستشار",
+          "confidence": 0.9949,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "/",
+          "confidence": 0.9087,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "رئيس",
+          "confidence": 0.9929,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "محكمة",
+          "confidence": 0.9912,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "القضاء",
+          "confidence": 0.9911,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الإداري",
+          "confidence": 0.9835,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بالإسماعيلية",
+          "confidence": 0.9838,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": ".",
+          "confidence": 0.7016,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "تحية",
+          "confidence": 0.9735,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "طيبة",
+          "confidence": 0.987,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "وبعد",
+          "confidence": 0.9311,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "،،،،،",
+          "confidence": 0.6709,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "أماني",
+          "confidence": 0.9837,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "عبد",
+          "confidence": 0.995,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الحميد",
+          "confidence": 0.996,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "إبراهيم",
+          "confidence": 0.9839,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "المحامية",
+          "confidence": 0.9912,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بالنقض",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "والإدارية",
+          "confidence": 0.9899,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "العليا",
+          "confidence": 0.99,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ت",
+          "confidence": 0.9612,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "٠١٢٢٣٣٨٤١٦٩",
+          "confidence": 0.8076,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "مقدمه",
+          "confidence": 0.9874,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "لسيادتكم",
+          "confidence": 0.9877,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "/",
+          "confidence": 0.7643,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "محمد",
+          "confidence": 0.9963,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "محمد",
+          "confidence": 0.9965,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ابراهيم",
+          "confidence": 0.9438,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "سعيد",
+          "confidence": 0.9245,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.5875,
+          "band": "low",
+          "page_number": 4
+        },
+        {
+          "word": "والاستاذ",
+          "confidence": 0.9859,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "/",
+          "confidence": 0.6524,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "طارق",
+          "confidence": 0.9778,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "رضا",
+          "confidence": 0.9803,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "محمد",
+          "confidence": 0.9939,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "على",
+          "confidence": 0.9375,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "المحامي",
+          "confidence": 0.9877,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بالاسماعيلية",
+          "confidence": 0.9741,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": ".",
+          "confidence": 0.6905,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": ".",
+          "confidence": 0.8524,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "المقيم",
+          "confidence": 0.9908,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بالغقار",
+          "confidence": 0.9914,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "رقم",
+          "confidence": 0.9881,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "٧٣",
+          "confidence": 0.4798,
+          "band": "low",
+          "page_number": 4
+        },
+        {
+          "word": "شارع",
+          "confidence": 0.9868,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "السكة",
+          "confidence": 0.9937,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الحديد",
+          "confidence": 0.9913,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "سابقا",
+          "confidence": 0.9887,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "۸۲",
+          "confidence": 0.724,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "شارع",
+          "confidence": 0.9961,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "شحته",
+          "confidence": 0.9878,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "حاليا",
+          "confidence": 0.9445,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "عرايشية",
+          "confidence": 0.9833,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "مصر",
+          "confidence": 0.9859,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.7143,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "ثان",
+          "confidence": 0.9863,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.7765,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "الاسماعيلية",
+          "confidence": 0.98,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ومحله",
+          "confidence": 0.9833,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "المختار",
+          "confidence": 0.982,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "مكتب",
+          "confidence": 0.9891,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الاستاذة",
+          "confidence": 0.9715,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "/",
+          "confidence": 0.748,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "اماني",
+          "confidence": 0.9651,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "عبد",
+          "confidence": 0.9877,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الحميد",
+          "confidence": 0.9888,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ابراهيم",
+          "confidence": 0.9815,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "المحامية",
+          "confidence": 0.9929,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بالنقض",
+          "confidence": 0.9944,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "١-",
+          "confidence": 0.6135,
+          "band": "low",
+          "page_number": 4
+        },
+        {
+          "word": "السيد",
+          "confidence": 0.9823,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "/",
+          "confidence": 0.6998,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "محافظ",
+          "confidence": 0.9977,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الاسماعيلية",
+          "confidence": 0.9747,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "٢-",
+          "confidence": 0.6318,
+          "band": "low",
+          "page_number": 4
+        },
+        {
+          "word": "السيد",
+          "confidence": 0.9899,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "رئيس",
+          "confidence": 0.9936,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "مركز",
+          "confidence": 0.9953,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ومدينة",
+          "confidence": 0.9939,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الاسماعيلية",
+          "confidence": 0.9772,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.7805,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "السيد",
+          "confidence": 0.9836,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "رئيس",
+          "confidence": 0.9915,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الادارة",
+          "confidence": 0.9691,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الهندسية",
+          "confidence": 0.989,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بحي",
+          "confidence": 0.9876,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ثان",
+          "confidence": 0.9855,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الاسماعيلية",
+          "confidence": 0.975,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.663,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "السيد",
+          "confidence": 0.9853,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "/",
+          "confidence": 0.7563,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "رئيس",
+          "confidence": 0.9945,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "حي",
+          "confidence": 0.9917,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ثان",
+          "confidence": 0.9927,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الاسماعيلية",
+          "confidence": 0.9794,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.7572,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "السيد",
+          "confidence": 0.9784,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "مدير",
+          "confidence": 0.9769,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "عام",
+          "confidence": 0.9882,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "مديرية",
+          "confidence": 0.9875,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الاسكان",
+          "confidence": 0.9741,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بالاسماعيلية",
+          "confidence": 0.9739,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "٦",
+          "confidence": 0.5395,
+          "band": "low",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.6825,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "السيد",
+          "confidence": 0.9906,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "العميد",
+          "confidence": 0.9934,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "مامور",
+          "confidence": 0.9857,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "قسم",
+          "confidence": 0.9876,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ثان",
+          "confidence": 0.9887,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الاسماعيلية",
+          "confidence": 0.9757,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ويعلنوا",
+          "confidence": 0.9857,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "جميعا",
+          "confidence": 0.9779,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بهيئة",
+          "confidence": 0.9899,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "قضايا",
+          "confidence": 0.9788,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الدولة",
+          "confidence": 0.995,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بالاسماعيلية",
+          "confidence": 0.9766,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بصفته",
+          "confidence": 0.9822,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بصفته",
+          "confidence": 0.9761,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بصفته",
+          "confidence": 0.9782,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بصفته",
+          "confidence": 0.9774,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بصفته",
+          "confidence": 0.9833,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بصفته",
+          "confidence": 0.9778,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.8875,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "السيد",
+          "confidence": 0.9823,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "/",
+          "confidence": 0.7156,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "محمد",
+          "confidence": 0.9973,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "احمد",
+          "confidence": 0.9701,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "علي",
+          "confidence": 0.9757,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.7777,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "المقاول",
+          "confidence": 0.9921,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.8149,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "صاحب",
+          "confidence": 0.9878,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "شركة",
+          "confidence": 0.992,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "محمد",
+          "confidence": 0.9955,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "علي",
+          "confidence": 0.9819,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "للمقاولات",
+          "confidence": 0.9844,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "والانشاء",
+          "confidence": 0.9821,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "والاستثمارات",
+          "confidence": 0.9914,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "العقارية",
+          "confidence": 0.9949,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.447,
+          "band": "low",
+          "page_number": 4
+        },
+        {
+          "word": "والمقيم",
+          "confidence": 0.9871,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "خلف",
+          "confidence": 0.9935,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "رضا",
+          "confidence": 0.9957,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "حلمي",
+          "confidence": 0.9878,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "للمشويات",
+          "confidence": 0.99,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بشارع",
+          "confidence": 0.9694,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "شبين",
+          "confidence": 0.9917,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الكوم",
+          "confidence": 0.987,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.5122,
+          "band": "low",
+          "page_number": 4
+        },
+        {
+          "word": "ثالث",
+          "confidence": 0.9958,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الاسماعيلية",
+          "confidence": 0.9719,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": ".",
+          "confidence": 0.7444,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "الموضوع",
+          "confidence": 0.9938,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بموجب",
+          "confidence": 0.9908,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "عقد",
+          "confidence": 0.9952,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الايجار",
+          "confidence": 0.9799,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "المؤرخ",
+          "confidence": 0.9946,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اول",
+          "confidence": 0.9913,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اغسطس",
+          "confidence": 0.9917,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "۱۹۵۹",
+          "confidence": 0.6755,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "اجر",
+          "confidence": 0.9665,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "المدعي",
+          "confidence": 0.9799,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الشقة",
+          "confidence": 0.9871,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بالدور",
+          "confidence": 0.9907,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الارضي",
+          "confidence": 0.9593,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بالعقار",
+          "confidence": 0.9968,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "رقم",
+          "confidence": 0.989,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "٧٣",
+          "confidence": 0.5174,
+          "band": "low",
+          "page_number": 4
+        },
+        {
+          "word": "شارع",
+          "confidence": 0.9937,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "السكة",
+          "confidence": 0.9947,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الحديد",
+          "confidence": 0.9871,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "سابقا",
+          "confidence": 0.9816,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "۸۲",
+          "confidence": 0.7553,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "شارع",
+          "confidence": 0.9931,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "شحته",
+          "confidence": 0.9882,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "حاليا",
+          "confidence": 0.9862,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "عرايشية",
+          "confidence": 0.9922,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "مصر",
+          "confidence": 0.9894,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.7616,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "ثان",
+          "confidence": 0.9872,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "-",
+          "confidence": 0.8277,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "الاسماعيلية",
+          "confidence": 0.9785,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "،",
+          "confidence": 0.8798,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "يقيم",
+          "confidence": 0.9864,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.9963,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بتلك",
+          "confidence": 0.9932,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الشقة",
+          "confidence": 0.9905,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "من",
+          "confidence": 0.9901,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "تاريخ",
+          "confidence": 0.9949,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "عقد",
+          "confidence": 0.9955,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الايجار",
+          "confidence": 0.9713,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "حتى",
+          "confidence": 0.9817,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "وقتنا",
+          "confidence": 0.9839,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "هذا",
+          "confidence": 0.9875,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "حيث",
+          "confidence": 0.9901,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "قضى",
+          "confidence": 0.9481,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "فيها",
+          "confidence": 0.9946,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "عمره",
+          "confidence": 0.9734,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "كله",
+          "confidence": 0.9525,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "شيايه",
+          "confidence": 0.9243,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ورجولته",
+          "confidence": 0.9853,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "وكبره",
+          "confidence": 0.9795,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "،",
+          "confidence": 0.7453,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "يقيم",
+          "confidence": 0.9867,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.9926,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اقامة",
+          "confidence": 0.978,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "هادئة",
+          "confidence": 0.9876,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "مستقرة",
+          "confidence": 0.9917,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بدون",
+          "confidence": 0.986,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اي",
+          "confidence": 0.838,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": ".",
+          "confidence": 0.3075,
+          "band": "low",
+          "page_number": 4
+        },
+        {
+          "word": "القيمة",
+          "confidence": 0.9925,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الايجارية",
+          "confidence": 0.9674,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الخاصة",
+          "confidence": 0.9922,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "به",
+          "confidence": 0.9652,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": ".",
+          "confidence": 0.746,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "مشاكل",
+          "confidence": 0.9677,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ويسدد",
+          "confidence": 0.971,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "دائما",
+          "confidence": 0.977,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "لما",
+          "confidence": 0.9835,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "فوجئ",
+          "confidence": 0.9862,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.993,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بوجود",
+          "confidence": 0.9959,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9835,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ازالة",
+          "confidence": 0.9728,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "رقم",
+          "confidence": 0.9922,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "۱۵۰",
+          "confidence": 0.6231,
+          "band": "low",
+          "page_number": 4
+        },
+        {
+          "word": "لسنة",
+          "confidence": 0.9794,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "۲۰۲۰",
+          "confidence": 0.8837,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "والصادر",
+          "confidence": 0.9921,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بازالة",
+          "confidence": 0.9915,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "العقار",
+          "confidence": 0.9955,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بالكامل",
+          "confidence": 0.9902,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "حتى",
+          "confidence": 0.9736,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "سطح",
+          "confidence": 0.9963,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الأرض",
+          "confidence": 0.9181,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "،",
+          "confidence": 0.6783,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": ".",
+          "confidence": 0.6982,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "ولما",
+          "confidence": 0.9922,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "كان",
+          "confidence": 0.9944,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9849,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "لجنة",
+          "confidence": 0.9786,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "التظلمات",
+          "confidence": 0.9916,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "قد",
+          "confidence": 0.9935,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "جاء",
+          "confidence": 0.9735,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بطريقة",
+          "confidence": 0.9832,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "مخالفة",
+          "confidence": 0.9964,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "للقانون",
+          "confidence": 0.9896,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "وقد",
+          "confidence": 0.9964,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اتنفته",
+          "confidence": 0.9784,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "السرية",
+          "confidence": 0.9908,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "التامة",
+          "confidence": 0.9874,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ولم",
+          "confidence": 0.987,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "يتم",
+          "confidence": 0.987,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اعلان",
+          "confidence": 0.9858,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الطالب",
+          "confidence": 0.992,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "باي",
+          "confidence": 0.9771,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "من",
+          "confidence": 0.9866,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اجراءات",
+          "confidence": 0.9764,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اللجنة",
+          "confidence": 0.9904,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "من",
+          "confidence": 0.9912,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اي",
+          "confidence": 0.92,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اجراءاتها",
+          "confidence": 0.9604,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "،",
+          "confidence": 0.8067,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "ان",
+          "confidence": 0.9452,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "كان",
+          "confidence": 0.9893,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "المتظلم",
+          "confidence": 0.9833,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "او",
+          "confidence": 0.9143,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "اللجنة",
+          "confidence": 0.9861,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ذاتها",
+          "confidence": 0.9589,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "،",
+          "confidence": 0.9303,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "وعند",
+          "confidence": 0.9903,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "تتبعه",
+          "confidence": 0.9906,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "للام",
+          "confidence": 0.9821,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "فوجئ",
+          "confidence": 0.9773,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "بأنه",
+          "confidence": 0.8909,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "قد",
+          "confidence": 0.9961,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "سبق",
+          "confidence": 0.9924,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9871,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "الازالة",
+          "confidence": 0.9768,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "قرار",
+          "confidence": 0.9936,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ترميم",
+          "confidence": 0.9847,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "رقم",
+          "confidence": 0.9897,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "٤",
+          "confidence": 0.6657,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "لسنة",
+          "confidence": 0.9949,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "۲۰۱۹",
+          "confidence": 0.8515,
+          "band": "mid",
+          "page_number": 4
+        },
+        {
+          "word": "ولم",
+          "confidence": 0.9826,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "يعلن",
+          "confidence": 0.9683,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "به",
+          "confidence": 0.9875,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": "ايضا",
+          "confidence": 0.9646,
+          "band": "high",
+          "page_number": 4
+        },
+        {
+          "word": ".",
+          "confidence": 0.8799,
+          "band": "mid",
+          "page_number": 4
         }
       ],
       "error": null

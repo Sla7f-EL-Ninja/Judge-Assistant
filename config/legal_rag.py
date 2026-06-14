@@ -56,7 +56,7 @@ MAX_CACHE_SIZE: int = 500
 # Production safety
 # ---------------------------------------------------------------------------
 MAX_LLM_CALLS: int = 5          # max LLM invocations per single query
-LLM_TIMEOUT: int = 30           # seconds before LangChain call times out
+LLM_TIMEOUT: int = 100           # seconds before LangChain call times out
 
 # ---------------------------------------------------------------------------
 # Remote TEI service URLs (override via env vars)
