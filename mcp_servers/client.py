@@ -163,6 +163,10 @@ class MCPClient:
             "method": "tools/call",
             "params": {"name": tool, "arguments": args},
         })
+        logger.info(
+            "[TRACE] %s — sending tool call (tool=%s corpus=%r args_keys=%s)",
+            self._server_module, tool, args.get("corpus"), list(args.keys()),
+        )
         logger.info("[TRACE] %s — waiting for tool response (tool=%s timeout=%ds)",
                     self._server_module, tool, self._call_timeout)
         t0 = time.monotonic()
@@ -180,6 +184,10 @@ class MCPClient:
         text = content[0].get("text", "{}") if content else "{}"
 
         if result.get("isError"):
+            logger.error(
+                "[TRACE] _parse_response isError=True — server=%s raw_text=%r",
+                self._server_module, text[:500],
+            )
             try:
                 err = json.loads(text)
             except json.JSONDecodeError:

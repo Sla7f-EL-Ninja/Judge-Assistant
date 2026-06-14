@@ -36,6 +36,26 @@ def _write_file_local(path: str, data: bytes) -> None:
         f.write(data)
 
 
+def _detect_mime(content: bytes, reported: str) -> str:
+    """Detect real MIME type from magic bytes; fall back to browser-reported value.
+
+    Browsers (and download managers on some OSes) occasionally report the wrong
+    MIME type when uploading — e.g. a PDF file reported as ``image/jpeg``.
+    Reading the first few bytes is fast and reliable for the formats we care about.
+    """
+    if content[:4] == b"%PDF":
+        return "application/pdf"
+    if content[:2] == b"\xff\xd8":          # JPEG SOI marker
+        return "image/jpeg"
+    if content[:8] == b"\x89PNG\r\n\x1a\n": # PNG signature
+        return "image/png"
+    if content[:4] in (b"GIF8", ):           # GIF87a / GIF89a
+        return "image/gif"
+    if content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return "image/webp"
+    return reported  # unknown — trust what the browser said
+
+
 def _upload_to_minio(object_name: str, data: bytes, mime_type: str) -> str:
     """Upload file to MinIO. Returns the object name."""
     from api.db.minio_client import upload_file
@@ -59,6 +79,10 @@ async def save_upload(
 
     Raises ``ValueError`` for invalid MIME type or oversized files.
     """
+    # Detect real MIME from magic bytes — overrides unreliable browser-reported type
+    mime_type = _detect_mime(content, mime_type)
+    logger.info("Detected mime_type after magic-byte check: '%s'", mime_type)
+
     # Validate MIME type
     logger.info("Received mime_type: '%s'", mime_type)
     logger.info("Allowed types: %s", settings.allowed_mime_type_list)
@@ -157,10 +181,14 @@ async def open_file_stream(
     if file_rec is None:
         return None
 
+    _filename = file_rec.get("filename", "file")
     meta = {
         "mime_type": file_rec.get("mime_type", "application/octet-stream"),
-        "filename": file_rec.get("filename", "file"),
+        "filename": _filename,
         "size_bytes": file_rec.get("size_bytes", 0),
+        # inline disposition tells IDM (and browsers) NOT to treat this as a
+        # file download — critical for PDF.js to receive the bytes in-page.
+        "content_disposition": f'inline; filename="{_filename}"',
     }
 
     if file_rec.get("storage_backend") == "minio" and file_rec.get("minio_object"):
@@ -197,10 +225,12 @@ async def get_file_bytes(
     if file_rec is None:
         return None
 
+    _filename = file_rec.get("filename", "file")
     meta = {
         "mime_type": file_rec.get("mime_type", "application/octet-stream"),
-        "filename": file_rec.get("filename", "file"),
+        "filename": _filename,
         "size_bytes": file_rec.get("size_bytes", 0),
+        "content_disposition": f'inline; filename="{_filename}"',
     }
 
     if file_rec.get("storage_backend") == "minio" and file_rec.get("minio_object"):
