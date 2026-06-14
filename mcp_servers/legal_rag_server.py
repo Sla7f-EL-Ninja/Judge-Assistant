@@ -93,14 +93,29 @@ async def search_legal_corpus(
     """Search a legal corpus and return a structured JSON answer."""
     import anyio
 
+    # ── [TRACE] entry — log everything before any check so we can see exactly
+    #    what arrived and what the server's map contains.
+    logger.info(
+        "[TRACE] search_legal_corpus ENTRY — "
+        "corpus=%r query_len=%d scope_fallback=%r | _CORPUS_MAP keys=%s",
+        corpus, len(query), scope_fallback, list(_CORPUS_MAP),
+    )
+
     corpus_config = _CORPUS_MAP.get(corpus)
     if corpus_config is None:
+        logger.error(
+            "[TRACE] search_legal_corpus CORPUS_MISS — received corpus=%r but map only has %s",
+            corpus, list(_CORPUS_MAP),
+        )
         raise_tool_error(
             ErrorCode.INVALID_ARG,
             f"Unknown corpus '{corpus}'. Valid corpora: {list(_CORPUS_MAP)}",
         )
 
+    logger.info("[TRACE] search_legal_corpus corpus OK — resolved corpus_config.name=%r", corpus_config.name)
+
     if scope_fallback not in (None, "section", "chapter"):
+        logger.error("[TRACE] search_legal_corpus SCOPE_FALLBACK_MISS — value=%r", scope_fallback)
         raise_tool_error(
             ErrorCode.INVALID_ARG,
             f"scope_fallback must be None, 'section', or 'chapter'; got '{scope_fallback}'",

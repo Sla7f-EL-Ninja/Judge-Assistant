@@ -121,12 +121,19 @@ def validate_query(query: str) -> str:
             f"الاستعلام طويل جدًا (الحد الأقصى {MAX_QUERY_LENGTH} حرف)."
         )
 
-    arabic_chars = len(re.findall(r"[\u0600-\u06FF]", query))
-    total_chars  = len(query.replace(" ", ""))
-    if total_chars > 0 and (arabic_chars / total_chars) < MIN_ARABIC_RATIO:
-        raise QueryValidationError(
-            "الاستعلام لا يحتوي على نسبة كافية من النص العربي."
-        )
+    # NOTE: Arabic-ratio enforcement intentionally removed from this layer.
+    #
+    # Rationale: the graph's preprocessor_node already handles language
+    # detection and rewrites romanized-Arabic queries ("ma hwa elmada 190...")
+    # to proper Arabic script before any retrieval takes place, and routes
+    # genuinely off-topic queries to off_topic_node.  Enforcing MIN_ARABIC_RATIO
+    # here gates the query BEFORE the preprocessor can rewrite it, which caused
+    # every romanized-Arabic search via /api/v1/legal/search to return HTTP 400
+    # even though the supervisor path sends the same text through the same graph
+    # successfully.
+    #
+    # Structural validation (empty / too-short / too-long) is still enforced
+    # above — those checks catch genuinely malformed input with zero latency.
     return query
 
 

@@ -11,11 +11,22 @@ from qdrant_client.models import FieldCondition, Filter, MatchValue
 
 logger = logging.getLogger("hakim.api.legal_search")
 
-# Map user-facing corpus names to MCP corpus identifiers
+# Map user-facing corpus names to MCP corpus identifiers.
+# Values MUST match CorpusConfig.name as registered in legal_rag_server._CORPUS_MAP
+# (keyed by _c.name at server startup).
+#
+# CONFIRMED directly from the live [TRACE] search_legal_corpus ENTRY log, which
+# dumps the server's actual _CORPUS_MAP keys at child-process boot:
+#   _CORPUS_MAP keys=['civil_law', 'evidence_law', 'procedures_law']
+#
+# NOTE: the corpus_classifier telemetry ("civil", "evidence", "procedures")
+# is NOT the same namespace — that's corpus_router_node's internal scoring
+# label, used only inside the graph and never checked against this map.
+# Do not use it as a source of truth for these values again.
 _CORPUS_MAP = {
     "civil":      "civil_law",
     "evidence":   "evidence_law",
-    "procedural": "procedural_law",
+    "procedural": "procedures_law",
 }
 
 VALID_CORPORA = list(_CORPUS_MAP.keys())
@@ -31,11 +42,20 @@ async def search_articles(query: str, corpus: str) -> dict:
     except (RuntimeError, KeyError) as exc:
         raise RuntimeError(f"MCP_UNAVAILABLE: {exc}") from exc
 
+    logger.info(
+        "[TRACE] search_articles — corpus_in=%r → mcp_corpus=%r (calling search_legal_corpus)",
+        corpus, mcp_corpus,
+    )
     try:
         data = client.call("search_legal_corpus", query=query, corpus=mcp_corpus)
     except MCPUnavailable as exc:
+        logger.error("[TRACE] search_articles — MCPUnavailable: %s", exc)
         raise RuntimeError(f"MCP_UNAVAILABLE: {exc}") from exc
     except ToolError as exc:
+        logger.error(
+            "[TRACE] search_articles — ToolError code=%s message=%r",
+            exc.code, exc.message,
+        )
         raise ValueError(f"{exc.message}") from exc  # drop the [ErrorCode.X] prefix
 
     raw_sources = data.get("sources", [])
